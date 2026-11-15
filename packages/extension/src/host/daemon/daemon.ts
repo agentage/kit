@@ -4,7 +4,7 @@ import { type AddressInfo } from 'node:net';
 import { createLog } from '../../log/log.js';
 import { closeNow, listen } from '../../server/serve.js';
 import { forkLaunch, type Launch } from './child.js';
-import { removeDaemonFile, writeDaemonFile, DAEMON_PROTOCOL } from './daemon-files.js';
+import { pruneValues, removeDaemonFile, writeDaemonFile, DAEMON_PROTOCOL } from './daemon-files.js';
 import { bootInstallation, keepBadCopy } from './installation.js';
 import { type Entries } from './entries.js';
 import { limitsOf, type Limits } from './limits.js';
@@ -62,6 +62,12 @@ const boot = async (deps: SupervisorDeps, entries: Entries): Promise<void> => {
   for (const entry of off) await resolveDir(deps, entry);
 };
 
+// Only a clean list says which rows are orphans; a failed sweep is a warn line, not a failed boot.
+const prune = (deps: SupervisorDeps, ids: string[]) =>
+  pruneValues(deps.configDir, ids, deps.lockMs).catch((err: Error) =>
+    deps.log.warn('orphan settings and secrets rows were not deleted', { reason: err.message })
+  );
+
 const stopper = (server: Server, entries: Entries, deps: SupervisorDeps, life: AbortController) => {
   let stopped: Promise<void> | undefined;
   const stop = async () => {
@@ -105,6 +111,7 @@ export const startDaemon = async (opts: DaemonOptions, launch: Launch): Promise<
   const life = new AbortController();
   const deps = depsOf(opts, launch, () => `http://127.0.0.1:${port}`, stoppingOf(life.signal));
   const { entries, ...file } = await loadEntries(opts.configDir);
+  if (!file.invalid && !file.unreadable) await prune(deps, [...entries.keys()]);
   const info = { version: opts.version, pid: process.pid, protocol: DAEMON_PROTOCOL, ...file };
   const app = daemonApp(deps, entries, () => port, info);
   const server = await listen(app, port, '127.0.0.1');

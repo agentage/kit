@@ -23,12 +23,14 @@ const stepsOf = (deps: SupervisorDeps, id: string, to: Written, was: Written): S
       deps.lockMs
     );
   };
-  return [
+  const steps: Step[] = [
     [() => persist(deps, id, to.install), () => persist(deps, id, was.install)],
     [values('settings', to.values), values('settings', was.values)],
     // Last: a failed write before it leaves secrets.json as it was.
     [values('secrets', to.values), values('secrets', was.values)],
   ];
+  // A remove deletes the secrets first: a crash half way leaves none for a later install of id.
+  return to.install ? steps : steps.reverse();
 };
 
 // An undo that failed leaves the files of id unlike the list: one warn line, and /health names it.

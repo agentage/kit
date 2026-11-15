@@ -89,11 +89,14 @@ before `stop()` resolves.
 its folder is found and nothing starts, so `PATCH { settings }` and `PATCH { enabled: true }`
 work after a restart. A failed installer keeps the entry disabled, with the reason in `error`.
 
-A change writes `installation.json`, `settings.json`, then `secrets.json`; the daemon changes its
+A change writes `installation.json`, `settings.json`, then `secrets.json` (a remove writes them in
+the other order, so a crash half way leaves no secret for a later install of that id); the daemon changes its
 state and children only after all three are written. A failed write puts back the files written
 before it, so the files, the list and the running child stay as they were. When that put-back
 fails too, the daemon writes one warn line and `/health` lists the id in `unsynced` (status
-`degraded`) until a later write of that id passes. When
+`degraded`) until a later write of that id passes. At each boot with a clean `installation.json`, the rows of
+`settings.json` and `secrets.json` for an id it does not name are deleted (a failed sweep is a warn
+line). When
 `installation.json` cannot be read (`EACCES`, `EISDIR`), the daemon never writes it: `/health`
 says `installation: "unreadable"` and `installationError`, and each change is 409
 `INSTALLATION_UNREADABLE` until the file is fixed (unreadable at boot: also a restart). A file with

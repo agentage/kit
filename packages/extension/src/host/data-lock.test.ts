@@ -7,7 +7,13 @@ import { deadPid } from '../test-support/processes.js';
 import { DATA_DIR_LOCKED, EMPTY_LOCK_MS, lockDataDir } from './data-lock.js';
 
 // A volume with no hard links (some CIFS and FUSE mounts): link fails with EPERM.
-const fs = vi.hoisted(() => ({ noLink: false, links: 0 }));
+// onRead: runs once the file was read (another starter acts in that window); onRename: after a rename.
+const fs = vi.hoisted(() => ({
+  noLink: false,
+  links: 0,
+  onRead: undefined as ((file: string, text: string) => Promise<void>) | undefined,
+  onRename: undefined as (() => Promise<void>) | undefined,
+}));
 vi.mock('node:fs/promises', async (original) => {
   const real = await original<typeof FsPromises>();
   const link: typeof real.link = async (from, to) => {
@@ -15,7 +21,16 @@ vi.mock('node:fs/promises', async (original) => {
     if (!fs.noLink) return real.link(from, to);
     throw Object.assign(new Error('EPERM: operation not permitted, link'), { code: 'EPERM' });
   };
-  return { ...real, link };
+  const readFile = (async (file: string, enc: BufferEncoding) => {
+    const text = await real.readFile(file, enc);
+    await fs.onRead?.(file, text);
+    return text;
+  }) as typeof real.readFile;
+  const rename: typeof real.rename = async (from, to) => {
+    await real.rename(from, to);
+    await fs.onRename?.();
+  };
+  return { ...real, link, readFile, rename };
 });
 
 const lockIn = async (pid: number | '') => {
@@ -29,7 +44,8 @@ describe.each([
   ['hard links', false],
   ['no hard links (exclusive create)', true],
 ])('lockDataDir with %s', (_name, noLink) => {
-  const each = () => Object.assign(fs, { noLink, links: 0 });
+  const each = () =>
+    Object.assign(fs, { noLink, links: 0, onRead: undefined, onRename: undefined });
 
   it('takes a free lock and writes its pid; a second take refuses', async () => {
     each();
@@ -78,6 +94,42 @@ describe.each([
       reason: { code: DATA_DIR_LOCKED },
     });
     expect(await readdir(join(data, '..'))).toEqual(['hosted.lock']);
+  });
+
+  it('a fresh lock another starter takes while we judge the old one stale is never moved or replaced', async () => {
+    each();
+    const dead = deadPid();
+    const data = await lockIn(dead);
+    const real = await vi.importActual<typeof FsPromises>('node:fs/promises');
+    // A breaks the stale lock and takes it right after our read; C takes any lock path left free.
+    fs.onRead = async (file, text) => {
+      if (file !== `${data}.lock` || text !== String(dead)) return;
+      fs.onRead = undefined;
+      await real.writeFile(`${data}.lock`, String(process.ppid));
+    };
+    fs.onRename = async () => void (await real.writeFile(`${data}.lock`, '1', { flag: 'wx' }));
+    await expect(lockDataDir(data)).rejects.toMatchObject({ pid: process.ppid });
+    expect(await pid(data)).toBe(String(process.ppid));
+    expect(await readdir(join(data, '..'))).toEqual(['hosted.lock']);
+  });
+
+  it('a live breaker (its guard): refuses and leaves the stale lock alone', async () => {
+    each();
+    const dead = deadPid();
+    const data = await lockIn(dead);
+    await writeFile(`${data}.lock.break`, String(process.ppid));
+    await expect(lockDataDir(data)).rejects.toMatchObject({ pid: process.ppid });
+    expect(await pid(data)).toBe(String(dead));
+  });
+
+  it('a guard left by a dead breaker is removed, then the stale lock is taken over', async () => {
+    each();
+    const data = await lockIn(deadPid());
+    await writeFile(`${data}.lock.break`, String(deadPid()));
+    const release = await lockDataDir(data);
+    expect(await pid(data)).toBe(String(process.pid));
+    expect(await readdir(join(data, '..'))).toEqual(['hosted.lock']);
+    await release();
   });
 
   it('an empty lock (created, pid not yet written) is read again: filled meanwhile, it is live', async () => {

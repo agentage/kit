@@ -98,7 +98,8 @@ rows (the first of each id), `/health` says `installation: "invalid"`, and its n
 the clean list. A write that finds a daemon file locked by another live process waits `lockMs`,
 then is 503 `UNAVAILABLE` naming the pid ("installation.json is locked by process <pid>: waited
 <ms> ms"). The data lock falls back to an exclusive create on a volume with no hard links; an
-empty lock file is taken as being written for 1 s, then as stale.
+empty lock file is taken as being written for 1 s, then as stale. One starter at a time removes a
+stale lock (it holds `<dataDir>.lock.break`), so of many starters at once only one takes it.
 
 Two exports from `/host` write the daemon files under the kit's lock, for a client that moves
 older files before the daemon starts:

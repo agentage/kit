@@ -23,6 +23,7 @@ describe('up files', () => {
     const gateway = (await read('gateway.yml'))['http'] as { routers: Record<string, object> };
     expect(Object.keys(gateway.routers).sort()).toEqual([
       'api',
+      'api-v1',
       'mcp',
       'pages',
       'reserved',

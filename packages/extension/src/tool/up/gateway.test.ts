@@ -21,6 +21,7 @@ describe('gatewayConfig', () => {
     );
     expect(rules).toMatchObject({
       api: ['PathPrefix(`/api/probe/`)', 100, 'api'],
+      'api-v1': ['PathPrefix(`/api/v1/`)', 100, 'api'],
       mcp: ['Path(`/mcp`)', 100, 'mcp'],
       ui: ['PathPrefix(`/ui/0.2.0/`)', 100, 'ui'],
       pages: ['PathPrefix(`/`)', 1, 'pages'],
@@ -60,6 +61,9 @@ describe('gatewayConfig', () => {
       service: 'gateway-miss',
     });
     expect(api.routers['well-known']?.service).toBe('api');
+    expect(
+      gatewayConfig(['mcp'], { id: 'probe', version: '1.0.0' }).http.routers['api-v1']
+    ).toBeUndefined();
     expect(
       gatewayConfig(['mcp'], { id: 'probe', version: '1.0.0' }).http.routers['well-known']?.service
     ).toBe('mcp');

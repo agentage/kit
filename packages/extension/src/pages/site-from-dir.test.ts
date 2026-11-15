@@ -1,9 +1,8 @@
-import { mkdir, mkdtemp, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { recordedLog, serveApp, type Served } from '../test-support/http.js';
-import { API_MANIFEST, SHA } from '../test-support/packages.js';
+import { API_MANIFEST, SHA, tempDir } from '../test-support/packages.js';
 import { isText } from './types.js';
 import { createPagesApp } from './pages-app.js';
 import { type PagesSite } from './pages.js';
@@ -18,7 +17,7 @@ let served: Served | undefined;
 afterEach(async () => served?.close());
 
 const exportDir = async (): Promise<string> => {
-  const dir = await mkdtemp(join(tmpdir(), 'site-'));
+  const dir = await tempDir('site-');
   await mkdir(join(dir, 'docs', 'start'), { recursive: true });
   await mkdir(join(dir, '_next', 'static'), { recursive: true });
   const link = 'https://docs.SITE-FQDN.sentinel.invalid and https://site-fqdn.sentinel.invalid/x';
@@ -57,7 +56,7 @@ describe('siteFromDir', () => {
   });
 
   it('takes a placeholder of its own', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'site-'));
+    const dir = await tempDir('site-');
     await writeFile(join(dir, 'index.html'), 'http://HOST.local:1/');
     const site = siteFromDir(dir, { origin: 'http://localhost:4280', placeholder: 'host.local:1' });
     expect(site['/']).toBe('http://localhost:4280/');
@@ -88,7 +87,7 @@ describe('siteFromDir', () => {
   });
 
   it('keeps an unknown-extension binary byte-identical as octet-stream', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'site-'));
+    const dir = await tempDir('site-');
     const bytes = Buffer.from([0xff, 0xfe, 0x00, 0x80, 0xc3, 0x28]);
     await writeFile(join(dir, 'data.bin'), bytes);
     const site = siteFromDir(dir, { origin: ORIGIN });
@@ -99,7 +98,7 @@ describe('siteFromDir', () => {
   });
 
   it('refuses two files that map to one path, naming both', async () => {
-    const dir = await mkdtemp(join(tmpdir(), 'site-'));
+    const dir = await tempDir('site-');
     await mkdir(join(dir, 'a'));
     await writeFile(join(dir, 'a.html'), 'x');
     await writeFile(join(dir, 'a', 'index.html'), 'y');

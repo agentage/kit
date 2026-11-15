@@ -47,6 +47,12 @@ describe('tool cli', () => {
     expect(out).toEqual(['api     ghcr.io/agentage/probe-api:0.1.0  built']);
   });
 
+  it('build --container asks the kit for the one image', async () => {
+    const { d, calls } = deps();
+    expect(await main(['build', '--container'], d)).toBe(0);
+    expect(calls).toEqual([{ container: true }]);
+  });
+
   it('exits 1 when the build fails, 2 on usage, 0 on --help', async () => {
     const failing = deps(new Error('docker build failed'));
     expect(await main(['build'], failing.d)).toBe(1);
@@ -72,6 +78,19 @@ describe('buildLines', () => {
     expect(buildLines(pushed, '/repo')).toEqual([
       'api     ghcr.io/agentage/probe-api:0.1.0  sha256:bbbbbbbb pushed',
       'record  dist/agentage-extension.json',
+    ]);
+  });
+
+  it('names the one image `all`', () => {
+    const one: BuildResult = {
+      ...RESULT,
+      images: [],
+      container: { tag: 'ghcr.io/agentage/probe:0.1.0', digest: DIGEST },
+      recordFile: '/repo/dist/agentage-container.json',
+    };
+    expect(buildLines(one, '/repo')).toEqual([
+      'all     ghcr.io/agentage/probe:0.1.0  sha256:bbbbbbbb pushed',
+      'record  dist/agentage-container.json',
     ]);
   });
 });

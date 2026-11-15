@@ -22,6 +22,7 @@ export {
   type BuildResult,
   type BuiltImage,
 } from './build.js';
+export { type BuiltContainer } from './container.js';
 export { check, type CheckProblem, type CheckReport } from './check.js';
 export { writeContracts } from './contracts.js';
 export { buildLines, checkLines } from './format.js';

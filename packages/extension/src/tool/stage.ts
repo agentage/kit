@@ -37,12 +37,12 @@ export const exists = (path: string): Promise<boolean> =>
     () => false
   );
 
-const copyInto = async (from: string, to: string): Promise<void> => {
+export const copyInto = async (from: string, to: string): Promise<void> => {
   await mkdir(dirname(to), { recursive: true });
   await cp(from, to, { recursive: true });
 };
 
-const copyDeps = async (dir: string, root: string, pkg: ExtensionPackage): Promise<void> => {
+export const copyDeps = async (dir: string, root: string, pkg: ExtensionPackage): Promise<void> => {
   if (!(await exists(join(dir, 'package-lock.json')))) {
     throw new Error('package-lock.json is missing: the image installs with npm ci');
   }

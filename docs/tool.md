@@ -11,6 +11,7 @@ same tool. `build` and `up` need Docker. The extension must be a git checkout wi
 
 ```bash
 node packages/extension/dist/tool/cli.js build [--push] [--dir <ext>] [--registry <host/owner>]
+node packages/extension/dist/tool/cli.js build --container [--push]  # one image for all parts
 node packages/extension/dist/tool/cli.js up [--dir <ext>]       # agentage extension up
 node packages/extension/dist/tool/cli.js down [--keep-data]
 node packages/extension/dist/tool/cli.js token --scope probe:read
@@ -44,6 +45,14 @@ Each image is multi-stage `node:26-alpine` with `npm ci --omit=dev`, `USER node`
 `HEALTHCHECK` on `127.0.0.1`. It carries only `dist/{part}` and `dist/lib`. The api image also
 carries `openapi.json`, `migrations/` and the migrate entry `node dist/store/migrate.js`. Seeds
 never ship in an image.
+
+`build --container` runs the same first two steps, then builds one image for all parts, tagged
+`ghcr.io/agentage/{id}:{version}`. Its entry is the kit host `dist/host/main.js` on port `8080`
+(see [Host one extension](part-image.md#host-one-extension)); the host serves the api part. It carries all of `dist/`,
+`openapi.json` and `migrations/`. A postgres store adds PGlite (the version in the package lock)
+and a `/data` volume. With `--push` it writes `dist/agentage-container.json`: the record with
+`image` (`{id}@sha256:...`) in place of part images. The labels name no part. The release record
+and the part images do not change.
 
 `up` runs these steps:
 

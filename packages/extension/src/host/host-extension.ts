@@ -3,6 +3,7 @@ import { type Express } from 'express';
 import { createContext, type PartContext } from '../context/context.js';
 import { readSecrets, secretsFrom } from '../context/secrets.js';
 import { settingsOf } from '../context/settings.js';
+import { type BuildInfo } from '../discovery/discovery.js';
 import { readOpenapi } from '../discovery/openapi.js';
 import { healthBody, type HealthCheck } from '../health/health.js';
 import { type HealthBody } from '../health/health.schema.js';
@@ -38,6 +39,8 @@ export interface HostedExtension {
 export interface HostExtras {
   secretsDir?: string;
   guard?: (pkg: ExtensionPackage, log: Log) => Promise<Partial<PartAppBase>>;
+  // The image's COMMIT_SHA and BUILD_TIME for /health; zeros when left out.
+  build?: BuildInfo;
 }
 
 interface Hosting {
@@ -70,7 +73,7 @@ const contextOf = async (h: Hosting, checks: Record<string, HealthCheck>): Promi
     pkg: h.pkg,
     part: 'api',
     origin: h.opts.origin ?? 'http://127.0.0.1',
-    commit: buildInfoFromEnv({}).commit,
+    commit: (h.extras.build ?? buildInfoFromEnv({})).commit,
     log: h.log,
     settings: settingsOf(h.pkg, h.opts.settings ?? {}, h.log),
     store: h.store,
@@ -93,7 +96,7 @@ const baseOf = async (h: Hosting): Promise<PartAppBase> => {
   const guard = (await h.extras.guard?.(h.pkg, h.log)) ?? {};
   const checks = { ...(h.store && { store: storeCheck(h.store) }), ...guard.checks };
   const resolved = { instance: randomBytes(4).toString('hex'), startedAt: Date.now() };
-  const build = buildInfoFromEnv({});
+  const build = h.extras.build ?? buildInfoFromEnv({});
   return { pkg: h.pkg, log: h.log, build, onExit: h.onExit, ...guard, checks, ...resolved };
 };
 

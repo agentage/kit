@@ -3,7 +3,7 @@ import { type AddressInfo } from 'node:net';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EXIT_IN_CREATE, HOSTED_MANIFEST, hostedPackage } from '../test-support/hosted-fixture.js';
-import { tempDir } from '../test-support/packages.js';
+import { SHA, tempDir } from '../test-support/packages.js';
 import { BIND_REFUSED, hostEnvOf } from './host-env.js';
 import { announce, ORPHAN_MS, serveHost, type ServedHost } from './serve-host.js';
 
@@ -67,6 +67,13 @@ describe('serveHost', () => {
     expect((await fetch(`${url}/health`)).status).toBe(200);
     const echo = await (await fetch(`${url}/api/hosted/echo?msg=hi`)).json();
     expect(echo).toMatchObject({ data: { msg: 'hey hi', secret: 5, origin: 'http://127.0.0.1' } });
+  });
+
+  it('reports the image COMMIT_SHA and BUILD_TIME on /health', async () => {
+    const build = { COMMIT_SHA: SHA, BUILD_TIME: '2026-11-15T10:00:00Z' };
+    const { url } = await start(build);
+    const health = (await (await fetch(`${url}/health`)).json()) as { data: object };
+    expect(health.data).toMatchObject({ commit: SHA, buildTime: '2026-11-15T10:00:00Z' });
   });
 
   it('keeps the store in AGENTAGE_DATA_DIR across two runs', async () => {

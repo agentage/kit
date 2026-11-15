@@ -26,4 +26,11 @@ describe('image labels', () => {
     );
     expect(labelsOf(API_MANIFEST, 'api', BUILD)).toEqual(base);
   });
+
+  it('title the one image {id} and name no part', () => {
+    const labels = labelsOf(API_MANIFEST, undefined, BUILD);
+    expect(labels['org.opencontainers.image.title']).toBe('probe');
+    expect(labels['io.agentage.extension']).toBe('probe');
+    expect(labels).not.toHaveProperty('io.agentage.part');
+  });
 });

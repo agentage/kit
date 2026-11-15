@@ -21,20 +21,24 @@ const ImageDigestRefSchema = z
 
 const PartImageSchema = z.strictObject({ image: ImageDigestRefSchema });
 
-const PartsRecordSchema = z
-  .strictObject({
-    pages: PartImageSchema.optional(),
-    ui: PartImageSchema.optional(),
-    api: PartImageSchema.optional(),
-    mcp: PartImageSchema.optional(),
-    worker: PartImageSchema.optional(),
-    store: z
-      .strictObject({ kind: StoreKindSchema, migrations: z.int().min(0).optional() })
-      .optional(),
-  })
-  .refine((parts) => IMAGE_PART_KINDS.some((kind) => parts[kind] !== undefined), {
-    message: 'at least one part with an image',
-  });
+// The one image of every part: registry host[:port]/owner/{id}@sha256.
+const OneImageRefSchema = z
+  .string()
+  .max(256)
+  .regex(
+    /^[a-z0-9][a-z0-9.-]*(:[0-9]{1,5})?\/[a-z0-9][a-z0-9-]*\/[a-z][a-z0-9-]*@sha256:[0-9a-f]{64}$/
+  );
+
+const PartsRecordSchema = z.strictObject({
+  pages: PartImageSchema.optional(),
+  ui: PartImageSchema.optional(),
+  api: PartImageSchema.optional(),
+  mcp: PartImageSchema.optional(),
+  worker: PartImageSchema.optional(),
+  store: z
+    .strictObject({ kind: StoreKindSchema, migrations: z.int().min(0).optional() })
+    .optional(),
+});
 
 export const OriginSchema = z
   .string()
@@ -60,6 +64,7 @@ const recordShape = {
   commit: CommitSchema,
   buildTime: z.iso.datetime(),
   parts: PartsRecordSchema,
+  image: OneImageRefSchema.optional(),
   // /api/v{N}: an extension still on a kit before 0.13, read by a newer one; it goes in phase 4.
   openapi: z
     .string()
@@ -70,13 +75,25 @@ const recordShape = {
   commands: z.array(CommandNameSchema).min(1).optional(),
 };
 
-const imagesNameTheirExtension = (doc: { id: string; parts: z.infer<typeof PartsRecordSchema> }) =>
+type Imaged = { id: string; parts: z.infer<typeof PartsRecordSchema>; image?: string };
+
+const imagesNameTheirExtension = (doc: Imaged) =>
+  (!doc.image || doc.image.includes(`/${doc.id}@sha256:`)) &&
   IMAGE_PART_KINDS.every((kind) => {
     const image = doc.parts[kind]?.image;
     return image === undefined || image.includes(`/${doc.id}-${kind}@sha256:`);
   });
 
-const IMAGE_RULE = { message: 'every image is {id}-{part}', path: ['parts'] };
+const IMAGE_RULE = { message: 'every image is {id}-{part}, the one image {id}', path: ['parts'] };
+
+// One image per part, or the one image of every part (build --container): never both, never none.
+const oneImageForm = (doc: Imaged) =>
+  IMAGE_PART_KINDS.some((kind) => doc.parts[kind] !== undefined) !== Boolean(doc.image);
+
+const FORM_RULE = {
+  message: 'at least one part with an image, or the one image and no part image',
+  path: ['parts'],
+};
 
 // The api prefix is /api/{id}, or the old /api/v{N}: never another extension's id.
 const openapiNamesItsExtension = ({ id, openapi }: { id: string; openapi?: string }) =>
@@ -96,6 +113,7 @@ export const ExtensionRecordSchema = z
     secrets: z.array(SecretNameSchema).min(1).optional(),
     secretParts: z.record(SecretNameSchema, z.array(SecretPartSchema)).optional(),
   })
+  .refine(oneImageForm, FORM_RULE)
   .refine(imagesNameTheirExtension, IMAGE_RULE)
   .refine(openapiNamesItsExtension, OPENAPI_RULE)
   .superRefine((doc, ctx) => {
@@ -107,6 +125,7 @@ export const ExtensionRecordSchema = z
 // What a deployment serves at /.well-known/agentage-extension.json: the record plus its host.
 export const DiscoveryDocumentSchema = z
   .strictObject({ ...recordShape, host: OriginSchema })
+  .refine(oneImageForm, FORM_RULE)
   .refine(imagesNameTheirExtension, IMAGE_RULE)
   .refine(openapiNamesItsExtension, OPENAPI_RULE);
 

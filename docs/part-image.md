@@ -37,6 +37,11 @@ package in `dir` at `/api/{id}/*`. The daemon child and the one container run th
 | `AGENTAGE_ORIGIN`        | `ctx.extension.origin`, `http://127.0.0.1:<PORT>` by default                                                                            |
 | `AGENTAGE_HOST_BIND=all` | listen on every address. It needs a token check (`AGENTAGE_ISSUER`, `AGENTAGE_AUDIENCE`, `AGENTAGE_ORIGIN`) or `AGENTAGE_HOST_AUTH=off` |
 
+The one container (`build --container`) sets `AGENTAGE_HOST_BIND=all`, `PORT=8080` and, with a
+postgres store, `AGENTAGE_DATA_DIR=/data/store` on the volume `/data`. So it needs the token
+values, or `-e AGENTAGE_HOST_AUTH=off` for a local run. `/health` answers on loopback only: use
+`docker exec` or the `HEALTHCHECK` state.
+
 On loopback there is no token check. SIGTERM drains the open requests, closes the store and
 exits 0. `ctx.exit()` does the same. The host brings `@electric-sql/pglite`; the package does not
 need it.

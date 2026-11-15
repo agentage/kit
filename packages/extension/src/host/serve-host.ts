@@ -1,7 +1,7 @@
 import { type Server } from 'node:http';
 import { type AddressInfo } from 'node:net';
 import { createLog } from '../log/log.js';
-import { type Env } from '../runtime/build-info.js';
+import { buildInfoFromEnv, type Env } from '../runtime/build-info.js';
 import { listen, shutdownOn } from '../server/serve.js';
 import { guardOf, hostEnvOf } from './host-env.js';
 import { hostWith, type HostedExtension } from './host-extension.js';
@@ -66,7 +66,7 @@ export const serveHost = async (env: Env, deps: ServeHostDeps = {}): Promise<Ser
   const hook = exitHook();
   const { dataDir, settings, origin, secretsDir } = at;
   const opts = { dataDir, settings, origin, onExit: hook.onExit };
-  const host = await hostWith(at.dir, opts, { secretsDir, guard });
+  const host = await hostWith(at.dir, opts, { secretsDir, guard, build: buildInfoFromEnv(env) });
   const server = await listen(host.app, at.port, at.bind);
   const { log, stop } = drainOn(server, host, deps);
   const { port } = server.address() as AddressInfo;

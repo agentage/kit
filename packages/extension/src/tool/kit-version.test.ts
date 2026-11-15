@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { describe, expect, it } from 'vitest';
-import { KIT_VERSION } from './kit-version.js';
+import { KIT_PGLITE_RANGE, KIT_VERSION } from './kit-version.js';
 
 describe('KIT_VERSION', () => {
   it('is the version of the kit package itself', async () => {
@@ -9,8 +9,10 @@ describe('KIT_VERSION', () => {
     ) as {
       name: string;
       version: string;
+      peerDependencies: Record<string, string>;
     };
     expect(pkg.name).toBe('@agentage/extension');
     expect(KIT_VERSION).toBe(pkg.version);
+    expect(KIT_PGLITE_RANGE).toBe(pkg.peerDependencies['@electric-sql/pglite']);
   });
 });

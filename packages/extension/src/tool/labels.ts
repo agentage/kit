@@ -10,19 +10,20 @@ const repositoryUrl = (pkg: ExtensionPackage): string | undefined => {
 };
 
 // OCI labels: revision is the full sha, created the build time; source links the GHCR package.
+// No part: the one image of every part, titled {id} with no io.agentage.part.
 export const labelsOf = (
   pkg: ExtensionPackage,
-  part: ImagePartKind,
+  part: ImagePartKind | undefined,
   build: BuildInfo
 ): Record<string, string> => {
   const labels: Record<string, string> = {
     'org.opencontainers.image.revision': build.commit,
     'org.opencontainers.image.created': build.buildTime,
     'org.opencontainers.image.version': pkg.version,
-    'org.opencontainers.image.title': `${pkg.agentage.id}-${part}`,
+    'org.opencontainers.image.title': part ? `${pkg.agentage.id}-${part}` : pkg.agentage.id,
     'io.agentage.extension': pkg.agentage.id,
-    'io.agentage.part': part,
   };
+  if (part) labels['io.agentage.part'] = part;
   const source = repositoryUrl(pkg);
   if (source) labels['org.opencontainers.image.source'] = source;
   return labels;

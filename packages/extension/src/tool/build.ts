@@ -9,6 +9,7 @@ import { readManifest } from '../manifest/read-manifest.js';
 import { type Env } from '../runtime/build-info.js';
 import { resolveBuildInfo } from './build-info.js';
 import { assertConforms } from './check.js';
+import { buildContainer, type BuiltContainer } from './container.js';
 import { createDocker, type Docker } from './docker.js';
 import { mustRun, runCommand, type Run } from './exec.js';
 import { labelsOf } from './labels.js';
@@ -22,6 +23,8 @@ export interface BuildOptions {
   dir?: string;
   push?: boolean;
   registry?: string;
+  // One image for every part (`ghcr.io/agentage/{id}:{version}`) in place of one per part.
+  container?: boolean;
   env?: Env;
 }
 
@@ -44,6 +47,7 @@ export interface BuildResult {
   commit: string;
   buildTime: string;
   images: BuiltImage[];
+  container?: BuiltContainer;
   recordFile?: string;
 }
 
@@ -121,7 +125,17 @@ const buildParts = async (
   return images;
 };
 
-// Validate, compile, check, one image per part from the kit recipe; --push pushes, writes the record.
+const containerOf = (
+  base: Omit<PartJob, 'part' | 'tag'>,
+  options: BuildOptions,
+  deps: BuildDeps
+) => {
+  const registry = options.registry ?? DEFAULT_REGISTRY;
+  const job = { ...base, registry, push: options.push, tmpRoot: deps.tmpRoot };
+  return buildContainer(job, deps.docker ?? createDocker(deps.run));
+};
+
+// Validate, compile, check, one image per part (or one for all with --container); --push pushes, writes the record.
 export const build = async (
   options: BuildOptions = {},
   deps: BuildDeps = { run: runCommand }
@@ -131,8 +145,11 @@ export const build = async (
   const info = await resolveBuildInfo(dir, options.env ?? process.env, deps.run);
   await compile(dir, pkg, deps.run);
   await assertConforms(dir, { run: deps.run });
+  const head = { id: pkg.agentage.id, version: pkg.version, ...info };
+  if (options.container)
+    return { ...head, images: [], ...(await containerOf({ dir, pkg, info }, options, deps)) };
   const images = await buildParts({ dir, pkg, info }, options, deps);
-  const result: BuildResult = { id: pkg.agentage.id, version: pkg.version, ...info, images };
+  const result: BuildResult = { ...head, images };
   if (!options.push) return result;
   return { ...result, recordFile: await writeRecord(dir, await recordFor(dir, pkg, info, images)) };
 };

@@ -1,4 +1,9 @@
-import { request, type IncomingHttpHeaders, type IncomingMessage } from 'node:http';
+import {
+  request,
+  type ClientRequest,
+  type IncomingHttpHeaders,
+  type IncomingMessage,
+} from 'node:http';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { type NextFunction, type Request, type RequestHandler, type Response } from 'express';
 import { fail } from '../../envelope/envelope.js';
@@ -36,27 +41,49 @@ export const endToEnd = (headers: IncomingHttpHeaders): IncomingHttpHeaders => {
   return Object.fromEntries(Object.entries(headers).filter(([key]) => !drop.has(key)));
 };
 
-const answer = (res: Response) => (up: IncomingMessage) => {
-  res.writeHead(up.statusCode ?? 502, endToEnd(up.headers));
-  up.pipe(res);
-};
+// No answer headers in answerMs: 504 in the envelope (the closed code set has no 504 code).
+const noAnswer = (ms: number) =>
+  Object.assign(fail('UNAVAILABLE', `The extension did not answer in ${ms} ms`), {
+    status: 504,
+    retryAfter: undefined,
+  });
 
-// Streams the request to the child as it came (path and query kept), no pooled connection.
-const forward = (req: Request, res: Response, next: NextFunction, lane: Lane): void => {
-  const leave = enter(lane);
+const requestTo = (req: Request, lane: Lane) => {
   const { method, originalUrl: path } = req;
   const headers = endToEnd(req.headers);
   const options = { host: '127.0.0.1', port: lane.child.port, method, path, headers, agent: false };
-  const upstream = request(options, answer(res));
-  // A client that went away aborts the request to the child too.
-  res.on('close', () => {
-    if (!res.writableFinished) upstream.destroy();
-    leave();
+  return request(options);
+};
+
+// The child's answer as it streams; an error before its headers is the envelope (504 when late).
+const relay = (upstream: ClientRequest, res: Response, next: NextFunction, ms: number) => {
+  let late = false;
+  const timer = setTimeout(() => ((late = true), upstream.destroy()), ms);
+  upstream.on('response', (up: IncomingMessage) => {
+    clearTimeout(timer);
+    res.writeHead(up.statusCode ?? 502, endToEnd(up.headers));
+    up.pipe(res);
   });
   upstream.on('error', () => {
-    leave();
     if (res.headersSent) return void res.destroy();
-    next(fail('UNAVAILABLE', 'The extension did not answer', { retryAfter: 5 }));
+    next(
+      late ? noAnswer(ms) : fail('UNAVAILABLE', 'The extension did not answer', { retryAfter: 5 })
+    );
+  });
+  return () => clearTimeout(timer);
+};
+
+// Streams the request to the child as it came (path and query kept), no pooled connection.
+const forward = (req: Request, res: Response, next: NextFunction, lane: Lane, ms: number) => {
+  const leave = enter(lane);
+  const upstream = requestTo(req, lane);
+  const stop = relay(upstream, res, next, ms);
+  upstream.on('error', leave);
+  // A client that went away aborts the request to the child too.
+  res.on('close', () => {
+    stop();
+    if (!res.writableFinished) upstream.destroy();
+    leave();
   });
   req.pipe(upstream);
 };
@@ -65,5 +92,5 @@ export const proxyTo =
   (entries: Entries, limits: Pick<Limits, 'gateMs' | 'answerMs'>): RequestHandler =>
   async (req, res, next) => {
     const lane = await laneFor(entries, String(req.params['id']), limits.gateMs);
-    forward(req, res, next, lane);
+    forward(req, res, next, lane, limits.answerMs);
   };

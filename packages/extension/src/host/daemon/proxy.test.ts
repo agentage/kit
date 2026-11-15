@@ -1,4 +1,6 @@
 import express from 'express';
+import { createServer, type IncomingMessage } from 'node:http';
+import { type AddressInfo } from 'node:net';
 import { describe, expect, it, vi } from 'vitest';
 import { startHarness, writeSecrets } from '../../test-support/daemon-harness.js';
 import { hostedPackage, NO_STORE_MANIFEST } from '../../test-support/hosted-fixture.js';
@@ -7,7 +9,32 @@ import { startOn } from '../../testing/test-server.js';
 import { createLog } from '../../log/log.js';
 import { type Entries } from './entries.js';
 import { endToEnd, proxyTo } from './proxy.js';
+import { laneOf } from './lane.js';
 import { type Entry } from './supervisor.js';
+
+// A child that takes each request and never answers; seen holds them as they come.
+const silentChild = async () => {
+  const seen: IncomingMessage[] = [];
+  const server = createServer((req) => void seen.push(req));
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  const port = (server.address() as AddressInfo).port;
+  const child = {
+    port,
+    pid: 1,
+    exited: new Promise<never>(() => undefined),
+    stop: async () => undefined,
+  };
+  const entry: Entry = { id: 'mute', install: { id: 'mute' }, state: 'running', version: '1.0.0' };
+  entry.lane = laneOf(child);
+  const close = () => (server.closeAllConnections(), server.close());
+  return { seen, entries: new Map([['mute', entry]]) as Entries, entry, close };
+};
+
+const daemonOn = async (entries: Entries, answerMs: number) => {
+  const app = express().use('/api/:id', proxyTo(entries, { gateMs: 1_000, answerMs }));
+  app.use(errorHandler(createLog({ extension: 'host', part: 'api' }, () => undefined)));
+  return startOn(app);
+};
 
 describe('proxyTo', () => {
   it('a request held by a swap that does not end in time gets 503 in the envelope', async () => {
@@ -64,5 +91,41 @@ describe('a client that goes away', () => {
     expect(Date.now() - started).toBeLessThan(2_000);
     await h.daemon.stop();
     vi.restoreAllMocks();
+  });
+});
+
+describe('the wait for the child', () => {
+  it('a child that sends no answer headers in answerMs is 504 in the envelope; the request is dropped', async () => {
+    const mute = await silentChild();
+    const server = await daemonOn(mute.entries, 150);
+    const started = Date.now();
+    const res = await server.fetch('/api/mute/echo');
+    expect([res.status, await res.json()]).toMatchObject([
+      504,
+      {
+        success: false,
+        error: { code: 'UNAVAILABLE', message: 'The extension did not answer in 150 ms' },
+      },
+    ]);
+    expect(Date.now() - started).toBeLessThan(2_000);
+    await vi.waitFor(() => expect(mute.seen[0]?.destroyed).toBe(true));
+    expect(mute.entry.lane?.open).toBe(0);
+    await server.close();
+    mute.close();
+  });
+
+  it('a client abort closes the request on the child socket at once', async () => {
+    const mute = await silentChild();
+    const server = await daemonOn(mute.entries, 60_000);
+    const abort = new AbortController();
+    const sent = server.fetch('/api/mute/echo', { signal: abort.signal }).catch(() => 'aborted');
+    await vi.waitFor(() => expect(mute.seen).toHaveLength(1));
+    const closed = new Promise((resolve) => mute.seen[0]!.socket.once('close', resolve));
+    abort.abort();
+    expect(await sent).toBe('aborted');
+    await closed;
+    expect(mute.entry.lane?.open).toBe(0);
+    await server.close();
+    mute.close();
   });
 });

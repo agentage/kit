@@ -1,0 +1,126 @@
+import { fork, type ChildProcess } from 'node:child_process';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { SecretNameSchema } from '../../manifest/primitives.schema.js';
+
+export interface LaunchSpec {
+  id: string;
+  dir: string;
+  dataDir: string;
+  settings: Record<string, unknown>;
+  secrets: Record<string, string>;
+  origin: string;
+}
+
+export interface Exit {
+  code: number | null;
+  signal: string | null;
+}
+
+// A started extension: its loopback port; stop drains it (SIGTERM) and waits for the exit.
+export interface Child {
+  port: number;
+  pid: number;
+  exited: Promise<Exit>;
+  stop(): Promise<void>;
+}
+
+export type Launch = (spec: LaunchSpec) => Promise<Child>;
+
+export const HOST_MAIN = fileURLToPath(new URL('../main.js', import.meta.url));
+const START_MS = 60_000;
+const STOP_MS = 5_000;
+const PASSED = ['PATH', 'HOME', 'TMPDIR', 'LANG', 'NODE_EXTRA_CA_CERTS'];
+
+// Handed over as 0600 files in a 0700 folder, removed once the child has read them.
+const secretFiles = async (spec: LaunchSpec): Promise<string> => {
+  const dir = await mkdtemp(join(tmpdir(), `agentage-${spec.id}-`));
+  for (const [name, value] of Object.entries(spec.secrets))
+    await writeFile(join(dir, SecretNameSchema.parse(name)), value, { mode: 0o600 });
+  return dir;
+};
+
+const envOf = (spec: LaunchSpec, secretsDir: string): NodeJS.ProcessEnv => ({
+  ...Object.fromEntries(PASSED.flatMap((k) => (process.env[k] ? [[k, process.env[k]]] : []))),
+  PORT: '0',
+  AGENTAGE_EXTENSION_DIR: spec.dir,
+  AGENTAGE_DATA_DIR: spec.dataDir,
+  AGENTAGE_SETTINGS: JSON.stringify(spec.settings),
+  AGENTAGE_SECRETS_DIR: secretsDir,
+  AGENTAGE_ORIGIN: spec.origin,
+});
+
+// The child's last stderr line, its msg when it is a log row: why it did not start.
+const lastWords = (tail: string, code: number | null): string => {
+  const lines = tail
+    .trim()
+    .split('\n')
+    .filter((l) => !/^Node\.js v\d/.test(l));
+  const line = lines.at(-1) ?? '';
+  try {
+    const msg = String((JSON.parse(line) as { msg?: unknown }).msg ?? line);
+    return msg.replace(/^[A-Za-z]*Error: /, '');
+  } catch {
+    return line || `exited with code ${code}`;
+  }
+};
+
+const captured = (child: ChildProcess): (() => string) => {
+  let tail = '';
+  child.stdout?.pipe(process.stdout);
+  child.stderr?.on('data', (chunk: Buffer) => {
+    process.stderr.write(chunk);
+    tail = (tail + chunk.toString()).slice(-4000);
+  });
+  return () => tail;
+};
+
+const portOf = (msg: unknown): number | undefined => {
+  const { type, port } = (msg ?? {}) as { type?: unknown; port?: unknown };
+  return type === 'ready' && typeof port === 'number' ? port : undefined;
+};
+
+// The port the child bound, or why it exited first; a child silent for START_MS is killed.
+const readyOf = (child: ChildProcess, tail: () => string): Promise<number> =>
+  new Promise((resolve, reject) => {
+    const timer = setTimeout(() => child.kill('SIGKILL'), START_MS);
+    const settle = (fn: () => void) => {
+      clearTimeout(timer);
+      fn();
+    };
+    child.on('message', (msg) => {
+      const port = portOf(msg);
+      if (port) settle(() => resolve(port));
+    });
+    child.once('exit', (code) => settle(() => reject(new Error(lastWords(tail(), code)))));
+  });
+
+// SIGTERM drains; a child still there after STOP_MS (a request that never ends) gets SIGKILL.
+const stopOf = (child: ChildProcess, exited: Promise<Exit>) => async () => {
+  if (child.exitCode === null && child.signalCode === null) child.kill('SIGTERM');
+  const kill = setTimeout(() => child.kill('SIGKILL'), STOP_MS);
+  await exited;
+  clearTimeout(kill);
+};
+
+// One child process per extension: node dist/host/main.js on a port the OS picks.
+export const forkLaunch =
+  (main = HOST_MAIN): Launch =>
+  async (spec) => {
+    const secretsDir = await secretFiles(spec);
+    const stdio = ['ignore', 'pipe', 'pipe', 'ipc'] as const;
+    // execArgv []: the daemon's own node flags (a loader, --input-type) are not the child's.
+    const env = envOf(spec, secretsDir);
+    const child = fork(main, [], { env, execArgv: [], stdio: [...stdio] });
+    const exited = new Promise<Exit>((resolve) =>
+      child.once('exit', (code, signal) => resolve({ code, signal }))
+    );
+    try {
+      const port = await readyOf(child, captured(child));
+      return { port, pid: child.pid ?? 0, exited, stop: stopOf(child, exited) };
+    } finally {
+      await rm(secretsDir, { recursive: true, force: true });
+    }
+  };

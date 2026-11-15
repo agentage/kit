@@ -69,7 +69,7 @@ describe('public surface', () => {
   });
 
   it('the host subpath exports what the daemon and the cli call', () => {
-    expect(Object.keys(host).sort()).toEqual(['hostExtension']);
+    expect(Object.keys(host).sort()).toEqual(['DAEMON_PORT', 'createDaemon', 'hostExtension']);
   });
 
   it('the logs subpath exports the event line', () => {

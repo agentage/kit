@@ -23,6 +23,7 @@ const API = `export const create = (ctx) => async (req, res, next) => {
     const secret = ctx.secrets.apiToken.length;
     return res.json({ success: true, data: { msg, hits: rows[0].n, secret, pid: process.pid, origin: ctx.extension.origin } });
   }
+  if (req.path === '/hang') return;
   if (req.path === '/slow') return setTimeout(() => res.json({ success: true, data: process.pid }), 300);
   if (req.path === '/exit') {
     ctx.exit();

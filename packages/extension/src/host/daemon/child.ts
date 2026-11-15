@@ -47,7 +47,8 @@ const envOf = (spec: LaunchSpec, secretsDir: string): NodeJS.ProcessEnv => ({
 const lastWords = (tail: string, code: number | null): string => {
   const line = tail.trim().split('\n').at(-1) ?? '';
   try {
-    return String((JSON.parse(line) as { msg?: unknown }).msg ?? line);
+    const msg = String((JSON.parse(line) as { msg?: unknown }).msg ?? line);
+    return msg.replace(/^[A-Za-z]*Error: /, '');
   } catch {
     return line || `exited with code ${code}`;
   }

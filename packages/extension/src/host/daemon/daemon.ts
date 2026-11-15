@@ -62,6 +62,16 @@ const stopper = (server: Server, entries: Entries, configDir: string) => {
   return () => (stopped ??= stop());
 };
 
+// C4: how a client finds this daemon.
+const announce = ({ configDir, version, startedBy }: DaemonOptions, port: number) =>
+  writeDaemonFile(configDir, {
+    pid: process.pid,
+    port,
+    version,
+    protocol: DAEMON_PROTOCOL,
+    startedBy,
+  });
+
 // The daemon with the children launched by launch (tests start them in this process).
 export const startDaemon = async (opts: DaemonOptions, launch: Launch): Promise<Daemon> => {
   await ensureConfigDir(opts.configDir);
@@ -75,14 +85,7 @@ export const startDaemon = async (opts: DaemonOptions, launch: Launch): Promise<
     '127.0.0.1'
   );
   port = (server.address() as AddressInfo).port;
-  const { version, startedBy } = opts;
-  await writeDaemonFile(opts.configDir, {
-    pid: process.pid,
-    port,
-    version,
-    protocol: DAEMON_PROTOCOL,
-    startedBy,
-  });
+  await announce(opts, port);
   await boot(deps, entries);
   return { port, stop: stopper(server, entries, opts.configDir) };
 };

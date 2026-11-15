@@ -46,6 +46,15 @@ const changes = (deps: SupervisorDeps, entries: Entries) => {
   return { add, change, remove };
 };
 
+const hostRoutes = (app: Express, deps: SupervisorDeps, entries: Entries): void => {
+  app.get('/host/extensions', (_req, res) => void res.json(ok([...entries.values()].map(listed))));
+  const json = express.json({ limit: BODY_LIMIT });
+  const { add, change, remove } = changes(deps, entries);
+  app.post('/host/extensions', json, add);
+  app.patch('/host/extensions/:id', json, change);
+  app.delete('/host/extensions/:id', remove);
+};
+
 // C5: /health, /host/extensions, and /api/{id}/* to the child of that id; Host and Origin first.
 export const daemonApp = (
   deps: SupervisorDeps,
@@ -61,12 +70,7 @@ export const daemonApp = (
     '/health',
     (_req, res) => void res.set('Cache-Control', 'no-store').json(healthOf(entries, version))
   );
-  app.get('/host/extensions', (_req, res) => void res.json(ok([...entries.values()].map(listed))));
-  const json = express.json({ limit: BODY_LIMIT });
-  const { add, change, remove } = changes(deps, entries);
-  app.post('/host/extensions', json, add);
-  app.patch('/host/extensions/:id', json, change);
-  app.delete('/host/extensions/:id', remove);
+  hostRoutes(app, deps, entries);
   app.use(notFound);
   app.use(errorHandler(deps.log));
   return app;

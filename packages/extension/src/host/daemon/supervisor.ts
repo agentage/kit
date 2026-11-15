@@ -33,6 +33,13 @@ export interface Values {
   secrets: Record<string, string>;
 }
 
+// Where a change goes: the install entry, its values, and the folder a new version installed to.
+export interface Next {
+  install: InstallEntry;
+  values: Values;
+  dir?: string;
+}
+
 export interface SupervisorDeps {
   configDir: string;
   launch: Launch;
@@ -52,7 +59,8 @@ export const valuesOf = async (configDir: string, id: string): Promise<Values> =
 });
 
 // The package folder: the source itself, the folder an install gave, or the installer again.
-const dirOf = async (deps: SupervisorDeps, entry: Entry, install: InstallEntry) => {
+const dirOf = async (deps: SupervisorDeps, entry: Entry, install: InstallEntry, given?: string) => {
+  if (given) return given;
   if (install.source) return install.source;
   if (entry.dir && install.version === entry.install.version) return entry.dir;
   if (!deps.install) throw noInstaller();
@@ -64,9 +72,10 @@ export const launchFor = async (
   deps: SupervisorDeps,
   entry: Entry,
   install: InstallEntry,
-  values: Values
+  values: Values,
+  given?: string
 ): Promise<Lane> => {
-  const dir = await dirOf(deps, entry, install);
+  const dir = await dirOf(deps, entry, install, given);
   const pkg = await readManifest(dir);
   const dataDir = dataDirOf(deps.configDir, entry.id);
   const child = await deps.launch({ id: entry.id, dir, dataDir, ...values });
@@ -96,45 +105,42 @@ export const startEntry = async (deps: SupervisorDeps, entry: Entry): Promise<vo
 };
 
 // No store: start the new child, move the route, then drain and stop the old one.
-const overlap = async (deps: SupervisorDeps, entry: Entry, install: InstallEntry, v: Values) => {
-  const next = await launchFor(deps, entry, install, v);
+const overlap = async (deps: SupervisorDeps, entry: Entry, to: Next) => {
+  const next = await launchFor(deps, entry, to.install, to.values, to.dir);
   const old = entry.lane;
   entry.lane = next;
   await retire(old);
 };
 
 // A store: hold new requests, drain and stop the old child, start the new one (or the old again).
-const handOver = async (deps: SupervisorDeps, entry: Entry, install: InstallEntry, v: Values) => {
+const handOver = async (deps: SupervisorDeps, entry: Entry, to: Next) => {
   let release = () => undefined as void;
   entry.gate = new Promise<void>((resolve) => (release = resolve));
   const old = entry.lane;
   entry.lane = undefined;
   try {
     await retire(old);
-    entry.lane = await launchFor(deps, entry, install, v).catch(async (err: unknown) => {
-      entry.lane = await launchFor(
-        deps,
-        entry,
-        entry.install,
-        await valuesOf(deps.configDir, entry.id)
-      );
-      throw err;
-    });
+    entry.lane = await launchFor(deps, entry, to.install, to.values, to.dir).catch(
+      async (err: unknown) => {
+        entry.lane = await launchFor(
+          deps,
+          entry,
+          entry.install,
+          await valuesOf(deps.configDir, entry.id)
+        );
+        throw err;
+      }
+    );
   } finally {
     entry.gate = undefined;
     release();
   }
 };
 
-// A running extension moves to install with values; on a refusal the old child keeps the route.
-export const swap = async (
-  deps: SupervisorDeps,
-  entry: Entry,
-  install: InstallEntry,
-  v: Values
-) => {
+// A running extension moves to the install and values of to; on a refusal the old child keeps the route.
+export const swap = async (deps: SupervisorDeps, entry: Entry, to: Next) => {
   try {
-    await (entry.store ? handOver : overlap)(deps, entry, install, v);
+    await (entry.store ? handOver : overlap)(deps, entry, to);
   } catch (err) {
     const reason = (err as Error).message;
     if (!entry.lane) Object.assign(entry, { state: 'failed', error: reason });

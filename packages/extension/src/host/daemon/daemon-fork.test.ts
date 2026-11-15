@@ -68,6 +68,14 @@ describe('daemon with child processes', () => {
     expect(alive(b.body.data!.pid)).toBe(false);
   });
 
+  it('a child that refuses to start is failed with its own reason', async () => {
+    const lone = { ...HOSTED_MANIFEST, agentage: { ...HOSTED_MANIFEST.agentage, id: 'lone' } };
+    const added = await h.call('POST', '/host/extensions', { source: await hostedPackage(lone) });
+    const error = 'api refused to start: secret api-token has no value';
+    expect(added.body).toMatchObject({ data: { id: 'lone', state: 'failed', error } });
+    await h.call('DELETE', '/host/extensions/lone');
+  });
+
   it('a killed child is failed in the list and /health; the other still answers', async () => {
     const { body } = await echo('hosted');
     process.kill(body.data!.pid, 'SIGKILL');

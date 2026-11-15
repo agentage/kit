@@ -72,6 +72,43 @@ describe('daemon lifecycle', () => {
     expect(doc).toEqual({ host: 'local', extensions: [{ id: 'hosted', version: '1.1.0' }] });
   });
 
+  it.each([
+    ['with a store', HOSTED_MANIFEST],
+    ['without a store', NO_STORE],
+  ])(
+    'a version the new child refuses keeps the old one, also for a later PATCH (%s)',
+    async (_n, manifest) => {
+      const broken = 'export const create = () => { throw new Error("boom in 2.0.0"); };';
+      const dirs: Record<string, string> = {
+        '1.0.0': await hostedPackage({ ...manifest, version: '1.0.0' }),
+        '2.0.0': await hostedPackage({ ...manifest, version: '2.0.0' }, broken),
+      };
+      const install = vi.fn(
+        async ({ id, version = '1.0.0' }: { id: string; version?: string }) => ({
+          id,
+          version,
+          dir: dirs[version]!,
+        })
+      );
+      h = await startHarness({ install });
+      await writeFile(join(h.configDir, 'secrets.json'), SECRETS, { mode: 0o600 });
+      await h.call('POST', '/host/extensions', { id: 'hosted' });
+      const refused = await h.call('PATCH', '/host/extensions/hosted', { version: '2.0.0' });
+      expect(refused).toMatchObject({
+        status: 400,
+        body: { error: { message: expect.stringContaining('boom in 2.0.0') } },
+      });
+      await h.call('PATCH', '/host/extensions/hosted', { settings: { 'echo.prefix': 'hey' } });
+      expect((await h.call('GET', '/api/hosted/echo?msg=hi')).body).toMatchObject({
+        data: { msg: 'hey hi' },
+      });
+      expect((await h.call('GET', '/health')).body).toMatchObject({
+        extensions: [{ version: '1.0.0', state: 'running' }],
+      });
+      expect(install).toHaveBeenCalledTimes(2);
+    }
+  );
+
   it('on start runs each enabled extension of installation.json; a failed one stops no other', async () => {
     const configDir = await tempConfigDir();
     const other = { ...NO_STORE, agentage: { ...NO_STORE.agentage, id: 'other' } };

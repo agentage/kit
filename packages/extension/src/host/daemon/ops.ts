@@ -13,8 +13,8 @@ import {
   swap,
   valuesOf,
   type Entry,
+  type Next,
   type SupervisorDeps,
-  type Values,
 } from './supervisor.js';
 
 export const RESERVED_ID = 'host';
@@ -30,6 +30,8 @@ const PatchSchema = z.strictObject({
   settings: z.record(z.string(), z.unknown()).optional(),
   secrets: z.record(z.string(), z.string()).optional(),
 });
+
+type Patch = z.infer<typeof PatchSchema>;
 
 export type Entries = Map<string, Entry>;
 
@@ -101,32 +103,46 @@ const entryOf = (entries: Entries, id: string): Entry => {
   return entry;
 };
 
-const nextInstall = async (
-  deps: SupervisorDeps,
-  entry: Entry,
-  patch: z.infer<typeof PatchSchema>
-) => {
+// The install entry a patch asks for; a new version is installed first and its folder kept aside.
+const nextInstall = async (deps: SupervisorDeps, entry: Entry, patch: Patch) => {
   // enabled absent means true (C3), so only false is written.
   const install: InstallEntry = { ...entry.install };
   delete install.enabled;
   if ((patch.enabled ?? entry.install.enabled) === false) install.enabled = false;
-  if (!patch.version) return install;
+  if (!patch.version) return { install };
   if (install.source)
     throw fail('VALIDATION_ERROR', `${entry.id} runs a folder: it has no version`);
   if (!deps.install) throw noInstaller();
   const got = await deps.install({ id: entry.id, version: patch.version });
-  entry.dir = got.dir;
-  return { ...install, version: got.version };
+  return { install: { ...install, version: got.version }, dir: got.dir };
 };
 
-const save = async (deps: SupervisorDeps, entry: Entry, install: InstallEntry, v: Values) => {
-  entry.install = install;
-  await persist(deps, entry.id, install);
-  await writeValues(deps.configDir, 'settings', entry.id, v.settings);
-  await writeValues(deps.configDir, 'secrets', entry.id, v.secrets);
+const nextOf = async (deps: SupervisorDeps, entry: Entry, patch: Patch): Promise<Next> => {
+  const was = await valuesOf(deps.configDir, entry.id);
+  const settings = { ...was.settings, ...patch.settings };
+  const values = { settings, secrets: { ...was.secrets, ...patch.secrets } };
+  return { ...(await nextInstall(deps, entry, patch)), values };
 };
 
-// PATCH: a running extension swaps with 0 lost requests; values persist once the new child runs.
+const save = async (deps: SupervisorDeps, entry: Entry, to: Next) => {
+  Object.assign(entry, { install: to.install }, to.dir && { dir: to.dir });
+  await persist(deps, entry.id, to.install);
+  await writeValues(deps.configDir, 'settings', entry.id, to.values.settings);
+  await writeValues(deps.configDir, 'secrets', entry.id, to.values.secrets);
+};
+
+// Disabled: stopped. Running: swapped with 0 lost requests. Not running: started once saved.
+const apply = async (deps: SupervisorDeps, entry: Entry, to: Next) => {
+  const enabled = to.install.enabled !== false;
+  if (!enabled) {
+    await halt(entry);
+    entry.state = 'disabled';
+  } else if (entry.lane) await swap(deps, entry, to);
+  await save(deps, entry, to);
+  if (enabled && !entry.lane) await startEntry(deps, entry);
+};
+
+// PATCH: values persist only once the new child runs; a refused change keeps the old one.
 export const changeExtension = async (
   deps: SupervisorDeps,
   entries: Entries,
@@ -135,18 +151,7 @@ export const changeExtension = async (
 ) => {
   const patch = parse(PatchSchema, body, 'Invalid body');
   const entry = entryOf(entries, id);
-  const install = await nextInstall(deps, entry, patch);
-  const was = await valuesOf(deps.configDir, id);
-  const v = {
-    settings: { ...was.settings, ...patch.settings },
-    secrets: { ...was.secrets, ...patch.secrets },
-  };
-  if (install.enabled === false) {
-    await halt(entry);
-    entry.state = 'disabled';
-  } else if (entry.lane) await swap(deps, entry, install, v);
-  await save(deps, entry, install, v);
-  if (install.enabled !== false && !entry.lane) await startEntry(deps, entry);
+  await apply(deps, entry, await nextOf(deps, entry, patch));
   return summary(entry);
 };
 

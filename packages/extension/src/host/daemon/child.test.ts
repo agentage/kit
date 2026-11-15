@@ -1,4 +1,4 @@
-import { writeFile } from 'node:fs/promises';
+import { access, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { tempDir } from '../../test-support/packages.js';
@@ -41,5 +41,34 @@ describe('forkLaunch refusals', () => {
     const row = JSON.stringify({ msg: 'Error: secret api-token has no value' });
     const main = await script(`console.error(${JSON.stringify(row)}); process.exit(1);`);
     await expect(forkLaunch(main)(SPEC)).rejects.toThrow(/^secret api-token has no value$/);
+  });
+});
+
+describe('forkLaunch hand-over', () => {
+  it('secrets are 0600 files in a 0700 folder, removed once it started; only the listed env passes', async () => {
+    const out = join(await tempDir('agentage-child-'), 'seen.json');
+    const main = await script(`
+      import { readFileSync, statSync, writeFileSync } from 'node:fs';
+      const d = process.env.AGENTAGE_SECRETS_DIR;
+      const mode = (p) => statSync(p).mode & 0o777;
+      const token = readFileSync(d + '/api-token', 'utf8');
+      const seen = { d, dir: mode(d), file: mode(d + '/api-token'), token, keys: Object.keys(process.env) };
+      writeFileSync(${JSON.stringify(out)}, JSON.stringify(seen));
+      process.send({ type: 'ready', port: 1 });
+      setInterval(() => undefined, 1000);
+    `);
+    process.env['S111_NOT_PASSED'] = 'x';
+    try {
+      const child = await forkLaunch(main)({ ...SPEC, secrets: { 'api-token': 'tok' } });
+      await child.stop();
+    } finally {
+      delete process.env['S111_NOT_PASSED'];
+    }
+    const seen = JSON.parse(await readFile(out, 'utf8')) as Record<string, unknown> & { d: string };
+    expect(seen).toMatchObject({ dir: 0o700, file: 0o600, token: 'tok' });
+    await expect(access(seen.d)).rejects.toMatchObject({ code: 'ENOENT' });
+    const allowed =
+      /^(PORT|AGENTAGE_.*|NODE_CHANNEL_.*|PATH|HOME|TMPDIR|LANG|NODE_EXTRA_CA_CERTS)$/;
+    expect((seen['keys'] as string[]).filter((k) => !allowed.test(k))).toEqual([]);
   });
 });

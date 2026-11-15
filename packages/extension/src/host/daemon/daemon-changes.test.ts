@@ -26,13 +26,15 @@ const installed = async (options: Parameters<typeof startHarness>[0] = {}) => {
 const echo = async () =>
   ((await h!.call('GET', '/api/hosted/echo?msg=hi')).body as { data?: { msg: string } }).data?.msg;
 
-// A child that binds its port and never answers, for the launch number `at`.
-const silentAt = (at: number): Launch => {
+// A child that binds its port and never answers (or answers `status`), for the launch number `at`.
+const silentAt = (at: number, status?: number): Launch => {
   let calls = 0;
   return async (spec) => {
     calls += 1;
     if (calls !== at) return inProcessLaunch(spec);
-    const server: Server = createServer(() => undefined);
+    const server: Server = createServer(
+      (_req, res) => void (status && res.writeHead(status).end())
+    );
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
     const stop = async () => void (server.closeAllConnections(), server.close());
     const exited = new Promise<never>(() => undefined);
@@ -49,6 +51,18 @@ describe('daemon changes', () => {
     expect(change).toMatchObject({ status: 400, body: { error: { code: 'START_FAILED' } } });
     expect((change.body as { error: { message: string } }).error.message).toContain(
       'health did not answer in 200 ms'
+    );
+    expect(await echo()).toBe('hi');
+  });
+
+  it('a new child whose /health is 503 is refused with that status; the old one runs again', async () => {
+    await installed({ launch: silentAt(2, 503) });
+    const change = await h!.call('PATCH', '/host/extensions/hosted', {
+      settings: { 'echo.prefix': 'hey' },
+    });
+    expect(change).toMatchObject({ status: 400, body: { error: { code: 'START_FAILED' } } });
+    expect((change.body as { error: { message: string } }).error.message).toContain(
+      'health answered 503'
     );
     expect(await echo()).toBe('hi');
   });

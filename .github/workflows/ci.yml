@@ -271,8 +271,8 @@ jobs:
           npm run build --prefix platform
           npm pack --workspaces --prefix platform --pack-destination "$PWD/probe"
           cd probe
-          npm ci
-          npm install ./agentage-extension-*.tgz ./agentage-widget-*.tgz
+          # No npm ci first: a probe that already pins the candidate version cannot fetch it from npm.
+          npm install --no-audit --no-fund ./agentage-extension-*.tgz ./agentage-widget-*.tgz
           # Permanent: the probe's own range refuses every new kit minor; the gate proves the candidate runs the probe.
           npm pkg set engines.agentage=">=0.6"
           grep -E "\"@agentage/(extension|widget)\": \"file:" package.json

@@ -96,9 +96,8 @@ the other order, so a crash half way leaves no secret for a later install of tha
 changes its state and children only after all three are written. A failed write puts back the
 files written before it, so the files, the list and the running child stay as they were. When that
 put-back fails too, the daemon writes one warn line and `/health` lists the id in `unsynced`
-(status `degraded`) until a later write of that id passes. At each boot with a clean
-`installation.json`, the `settings.json` and `secrets.json` rows of an id it does not name are
-deleted (a failed sweep is a warn line).
+(status `degraded`) until a later write of that id passes. Only a remove of an id deletes its
+`settings.json` and `secrets.json` rows; a boot never does, whatever `installation.json` holds.
 
 When `installation.json` cannot be read (`EACCES`, `EISDIR`), the daemon never writes it:
 `/health` says `installation: "unreadable"` and `installationError`, and each change is 409

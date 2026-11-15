@@ -68,13 +68,3 @@ export const writeValues = (
     },
     waitMs
   );
-
-// Rows of an id installation.json does not name (a remove stopped half way) are deleted at boot.
-export const pruneValues = async (configDir: string, ids: string[], waitMs?: number) => {
-  const prune = (all: Rows) => {
-    const kept = Object.entries(all).filter(([id]) => ids.includes(id));
-    return kept.length < Object.keys(all).length ? Object.fromEntries(kept) : all;
-  };
-  for (const kind of ['settings', 'secrets'] as const)
-    await changeValues(configDir, kind, prune, waitMs);
-};

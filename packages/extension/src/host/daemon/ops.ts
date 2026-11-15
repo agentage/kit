@@ -1,3 +1,4 @@
+import { isDeepStrictEqual } from 'node:util';
 import { z } from 'zod';
 import { fail } from '../../envelope/envelope.js';
 import { parse } from '../../envelope/parse.js';
@@ -34,7 +35,7 @@ const nextInstall = async (deps: SupervisorDeps, entry: Entry, patch: Patch) => 
   const install: InstallEntry = { ...entry.install };
   delete install.enabled;
   if ((patch.enabled ?? entry.install.enabled) === false) install.enabled = false;
-  if (!patch.version) return { install };
+  if (!patch.version || patch.version === entry.install.version) return { install };
   if (install.source)
     throw fail('VALIDATION_ERROR', `${entry.id} runs a folder: it has no version`);
   const got = await runInstaller(deps, { id: entry.id, version: patch.version });
@@ -73,7 +74,14 @@ const held = async (deps: SupervisorDeps, entry: Entry, to: Next, was: Values) =
   }
 };
 
-// PATCH: a refused change keeps the old one and is 400 START_FAILED.
+// Nothing to do: the same files, and the entry already runs (or is stopped) as they say.
+const unchanged = (entry: Entry, to: Next, was: Values): boolean =>
+  entry.state === (to.install.enabled === false ? 'disabled' : 'running') &&
+  (!to.dir || to.dir === entry.dir) &&
+  isDeepStrictEqual(to.install, entry.install) &&
+  isDeepStrictEqual(to.values, was);
+
+// PATCH: a refused change keeps the old one and is 400 START_FAILED; a failed entry is started again.
 export const changeExtension = async (
   deps: SupervisorDeps,
   entries: Entries,
@@ -83,7 +91,7 @@ export const changeExtension = async (
   const patch = parse(PatchSchema, body, 'Invalid body');
   const entry = entryOf(entries, id);
   const { to, was } = await nextOf(deps, entry, patch);
-  await held(deps, entry, to, was);
+  if (!unchanged(entry, to, was)) await held(deps, entry, to, was);
   return summary(entry);
 };
 

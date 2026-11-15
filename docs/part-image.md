@@ -130,7 +130,9 @@ The 11 min of `installMs` is above the cli's npm bound (10 min) and below its cl
 The daemon (`createDaemon`) answers `/health` with `service: "agentage-daemon"`, `pid`, `version`
 and `protocol`, the values of `daemon.json`, so a client can prove which process it talks to. A
 `PATCH {settings}` string becomes the type the manifest declares (`"5"` to `5`, `"true"`); any
-other value, or an undeclared key, is `400 INVALID_SETTING`. An `Installer` error with a string
+other value, or an undeclared key, is `400 INVALID_SETTING`. A `PATCH` that changes nothing (the same
+values and version, the entry already running or disabled as asked) is 200 and starts no child; a
+`PATCH` of a failed entry starts it again. An `Installer` error with a string
 `code` (and `status` 400, 404 or 502) is the client's error; any other error is a logged `500`.
 The daemon calls the `Installer` again on every boot, once for each entry with a version (disabled
 ones too, after the enabled ones started), one at a time, after the folder entries. So it must be idempotent and fast for a

@@ -79,6 +79,24 @@ describe('daemon changes', () => {
     expect(all).toEqual({ hosted: { 'api-token': 't' } });
   });
 
+  it('a PATCH that changes nothing is 200 and keeps the child; the same version calls no installer', async () => {
+    const dir = await hostedPackage();
+    const install = vi.fn(async ({ id }: { id: string }) => ({ id, version: '1.0.0', dir }));
+    const launch = vi.fn<Launch>(inProcessLaunch);
+    h = await startHarness({ install, launch });
+    await writeSecrets(h.configDir);
+    await h.call('POST', '/host/extensions', { id: 'hosted' });
+    const settings = { settings: { 'echo.prefix': 'hey' } };
+    await h.call('PATCH', '/host/extensions/hosted', settings);
+    for (const patch of [settings, {}, { enabled: true }, { version: '1.0.0' }])
+      expect(await h.call('PATCH', '/host/extensions/hosted', patch)).toMatchObject({
+        status: 200,
+        body: { data: { state: 'running' } },
+      });
+    expect([launch.mock.calls.length, install.mock.calls.length]).toEqual([2, 1]);
+    expect(await echo()).toBe('hey hi');
+  });
+
   it('a PATCH of a failed extension that fails to start is 400 START_FAILED, as for a running one', async () => {
     h = await startHarness();
     await h.call('POST', '/host/extensions', { source: await hostedPackage() });

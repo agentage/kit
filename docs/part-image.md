@@ -27,16 +27,17 @@ envelope are in [`packages/extension/schemas`](../packages/extension/schemas). R
 package in `dir` at `/api/{id}/*`. The daemon child and the one container run the entry
 `node node_modules/@agentage/extension/dist/host/main.js`.
 
-| Env                      | Meaning                                                                                                                                 |
-| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
-| `PORT`                   | the port, `8080` by default; `0` lets the OS pick, and the port goes to the parent over IPC                                             |
-| `AGENTAGE_EXTENSION_DIR` | the package folder, the current folder by default                                                                                       |
-| `AGENTAGE_DATA_DIR`      | the PGlite folder of a postgres store; `<dir>.lock` holds the pid. Unset: in memory, a warn line                                        |
-| `AGENTAGE_SETTINGS`      | JSON of setting values over the manifest defaults                                                                                       |
-| `AGENTAGE_SECRETS_DIR`   | one file per declared secret, `/run/secrets` by default                                                                                 |
-| `AGENTAGE_ORIGIN`        | `ctx.extension.origin`, `http://127.0.0.1:<PORT>` by default                                                                            |
-| `AGENTAGE_DRAIN_MS`      | how long SIGTERM may drain before exit 1, `10000` by default                                                                            |
-| `AGENTAGE_HOST_BIND=all` | listen on every address. It needs a token check (`AGENTAGE_ISSUER`, `AGENTAGE_AUDIENCE`, `AGENTAGE_ORIGIN`) or `AGENTAGE_HOST_AUTH=off` |
+| Env                      | Meaning                                                                                                                                                  |
+| ------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PORT`                   | the port, `8080` by default; `0` lets the OS pick, and the port goes to the parent over IPC                                                              |
+| `AGENTAGE_EXTENSION_DIR` | the package folder, the current folder by default                                                                                                        |
+| `AGENTAGE_DATA_DIR`      | the PGlite folder of a postgres store; `<dir>.lock` holds the pid. Unset: in memory, a warn line                                                         |
+| `AGENTAGE_SETTINGS`      | JSON of setting values over the manifest defaults                                                                                                        |
+| `AGENTAGE_SECRETS_DIR`   | one file per declared secret, `/run/secrets` by default                                                                                                  |
+| `AGENTAGE_ORIGIN`        | `ctx.extension.origin`, `http://127.0.0.1:<PORT>` by default                                                                                             |
+| `AGENTAGE_DRAIN_MS`      | how long SIGTERM may drain before exit 1, `10000` by default                                                                                             |
+| `AGENTAGE_STORE_OPEN_MS` | how long the store may take to open (and to close), `30000` by default; then the api starts and `/health` says the store is `unavailable` until it opens |
+| `AGENTAGE_HOST_BIND=all` | listen on every address. It needs a token check (`AGENTAGE_ISSUER`, `AGENTAGE_AUDIENCE`, `AGENTAGE_ORIGIN`) or `AGENTAGE_HOST_AUTH=off`                  |
 
 The one container (`build --container`) sets `AGENTAGE_HOST_BIND=all`, `PORT=8080` and
 `AGENTAGE_DRAIN_MS=8000`. With a postgres store it also sets `AGENTAGE_DATA_DIR=/data/store` on the

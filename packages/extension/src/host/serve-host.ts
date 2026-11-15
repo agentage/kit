@@ -67,8 +67,8 @@ export const serveHost = async (env: Env, deps: ServeHostDeps = {}): Promise<Ser
   const at = hostEnvOf(env);
   const guard = guardOf(env, at);
   const hook = exitHook();
-  const { dataDir, settings, origin, secretsDir } = at;
-  const opts = { dataDir, settings, origin, onExit: hook.onExit };
+  const { dataDir, settings, origin, secretsDir, storeOpenMs } = at;
+  const opts = { dataDir, settings, origin, storeOpenMs, onExit: hook.onExit };
   const host = await hostWith(at.dir, opts, { secretsDir, guard, build: buildInfoFromEnv(env) });
   const server = await listen(host.app, at.port, at.bind);
   const { log, stop } = drainOn(server, host, deps, at.drainMs);

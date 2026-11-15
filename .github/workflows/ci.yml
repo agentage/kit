@@ -4,7 +4,8 @@ on:
   push:
     branches: [master]
   pull_request:
-    branches: [master]
+    # feature/**: a stacked PR (base = another PR's branch) gets CI too.
+    branches: [master, 'feature/**']
 
 concurrency:
   group: ci-${{ github.ref }}
@@ -119,13 +120,13 @@ jobs:
         run: |
           set -euo pipefail
           npm pack --workspaces --pack-destination /tmp/pack >/dev/null
-          # A PR runs against the extension-probe branch of the same name when one exists, else
+          # A PR runs against the extension-probe branch named as its head (or base) when one exists, else
           # the repo variable PROBE_REF (set while a kit change waits on a probe release), else master.
           probe=https://github.com/agentage/extension-probe.git
           branch="${PROBE_REF:-master}"
-          if [ -n "${GITHUB_HEAD_REF:-}" ] && git ls-remote --exit-code --heads "$probe" "$GITHUB_HEAD_REF" >/dev/null; then
-            branch="$GITHUB_HEAD_REF"
-          fi
+          for ref in "${GITHUB_BASE_REF:-}" "${GITHUB_HEAD_REF:-}"; do
+            if [ -n "$ref" ] && git ls-remote --exit-code --heads "$probe" "$ref" >/dev/null; then branch="$ref"; fi
+          done
           echo "extension-probe branch: $branch" >> "$GITHUB_STEP_SUMMARY"
           git clone --depth 1 --branch "$branch" "$probe" /tmp/probe
           mkdir -p /tmp/probe/.kit
@@ -201,16 +202,17 @@ jobs:
         with:
           path: platform
 
-      # The same probe branch as the image smoke: the PR's name, else vars.PROBE_REF, else master.
+      # The same probe branch as the image smoke: the PR's head or base name, else vars.PROBE_REF, else master.
       - name: Pick the extension-probe branch
         id: probe-ref
         env:
           PROBE_REF: ${{ vars.PROBE_REF }}
         run: |
           branch="${PROBE_REF:-master}"
-          if [ -n "${GITHUB_HEAD_REF:-}" ] && git ls-remote --exit-code --heads https://github.com/agentage/extension-probe.git "$GITHUB_HEAD_REF" >/dev/null; then
-            branch="$GITHUB_HEAD_REF"
-          fi
+          probe=https://github.com/agentage/extension-probe.git
+          for ref in "${GITHUB_BASE_REF:-}" "${GITHUB_HEAD_REF:-}"; do
+            if [ -n "$ref" ] && git ls-remote --exit-code --heads "$probe" "$ref" >/dev/null; then branch="$ref"; fi
+          done
           echo "branch=$branch" >> "$GITHUB_OUTPUT"
 
       - name: Checkout agentage/extension-probe

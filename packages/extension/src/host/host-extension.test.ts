@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { startOn } from '../testing/test-server.js';
 import { HOSTED_MANIFEST, hostedPackage } from '../test-support/hosted-fixture.js';
@@ -13,7 +14,8 @@ const host = async (...args: Parameters<typeof hostExtension>) => {
   hosted.push(one);
   return one;
 };
-const dataDir = () => tempDir('agentage-host-data-');
+// A folder that does not exist yet, as the daemon's data/<id> on a first start.
+const dataDir = async () => join(await tempDir('agentage-host-data-'), 'data', 'hosted');
 
 afterEach(async () => {
   await Promise.all(hosted.splice(0).map((h) => h.stop()));

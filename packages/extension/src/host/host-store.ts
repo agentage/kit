@@ -10,8 +10,8 @@ const unlocked = async () => undefined;
 
 // Locks dataDir, then opens PGlite in it and migrates before the part starts.
 const open = async (dir: string, dataDir: string, log: Log): Promise<PgliteStore> => {
-  const release = dataDir ? await lockDataDir(dataDir) : unlocked;
   if (dataDir) await mkdir(dataDir, { recursive: true });
+  const release = dataDir ? await lockDataDir(dataDir) : unlocked;
   const store = createPgliteStore((s) => migrate(s, dir, log), {
     dataDir: dataDir || undefined,
     from: dir,

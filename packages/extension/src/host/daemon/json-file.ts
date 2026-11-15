@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto';
 import { chmod, open, readFile, rename } from 'node:fs/promises';
 import { DATA_DIR_LOCKED, lockDataDir } from '../data-lock.js';
 
@@ -12,7 +13,7 @@ export const readJsonFile = async <T>(file: string, fallback: T): Promise<T> => 
 
 // A reader sees the old file or the new one, never half of one, also after a power loss.
 export const writeJsonFile = async (file: string, value: unknown, mode = 0o644): Promise<void> => {
-  const tmp = `${file}.${process.pid}.tmp`;
+  const tmp = `${file}.${process.pid}.${randomBytes(4).toString('hex')}.tmp`;
   const handle = await open(tmp, 'w', mode);
   try {
     await handle.writeFile(`${JSON.stringify(value, null, 2)}\n`);

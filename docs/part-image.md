@@ -80,7 +80,7 @@ call. When `installation.json` cannot be read (`EACCES`, `EISDIR`), the daemon n
 daemon file locked by another live process waits `lockMs`, then is 503 `UNAVAILABLE` naming the
 pid ("installation.json is locked by process <pid>: waited <ms> ms"). `updateInstallation(configDir,
 change)` from `/host` is that same read, change and write under the lock; it refuses a row C3
-refuses or an id twice. The data lock falls back to an exclusive create on a volume with no hard
+refuses or an id twice, and it keeps a file that is not C3 as `installation.json.bad` first. The data lock falls back to an exclusive create on a volume with no hard
 links.
 
 Each wait of the daemon has a bound, a `createDaemon` option:

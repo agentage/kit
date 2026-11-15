@@ -53,6 +53,11 @@ describe('daemon with child processes', () => {
     const [a, b] = [await echo('hosted'), await echo('other')];
     expect([a.status, b.status]).toEqual([200, 200]);
     expect(new Set([process.pid, a.body.data?.pid, b.body.data?.pid]).size).toBe(3);
+    type Row = { id: string; pid?: number };
+    const rows = ((await h.call('GET', '/host/extensions')).body as { data: Row[] }).data;
+    const health = (await h.call('GET', '/health')).body as { extensions: Row[] };
+    const pids = [a.body.data?.pid, b.body.data?.pid];
+    expect([rows, health.extensions].map((list) => list.map((r) => r.pid))).toEqual([pids, pids]);
     const change = h.call('PATCH', '/host/extensions/other', {
       settings: { 'echo.prefix': 'hey' },
     });

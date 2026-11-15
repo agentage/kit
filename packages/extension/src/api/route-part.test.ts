@@ -111,4 +111,24 @@ describe('a ctx.route api part behind the token check', () => {
       },
     ]);
   });
+
+  it('serves the old /api/v1 mount with the same access, and logs the mount it was called on', async () => {
+    const rows = () =>
+      vi
+        .mocked(process.stderr.write)
+        .mock.calls.map(([l]) => JSON.parse(String(l)) as Record<string, unknown>);
+    expect((await fetch(`${url}/api/v1/ping`)).status).toBe(200);
+    expect((await fetch(`${url}/API/V1/echo?msg=hi`)).status).toBe(401);
+    expect((await fetch(`${url}/api/v1/echo?msg=hi`)).status).toBe(401);
+    await fetch(`${url}/api/probe/ping`);
+    const routes = rows()
+      .filter((r) => r['kind'] === 'http')
+      .map((r) => r['msg']);
+    expect(routes.slice(-4)).toEqual([
+      'GET /api/v1/ping 200',
+      'GET /api/v1/echo 401',
+      'GET /api/v1/echo 401',
+      'GET /api/probe/ping 200',
+    ]);
+  });
 });

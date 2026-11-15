@@ -77,12 +77,12 @@ describe('runPart', () => {
     });
   });
 
-  it('also answers the old /api/v1 prefix, and a contract committed on it keeps its access', async () => {
+  it('also answers the old /api/v1 prefix with the same router and access', async () => {
     const dir = await tempPackage({
       'package.json': json(API_MANIFEST),
       'openapi.json': json({
         openapi: '3.1.0',
-        paths: { '/api/v1/echo': { get: { security: [] } } },
+        paths: { '/api/probe/echo': { get: { security: [] } } },
       }),
     });
     const env = {

@@ -114,12 +114,15 @@ jobs:
           if grep -Eq '\.test\.|test-support' /tmp/pack/shell-files.txt; then echo 'test files in the shell tarball'; exit 1; fi
 
       - name: Image smoke - extension-probe on this kit, every part through up
+        env:
+          PROBE_REF: ${{ vars.PROBE_REF }}
         run: |
           set -euo pipefail
           npm pack --workspaces --pack-destination /tmp/pack >/dev/null
-          # A PR runs against the extension-probe branch of the same name when one exists, else master.
+          # A PR runs against the extension-probe branch of the same name when one exists, else
+          # the repo variable PROBE_REF (set while a kit change waits on a probe release), else master.
           probe=https://github.com/agentage/extension-probe.git
-          branch=master
+          branch="${PROBE_REF:-master}"
           if [ -n "${GITHUB_HEAD_REF:-}" ] && git ls-remote --exit-code --heads "$probe" "$GITHUB_HEAD_REF" >/dev/null; then
             branch="$GITHUB_HEAD_REF"
           fi

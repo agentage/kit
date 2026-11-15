@@ -132,24 +132,18 @@ const wellKnownHandler =
     else res.json(doc);
   };
 
-// A contract committed on a kit before the id prefix names /api/v1; its operations keep their access.
-const docPrefix = (doc: Record<string, unknown> | null | undefined, id: string): string => {
-  const paths = Object.keys((doc?.['paths'] ?? {}) as Record<string, unknown>);
-  return paths.some((path) => path.startsWith('/api/v1/')) ? '/api/v1' : apiPrefix(id);
-};
-
 // Before the body is read: each request checked for the access its OpenAPI operation declares.
 const routeGuard = (options: ApiAppOptions): RequestHandler => {
   const prefix = apiPrefix(options.pkg.agentage.id);
-  const inDoc = docPrefix(options.openapi, options.pkg.agentage.id);
   return async (req, res, next) => {
     const { routes } = options;
     const known = routes?.find(
       (r) => r.method === req.method.toLowerCase() && sameShape(r.path, req.path)
     );
-    if (known) res.locals['route'] = `${prefix}${known.path}`;
+    // The mount as called (an alias too), so the row counts the callers of each prefix.
+    if (known) res.locals['route'] = `${req.baseUrl.toLowerCase()}${known.path}`;
     if (!options.tokenCheck || (routes?.length && !known)) return next();
-    const access = routeAccess(options.openapi, req.method, `${inDoc}${req.path}`);
+    const access = routeAccess(options.openapi, req.method, `${prefix}${req.path}`);
     const caller = await options.tokenCheck(req.get('authorization'), access);
     if (caller) res.setHeader('Cache-Control', 'no-store');
     setCaller(req, caller);

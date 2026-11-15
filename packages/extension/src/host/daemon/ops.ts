@@ -5,11 +5,12 @@ import { parse } from '../../envelope/parse.js';
 import { ExtensionIdSchema, SecretNameSchema } from '../../manifest/primitives.schema.js';
 import { readManifest } from '../../manifest/read-manifest.js';
 import { purgeData, writeValues } from './daemon-files.js';
+import { runInstaller } from './installer-call.js';
 import { checkSecrets } from './secret-names.js';
+import { coerceSettings } from './setting-values.js';
 import { updateInstallation, withEntry, type InstallEntry } from './installation.js';
 import {
   halt,
-  noInstaller,
   startEntry,
   swap,
   valuesOf,
@@ -70,8 +71,7 @@ const marketEntry = async (
   version?: string
 ) => {
   reserve(entries, id);
-  if (!deps.install) throw noInstaller();
-  const got = await deps.install({ id, version });
+  const got = await runInstaller(deps, { id, version });
   return { install: { id: got.id, version: got.version }, dir: got.dir };
 };
 
@@ -114,8 +114,7 @@ const nextInstall = async (deps: SupervisorDeps, entry: Entry, patch: Patch) => 
   if (!patch.version) return { install };
   if (install.source)
     throw fail('VALIDATION_ERROR', `${entry.id} runs a folder: it has no version`);
-  if (!deps.install) throw noInstaller();
-  const got = await deps.install({ id: entry.id, version: patch.version });
+  const got = await runInstaller(deps, { id: entry.id, version: patch.version });
   return { install: { ...install, version: got.version }, dir: got.dir };
 };
 
@@ -123,8 +122,9 @@ const nextOf = async (deps: SupervisorDeps, entry: Entry, patch: Patch): Promise
   const next = await nextInstall(deps, entry, patch);
   const dir = next.dir ?? entry.dir ?? entry.install.source;
   await checkSecrets(dir, Object.keys(patch.secrets ?? {}), entry.id);
+  const given = await coerceSettings(dir, patch.settings ?? {}, entry.id);
   const was = await valuesOf(deps.configDir, entry.id);
-  const settings = { ...was.settings, ...patch.settings };
+  const settings = { ...was.settings, ...given };
   return { ...next, values: { settings, secrets: { ...was.secrets, ...patch.secrets } } };
 };
 

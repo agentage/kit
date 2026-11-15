@@ -30,20 +30,27 @@ describe('a daemon killed with SIGKILL', () => {
     await writeFile(join(configDir, 'secrets.json'), json({ hosted: { 'api-token': 't' } }));
     const args = ['--input-type=module', '-e', RUN, HOST, configDir];
     const daemon = spawn(process.execPath, args, { stdio: 'ignore' });
-    const child = await vi.waitFor(
-      async () => {
-        const { port } = JSON.parse(await readFile(join(configDir, 'daemon.json'), 'utf8'));
-        const list = await (await fetch(`http://127.0.0.1:${port}/host/extensions`)).json();
-        const pid = (list as { data: { pid?: number }[] }).data[0]?.pid;
-        if (!pid) throw new Error(`not running yet: ${JSON.stringify(list)}`);
-        return pid;
-      },
-      { timeout: 45_000, interval: 100 }
-    );
-    const { port } = JSON.parse(await readFile(join(configDir, 'daemon.json'), 'utf8'));
-    void fetch(`http://127.0.0.1:${port}/api/hosted/hang`).catch(() => undefined);
-    await new Promise((resolve) => setTimeout(resolve, 200));
-    daemon.kill('SIGKILL');
-    await vi.waitFor(() => expect(alive(child)).toBe(false), { timeout: 20_000, interval: 100 });
+    let child = 0;
+    try {
+      child = await vi.waitFor(
+        async () => {
+          const { port } = JSON.parse(await readFile(join(configDir, 'daemon.json'), 'utf8'));
+          const list = await (await fetch(`http://127.0.0.1:${port}/host/extensions`)).json();
+          const pid = (list as { data: { pid?: number }[] }).data[0]?.pid;
+          if (!pid) throw new Error(`not running yet: ${JSON.stringify(list)}`);
+          return pid;
+        },
+        { timeout: 45_000, interval: 100 }
+      );
+      const { port } = JSON.parse(await readFile(join(configDir, 'daemon.json'), 'utf8'));
+      void fetch(`http://127.0.0.1:${port}/api/hosted/hang`).catch(() => undefined);
+      await new Promise((resolve) => setTimeout(resolve, 200));
+      daemon.kill('SIGKILL');
+      await vi.waitFor(() => expect(alive(child)).toBe(false), { timeout: 20_000, interval: 100 });
+    } finally {
+      // A failed run must not leave the daemon or its child behind.
+      daemon.kill('SIGKILL');
+      if (child && alive(child)) process.kill(child, 'SIGKILL');
+    }
   }, 60_000);
 });

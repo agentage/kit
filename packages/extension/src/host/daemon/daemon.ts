@@ -39,7 +39,6 @@ const boot = async (deps: SupervisorDeps, entries: Entries): Promise<void> => {
       install,
       state,
       version: install.version ?? '',
-      store: false,
     });
   }
   const starting = [...entries.values()].filter((e) => e.state === 'starting');
@@ -76,14 +75,13 @@ const announce = ({ configDir, version, startedBy }: DaemonOptions, port: number
 export const startDaemon = async (opts: DaemonOptions, launch: Launch): Promise<Daemon> => {
   await ensureConfigDir(opts.configDir);
   const log = createLog({ extension: 'host', part: 'api', version: opts.version });
-  const deps: SupervisorDeps = { configDir: opts.configDir, launch, install: opts.install, log };
-  const entries: Entries = new Map();
   let port = opts.port ?? DAEMON_PORT;
-  const server = await listen(
-    daemonApp(deps, entries, () => port, opts.version),
-    port,
-    '127.0.0.1'
-  );
+  const origin = () => `http://127.0.0.1:${port}`;
+  const { configDir, install } = opts;
+  const deps: SupervisorDeps = { configDir, launch, install, log, origin };
+  const entries: Entries = new Map();
+  const app = daemonApp(deps, entries, () => port, opts.version);
+  const server = await listen(app, port, '127.0.0.1');
   port = (server.address() as AddressInfo).port;
   await announce(opts, port);
   await boot(deps, entries);

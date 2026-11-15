@@ -37,13 +37,20 @@ describe('daemon routes (C5)', () => {
       body: { data: { msg: 'hi' } },
     });
     const list = await h!.call('GET', '/host/extensions');
-    const row = { id: 'hosted', version: '1.0.0', source: dir, state: 'running', enabled: true };
+    const pid = process.pid;
+    const row = {
+      id: 'hosted',
+      version: '1.0.0',
+      pid,
+      source: dir,
+      state: 'running',
+      enabled: true,
+    };
     expect(list).toEqual({ status: 200, body: { success: true, data: [row] } });
     expect(await read('installation.json')).toEqual({
       host: 'local',
       extensions: [{ id: 'hosted', source: dir }],
     });
-    const pid = process.pid;
     expect(await read('daemon.json')).toEqual({
       pid,
       port: h!.daemon.port,
@@ -55,7 +62,7 @@ describe('daemon routes (C5)', () => {
     expect(health.body).toEqual({
       status: 'ok',
       version: '0.13.0',
-      extensions: [{ id: 'hosted', version: '1.0.0', state: 'running' }],
+      extensions: [{ id: 'hosted', version: '1.0.0', state: 'running', pid }],
     });
   });
 
@@ -66,7 +73,7 @@ describe('daemon routes (C5)', () => {
     });
     expect(changed.body).toEqual({
       success: true,
-      data: { id: 'hosted', version: '1.0.0', state: 'running' },
+      data: { id: 'hosted', version: '1.0.0', state: 'running', pid: process.pid },
     });
     expect((await h!.call('GET', '/api/hosted/echo?msg=hi')).body).toMatchObject({
       data: { msg: 'hey hi' },
@@ -128,7 +135,7 @@ describe('daemon routes (C5)', () => {
     });
   });
 
-  it('a PATCH the new child refuses answers 400 and the old child keeps serving', async () => {
+  it('a PATCH the new child refuses answers 400 START_FAILED and the old child runs again', async () => {
     const plain = {
       ...HOSTED_MANIFEST,
       agentage: { ...HOSTED_MANIFEST.agentage, parts: { api: true } },
@@ -137,7 +144,7 @@ describe('daemon routes (C5)', () => {
     const refused = await h!.call('PATCH', '/host/extensions/hosted', {
       settings: { 'echo.prefix': 3 },
     });
-    expect(refused).toMatchObject({ status: 400, body: { error: { code: 'VALIDATION_ERROR' } } });
+    expect(refused).toMatchObject({ status: 400, body: { error: { code: 'START_FAILED' } } });
     expect((refused.body as { error: { message: string } }).error.message).toContain(
       'setting echo.prefix: 3'
     );

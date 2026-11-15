@@ -10,11 +10,13 @@ export interface LaunchSpec {
   dataDir: string;
   settings: Record<string, unknown>;
   secrets: Record<string, string>;
+  origin: string;
 }
 
 // A started extension: its loopback port; stop drains it (SIGTERM) and waits for the exit.
 export interface Child {
   port: number;
+  pid: number;
   exited: Promise<void>;
   stop(): Promise<void>;
 }
@@ -41,6 +43,7 @@ const envOf = (spec: LaunchSpec, secretsDir: string): NodeJS.ProcessEnv => ({
   AGENTAGE_DATA_DIR: spec.dataDir,
   AGENTAGE_SETTINGS: JSON.stringify(spec.settings),
   AGENTAGE_SECRETS_DIR: secretsDir,
+  AGENTAGE_ORIGIN: spec.origin,
 });
 
 // The child's last stderr line, its msg when it is a log row: why it did not start.
@@ -101,7 +104,7 @@ export const forkLaunch =
     const exited = new Promise<void>((resolve) => child.once('exit', () => resolve()));
     try {
       const port = await readyOf(child, captured(child));
-      return { port, exited, stop: stopOf(child, exited) };
+      return { port, pid: child.pid ?? 0, exited, stop: stopOf(child, exited) };
     } finally {
       await rm(secretsDir, { recursive: true, force: true });
     }

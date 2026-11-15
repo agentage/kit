@@ -18,8 +18,9 @@ export const inProcessLaunch: Launch = async (spec) => {
     AGENTAGE_DATA_DIR: spec.dataDir,
     AGENTAGE_SETTINGS: JSON.stringify(spec.settings),
     AGENTAGE_SECRETS_DIR: secretsDir,
+    AGENTAGE_ORIGIN: spec.origin,
   };
   const served = await serveHost(env, { signals: [], exit: () => done(), ready: () => undefined });
   const { port } = served.server.address() as AddressInfo;
-  return { port, exited, stop: async () => (served.stop(), exited) };
+  return { port, pid: process.pid, exited, stop: async () => (served.stop(), exited) };
 };

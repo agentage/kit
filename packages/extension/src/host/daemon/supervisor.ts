@@ -1,11 +1,12 @@
 import { fail } from '../../envelope/envelope.js';
 import { type Log } from '../../log/log.js';
-import { hasStore } from '../../manifest/parts.js';
 import { readManifest } from '../../manifest/read-manifest.js';
 import { type Launch } from './child.js';
 import { dataDirOf, readValues } from './daemon-files.js';
 import { type InstallEntry } from './installation.js';
 import { laneOf, retire, type Lane } from './lane.js';
+
+export const GATE_MS = 30_000;
 
 export type Installer = (spec: {
   id: string;
@@ -20,7 +21,6 @@ export interface Entry {
   install: InstallEntry;
   state: State;
   version: string;
-  store: boolean;
   dir?: string;
   error?: string;
   lane?: Lane;
@@ -43,6 +43,8 @@ export interface Next {
 export interface SupervisorDeps {
   configDir: string;
   launch: Launch;
+  // The daemon's own origin: ctx.extension.origin of each child.
+  origin: () => string;
   install?: Installer;
   log: Log;
 }
@@ -67,7 +69,13 @@ const dirOf = async (deps: SupervisorDeps, entry: Entry, install: InstallEntry, 
   return (await deps.install({ id: entry.id, version: install.version })).dir;
 };
 
-// A new child for install with values; the entry learns the version the package has.
+// Healthy before it gets the route: the child's own /health answers 200.
+const healthy = async (port: number): Promise<void> => {
+  const res = await fetch(`http://127.0.0.1:${port}/health`);
+  if (res.status !== 200) throw new Error(`health answered ${res.status}`);
+};
+
+// A new child for install with values, healthy; the entry learns the version the package has.
 export const launchFor = async (
   deps: SupervisorDeps,
   entry: Entry,
@@ -77,9 +85,13 @@ export const launchFor = async (
 ): Promise<Lane> => {
   const dir = await dirOf(deps, entry, install, given);
   const pkg = await readManifest(dir);
-  const dataDir = dataDirOf(deps.configDir, entry.id);
-  const child = await deps.launch({ id: entry.id, dir, dataDir, ...values });
-  Object.assign(entry, { dir, version: pkg.version, store: hasStore(pkg, 'postgres') });
+  const spec = { id: entry.id, dir, dataDir: dataDirOf(deps.configDir, entry.id), ...values };
+  const child = await deps.launch({ ...spec, origin: deps.origin() });
+  await healthy(child.port).catch(async (err: unknown) => {
+    await child.stop();
+    throw err;
+  });
+  Object.assign(entry, { dir, version: pkg.version });
   const lane = laneOf(child, pkg.version);
   void child.exited.then(() => exitedEarly(deps, entry, lane));
   return lane;
@@ -92,6 +104,12 @@ const exitedEarly = (deps: SupervisorDeps, entry: Entry, lane: Lane): void => {
   deps.log.warn('extension process exited', { id: entry.id });
 };
 
+const failed = (deps: SupervisorDeps, entry: Entry, err: unknown): void => {
+  Object.assign(entry, { state: 'failed', error: (err as Error).message });
+  deps.log.warn('extension failed to start', { id: entry.id, reason: entry.error });
+};
+
+// The install and values of installation.json, as they are on disk.
 export const startEntry = async (deps: SupervisorDeps, entry: Entry): Promise<void> => {
   entry.state = 'starting';
   try {
@@ -99,54 +117,37 @@ export const startEntry = async (deps: SupervisorDeps, entry: Entry): Promise<vo
     entry.lane = await launchFor(deps, entry, entry.install, values);
     Object.assign(entry, { state: 'running', error: undefined });
   } catch (err) {
-    Object.assign(entry, { state: 'failed', error: (err as Error).message });
-    deps.log.warn('extension failed to start', { id: entry.id, reason: entry.error });
+    failed(deps, entry, err);
   }
 };
 
-// No store: start the new child, move the route, then drain and stop the old one.
-const overlap = async (deps: SupervisorDeps, entry: Entry, to: Next) => {
-  const next = await launchFor(deps, entry, to.install, to.values, to.dir);
-  const old = entry.lane;
-  entry.lane = next;
-  await retire(old);
-};
-
-// A store: hold new requests, drain and stop the old child, start the new one (or the old again).
-const handOver = async (deps: SupervisorDeps, entry: Entry, to: Next) => {
+// New requests of the extension wait here (the proxy gives up after GATE_MS) until release.
+const hold = (entry: Entry): (() => void) => {
   let release = () => undefined as void;
   entry.gate = new Promise<void>((resolve) => (release = resolve));
-  const old = entry.lane;
-  entry.lane = undefined;
-  try {
-    await retire(old);
-    entry.lane = await launchFor(deps, entry, to.install, to.values, to.dir).catch(
-      async (err: unknown) => {
-        entry.lane = await launchFor(
-          deps,
-          entry,
-          entry.install,
-          await valuesOf(deps.configDir, entry.id)
-        );
-        throw err;
-      }
-    );
-  } finally {
+  return () => {
     entry.gate = undefined;
     release();
-  }
+  };
 };
 
-// A running extension moves to the install and values of to; on a refusal the old child keeps the route.
+// One writer per data folder, so one sequence for every extension: hold, drain and stop the
+// old child, start the new one, release. A refusal starts the old one again and is a 400.
 export const swap = async (deps: SupervisorDeps, entry: Entry, to: Next) => {
+  const release = hold(entry);
   try {
-    await (entry.store ? handOver : overlap)(deps, entry, to);
+    await halt(entry);
+    entry.lane = await launchFor(deps, entry, to.install, to.values, to.dir);
+    Object.assign(entry, { state: 'running', error: undefined });
   } catch (err) {
+    await startEntry(deps, entry);
     const reason = (err as Error).message;
-    if (!entry.lane) Object.assign(entry, { state: 'failed', error: reason });
-    throw fail('VALIDATION_ERROR', `${entry.id} did not start with this change: ${reason}`);
+    throw fail('VALIDATION_ERROR', `${entry.id} failed to start with this change: ${reason}`, {
+      code: 'START_FAILED',
+    });
+  } finally {
+    release();
   }
-  Object.assign(entry, { state: 'running', error: undefined });
 };
 
 // Detached first, so its exit is not a failure; then drained and stopped.

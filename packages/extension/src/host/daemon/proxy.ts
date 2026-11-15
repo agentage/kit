@@ -3,12 +3,15 @@ import { type NextFunction, type Request, type RequestHandler, type Response } f
 import { fail } from '../../envelope/envelope.js';
 import { enter, type Lane } from './lane.js';
 import { type Entries } from './ops.js';
+import { GATE_MS } from './supervisor.js';
+
+const waited = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms).unref());
 
 // The lane of a running extension, after a swap in progress; 404 not installed, 503 not running.
-const laneFor = async (entries: Entries, id: string): Promise<Lane> => {
+const laneFor = async (entries: Entries, id: string, gateMs: number): Promise<Lane> => {
   const entry = entries.get(id);
   if (!entry) throw fail('NOT_FOUND', `${id} is not installed`);
-  await entry.gate;
+  if (entry.gate) await Promise.race([entry.gate, waited(gateMs)]);
   if (!entry.lane) throw fail('UNAVAILABLE', `${id} is ${entry.state}`, { retryAfter: 5 });
   return entry.lane;
 };
@@ -34,8 +37,8 @@ const forward = (req: Request, res: Response, next: NextFunction, lane: Lane): v
 };
 
 export const proxyTo =
-  (entries: Entries): RequestHandler =>
+  (entries: Entries, gateMs = GATE_MS): RequestHandler =>
   async (req, res, next) => {
-    const lane = await laneFor(entries, String(req.params['id']));
+    const lane = await laneFor(entries, String(req.params['id']), gateMs);
     forward(req, res, next, lane);
   };

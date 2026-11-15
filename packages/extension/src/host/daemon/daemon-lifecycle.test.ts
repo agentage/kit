@@ -106,6 +106,8 @@ describe('daemon lifecycle', () => {
         extensions: [{ version: '1.0.0', state: 'running' }],
       });
       expect(install).toHaveBeenCalledTimes(2);
+      const doc = await readJsonFile(join(h.configDir, 'installation.json'), {});
+      expect(doc).toEqual({ host: 'local', extensions: [{ id: 'hosted', version: '1.0.0' }] });
     }
   );
 
@@ -163,10 +165,10 @@ describe('daemon lifecycle', () => {
   });
 
   it.each([
-    ['with a store: holds, stops the old child, starts the new one', HOSTED_MANIFEST],
-    ['without a store: starts the new child, moves the route, drains the old one', NO_STORE],
+    ['with a store', HOSTED_MANIFEST],
+    ['without a store', NO_STORE],
   ])(
-    '60 requests during a PATCH (and 5 open on the old child) lose none, %s',
+    '60 requests during a PATCH (5 open on the old child) wait, then all answer 200, %s',
     async (_name, manifest) => {
       h = await startHarness();
       await writeFile(join(h.configDir, 'secrets.json'), SECRETS, { mode: 0o600 });

@@ -35,10 +35,12 @@ type Patch = z.infer<typeof PatchSchema>;
 
 export type Entries = Map<string, Entry>;
 
-export const summary = ({ id, version, state, error }: Entry) => ({
+// pid of a running child: the e2e teardown reads it.
+export const summary = ({ id, version, state, error, lane }: Entry) => ({
   id,
   version,
   state,
+  ...(lane && { pid: lane.child.pid }),
   ...(error && { error }),
 });
 
@@ -88,7 +90,6 @@ export const addExtension = async (deps: SupervisorDeps, entries: Entries, body:
     install,
     state: 'starting',
     version: '',
-    store: false,
     dir,
   };
   entries.set(entry.id, entry);

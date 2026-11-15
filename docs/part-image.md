@@ -40,3 +40,8 @@ package in `dir` at `/api/{id}/*`. The daemon child and the one container run th
 On loopback there is no token check. SIGTERM drains the open requests, closes the store and
 exits 0. `ctx.exit()` does the same. The host brings `@electric-sql/pglite`; the package does not
 need it.
+
+The daemon (`createDaemon`) answers `/api/{id}/*` from the child of that extension. It answers 404
+`NOT_FOUND` for an id that is not installed or is disabled; a client does not retry it. It answers
+503 `UNAVAILABLE` with `Retry-After` while the extension is starting or failed, or when a request
+waited past 30 s for a change to end.

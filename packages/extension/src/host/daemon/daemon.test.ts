@@ -110,14 +110,14 @@ describe('daemon routes (C5)', () => {
     expect(await read('secrets.json')).toEqual({});
   });
 
-  it('PATCH enabled: false stops it (503, disabled), true starts it again', async () => {
+  it('PATCH enabled: false stops it (404, disabled), true starts it again', async () => {
     await installed();
     expect(
       (await h!.call('PATCH', '/host/extensions/hosted', { enabled: false })).body
     ).toMatchObject({ data: { state: 'disabled' } });
     expect(await h!.call('GET', '/api/hosted/echo')).toMatchObject({
-      status: 503,
-      body: { error: { code: 'UNAVAILABLE' } },
+      status: 404,
+      body: { success: false, error: { code: 'NOT_FOUND', message: 'hosted is disabled' } },
     });
     expect(await read('installation.json')).toMatchObject({
       extensions: [{ id: 'hosted', enabled: false }],

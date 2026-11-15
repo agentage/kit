@@ -271,8 +271,8 @@ jobs:
           npm run build --prefix platform
           npm pack --workspaces --prefix platform --pack-destination "$PWD/probe"
           cd probe
-          npm ci
-          npm install ./agentage-extension-*.tgz ./agentage-widget-*.tgz
+          # No npm ci first: a probe that already pins the candidate version cannot fetch it from npm.
+          npm install --no-audit --no-fund ./agentage-extension-*.tgz ./agentage-widget-*.tgz
           # Permanent: the probe's own range refuses every new kit minor; the gate proves the candidate runs the probe.
           npm pkg set engines.agentage=">=0.6"
           grep -E "\"@agentage/(extension|widget)\": \"file:" package.json
@@ -281,7 +281,8 @@ jobs:
 
       - name: agentage extension up
         working-directory: probe
-        run: node_modules/.bin/agentage extension up
+        # The kit's own tool, not the agentage bin: the probe's @agentage/cli bundles the released kit.
+        run: node node_modules/@agentage/extension/dist/tool/cli.js up
 
       - name: e2e gate on local (agentage/e2e, probe gate local)
         if: github.actor != 'dependabot[bot]'
@@ -307,4 +308,4 @@ jobs:
       - name: agentage extension down
         if: always()
         working-directory: probe
-        run: node_modules/.bin/agentage extension down || true
+        run: node node_modules/@agentage/extension/dist/tool/cli.js down || true

@@ -26,13 +26,15 @@ const installed = async (options: Parameters<typeof startHarness>[0] = {}) => {
 const echo = async () =>
   ((await h!.call('GET', '/api/hosted/echo?msg=hi')).body as { data?: { msg: string } }).data?.msg;
 
-// A child that binds its port and never answers, for the launch number `at`.
-const silentAt = (at: number): Launch => {
+// A child that binds its port and never answers (or answers `status`), for the launch number `at`.
+const silentAt = (at: number, status?: number): Launch => {
   let calls = 0;
   return async (spec) => {
     calls += 1;
     if (calls !== at) return inProcessLaunch(spec);
-    const server: Server = createServer(() => undefined);
+    const server: Server = createServer(
+      (_req, res) => void (status && res.writeHead(status).end())
+    );
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
     const stop = async () => void (server.closeAllConnections(), server.close());
     const exited = new Promise<never>(() => undefined);
@@ -41,6 +43,12 @@ const silentAt = (at: number): Launch => {
 };
 
 describe('daemon changes', () => {
+  it('a child gets the daemon healthMs as its store bound, so createDaemon raises both', async () => {
+    const launch = vi.fn<Launch>(inProcessLaunch);
+    await installed({ launch, healthMs: 4_321 });
+    expect(launch.mock.calls[0]?.[0]).toMatchObject({ storeOpenMs: 4_321 });
+  });
+
   it('a new child that never answers /health is refused after healthMs; the old one runs again', async () => {
     await installed({ launch: silentAt(2), healthMs: 200 });
     const change = await h!.call('PATCH', '/host/extensions/hosted', {
@@ -49,6 +57,18 @@ describe('daemon changes', () => {
     expect(change).toMatchObject({ status: 400, body: { error: { code: 'START_FAILED' } } });
     expect((change.body as { error: { message: string } }).error.message).toContain(
       'health did not answer in 200 ms'
+    );
+    expect(await echo()).toBe('hi');
+  });
+
+  it('a new child whose /health is 503 is refused with that status; the old one runs again', async () => {
+    await installed({ launch: silentAt(2, 503) });
+    const change = await h!.call('PATCH', '/host/extensions/hosted', {
+      settings: { 'echo.prefix': 'hey' },
+    });
+    expect(change).toMatchObject({ status: 400, body: { error: { code: 'START_FAILED' } } });
+    expect((change.body as { error: { message: string } }).error.message).toContain(
+      'health answered 503'
     );
     expect(await echo()).toBe('hi');
   });
@@ -77,6 +97,24 @@ describe('daemon changes', () => {
     expect(await readdir(tmpdir())).not.toContain(escape.slice(3));
     const all = JSON.parse(await readFile(join(h!.configDir, 'secrets.json'), 'utf8'));
     expect(all).toEqual({ hosted: { 'api-token': 't' } });
+  });
+
+  it('a PATCH that changes nothing is 200 and keeps the child; the same version calls no installer', async () => {
+    const dir = await hostedPackage();
+    const install = vi.fn(async ({ id }: { id: string }) => ({ id, version: '1.0.0', dir }));
+    const launch = vi.fn<Launch>(inProcessLaunch);
+    h = await startHarness({ install, launch });
+    await writeSecrets(h.configDir);
+    await h.call('POST', '/host/extensions', { id: 'hosted' });
+    const settings = { settings: { 'echo.prefix': 'hey' } };
+    await h.call('PATCH', '/host/extensions/hosted', settings);
+    for (const patch of [settings, {}, { enabled: true }, { version: '1.0.0' }])
+      expect(await h.call('PATCH', '/host/extensions/hosted', patch)).toMatchObject({
+        status: 200,
+        body: { data: { state: 'running' } },
+      });
+    expect([launch.mock.calls.length, install.mock.calls.length]).toEqual([2, 1]);
+    expect(await echo()).toBe('hey hi');
   });
 
   it('a PATCH of a failed extension that fails to start is 400 START_FAILED, as for a running one', async () => {

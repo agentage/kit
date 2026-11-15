@@ -5,11 +5,13 @@ import { createLog } from '../../log/log.js';
 import { closeNow, listen } from '../../server/serve.js';
 import { forkLaunch, type Launch } from './child.js';
 import { removeDaemonFile, writeDaemonFile, DAEMON_PROTOCOL } from './daemon-files.js';
-import { bootInstallation, keepBadCopy } from './installation.js';
+import { assertNoOtherDaemon } from './daemon-owner.js';
+import { bootInstallation, updateInstallation } from './installation.js';
 import { type Entries } from './entries.js';
 import { limitsOf, type Limits } from './limits.js';
 import { pendingChanges } from './pending.js';
 import { serialQueue } from './queue.js';
+import { launchUnlessStopping, stopAll, stoppingOf, type Stopping } from './stopping.js';
 import { daemonApp } from './routes.js';
 import { runInstaller } from './installer-call.js';
 import { halt, startEntry, type Entry, type Installer, type SupervisorDeps } from './supervisor.js';
@@ -29,10 +31,13 @@ export interface Daemon {
 
 export const DAEMON_PORT = 4243;
 
-// The valid rows of installation.json; a bad file is kept aside and reported in /health.
-const loadEntries = async (configDir: string) => {
-  const { doc, invalid, unreadable } = await bootInstallation(configDir);
-  if (invalid) await keepBadCopy(configDir).catch(() => undefined);
+const warnOf = (deps: SupervisorDeps) => (err: Error) =>
+  deps.log.warn('a daemon file was not cleaned at boot', { reason: err.message });
+
+// The valid rows of installation.json; a bad file is kept aside, replaced by them, and in /health.
+const loadEntries = async (deps: SupervisorDeps) => {
+  const { doc, invalid, unreadable } = await bootInstallation(deps.configDir);
+  if (invalid) await updateInstallation(deps.configDir, () => doc, deps.lockMs).catch(warnOf(deps));
   const entries: Entries = new Map();
   for (const install of doc.extensions) {
     const state = install.enabled === false ? 'disabled' : 'starting';
@@ -51,18 +56,22 @@ const resolveDir = async (deps: SupervisorDeps, entry: Entry): Promise<void> => 
   );
 };
 
-// Folders first (no installer), then one at a time, each call bounded by installMs.
+// Enabled folders first (no installer), then enabled versions one at a time, disabled ones last.
 const boot = async (deps: SupervisorDeps, entries: Entries): Promise<void> => {
   const all = [...entries.values()];
-  const ordered = [...all.filter((e) => e.install.source), ...all.filter((e) => !e.install.source)];
-  for (const entry of ordered)
-    await (entry.state === 'disabled' ? resolveDir(deps, entry) : startEntry(deps, entry));
+  const off = all.filter((e) => e.state === 'disabled');
+  const on = all.filter((e) => e.state !== 'disabled');
+  const ordered = [...on.filter((e) => e.install.source), ...on.filter((e) => !e.install.source)];
+  for (const entry of ordered) await startEntry(deps, entry);
+  for (const entry of off) await resolveDir(deps, entry);
 };
 
-const stopper = (server: Server, entries: Entries, deps: SupervisorDeps) => {
+const stopper = (server: Server, entries: Entries, deps: SupervisorDeps, life: AbortController) => {
   let stopped: Promise<void> | undefined;
   const stop = async () => {
+    life.abort();
     await Promise.all([...entries.values()].map((entry) => halt(entry, deps.drainMs)));
+    await stopAll(deps.stopping);
     await closeNow(server);
     await removeDaemonFile(deps.configDir);
   };
@@ -79,28 +88,34 @@ const announce = ({ configDir, version, startedBy }: DaemonOptions, port: number
     startedBy,
   });
 
-const depsOf = (opts: DaemonOptions, launch: Launch, origin: () => string): SupervisorDeps => ({
-  configDir: opts.configDir,
-  launch,
-  install: opts.install,
-  log: createLog({ extension: 'host', part: 'api', version: opts.version }),
-  origin,
-  ...limitsOf(opts),
-  queue: serialQueue(),
-  pending: pendingChanges(),
-});
+const depsOf = (opts: DaemonOptions, launch: Launch, origin: () => string, stopping: Stopping) =>
+  ({
+    configDir: opts.configDir,
+    launch: launchUnlessStopping(stopping, launch),
+    stopping,
+    install: opts.install,
+    log: createLog({ extension: 'host', part: 'api', version: opts.version }),
+    origin,
+    ...limitsOf(opts),
+    queue: serialQueue(),
+    pending: pendingChanges(),
+    unsynced: new Set<string>(),
+  }) satisfies SupervisorDeps;
 
-// Read and check the file, listen, write daemon.json, start the children; a failed boot undoes it.
+// No other daemon, read and check the file, listen, write daemon.json, start the children; a failed boot undoes it.
 export const startDaemon = async (opts: DaemonOptions, launch: Launch): Promise<Daemon> => {
   await mkdir(opts.configDir, { recursive: true });
+  // A live daemon owns the folder: a second one fails before it writes any file there.
+  await assertNoOtherDaemon(opts.configDir);
   let port = opts.port ?? DAEMON_PORT;
-  const deps = depsOf(opts, launch, () => `http://127.0.0.1:${port}`);
-  const { entries, ...file } = await loadEntries(opts.configDir);
+  const life = new AbortController();
+  const deps = depsOf(opts, launch, () => `http://127.0.0.1:${port}`, stoppingOf(life.signal));
+  const { entries, ...file } = await loadEntries(deps);
   const info = { version: opts.version, pid: process.pid, protocol: DAEMON_PROTOCOL, ...file };
   const app = daemonApp(deps, entries, () => port, info);
   const server = await listen(app, port, '127.0.0.1');
   port = (server.address() as AddressInfo).port;
-  const stop = stopper(server, entries, deps);
+  const stop = stopper(server, entries, deps, life);
   try {
     await announce(opts, port);
     await deps.queue(() => boot(deps, entries));

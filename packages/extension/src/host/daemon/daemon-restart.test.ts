@@ -62,6 +62,22 @@ describe('a disabled { id } entry after a restart', () => {
   });
 });
 
+describe('the boot order', () => {
+  it('starts the enabled entries first, then finds the folders of the disabled ones', async () => {
+    const configDir = await tempConfigDir();
+    const dir = await hostedPackage(NO_STORE_MANIFEST);
+    const rows = [
+      { id: 'off', version: '1.0.0', enabled: false },
+      { id: 'hosted', version: '1.0.0' },
+    ];
+    await writeFile(installation(configDir), json({ host: 'local', extensions: rows }));
+    await writeSecrets(configDir);
+    const install = vi.fn<Installer>(async ({ id }) => ({ id, version: '1.0.0', dir }));
+    h = await startHarness({ install, configDir });
+    expect(install.mock.calls.map(([spec]) => spec.id)).toEqual(['hosted', 'off']);
+  });
+});
+
 describe('installation.json with an id twice', () => {
   it('runs the first row, keeps the file as .bad, reports invalid, and the next write cleans it', async () => {
     const configDir = await tempConfigDir();

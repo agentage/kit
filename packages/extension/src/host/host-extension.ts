@@ -17,7 +17,7 @@ import { createPartApp, type PartAppBase } from '../server/app.js';
 import { storeCheck } from '../store/store.js';
 import { type PgliteStore } from '../store/pglite-store.js';
 import { localOnly } from './daemon/guard.js';
-import { openHostStore } from './host-store.js';
+import { openHostStore, STORE_OPEN_MS } from './host-store.js';
 
 export interface HostOptions {
   dataDir: string;
@@ -28,6 +28,8 @@ export interface HostOptions {
   origin?: string;
   // The daemon's guard: a Host of 127.0.0.1 or localhost at the port, a local Origin, no cross-site fetch.
   localOnly?: boolean;
+  // The wait for the store to open, STORE_OPEN_MS when left out; past it /health says unavailable.
+  storeOpenMs?: number;
 }
 
 export interface HostedExtension {
@@ -120,7 +122,8 @@ const hostedOf = (h: Hosting, app: Express, base: PartAppBase): HostedExtension 
 export const hostWith = async (dir: string, opts: HostOptions, extras: HostExtras) => {
   const pkg = await readManifest(dir);
   const log = createLog({ extension: pkg.agentage.id, part: 'api', version: pkg.version });
-  const store = await openHostStore(dir, pkg, opts.dataDir, log);
+  const openMs = opts.storeOpenMs ?? STORE_OPEN_MS;
+  const store = await openHostStore(pkg, { dir, dataDir: opts.dataDir, openMs }, log);
   const onExit = once(opts.onExit ?? (() => undefined));
   const build = extras.build ?? buildInfoFromEnv({});
   const h: Hosting = { dir, pkg, log, opts, extras, store, onExit, build };

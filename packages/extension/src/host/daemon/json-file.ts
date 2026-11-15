@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { chmod, open, readFile, rename } from 'node:fs/promises';
+import { chmod, open, readFile, rename, stat } from 'node:fs/promises';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { basename } from 'node:path';
 import { fail } from '../../envelope/envelope.js';
@@ -14,8 +14,16 @@ export const readJsonFile = async <T>(file: string, fallback: T): Promise<T> => 
   }
 };
 
+// The mode of a file already there, narrowed by the default: a 0600 file is never widened.
+const modeOf = (file: string, mode: number) =>
+  stat(file).then(
+    (st) => st.mode & mode & 0o777,
+    () => mode
+  );
+
 // A reader sees the old file or the new one, never half of one, also after a power loss.
-export const writeJsonFile = async (file: string, value: unknown, mode = 0o644): Promise<void> => {
+export const writeJsonFile = async (file: string, value: unknown, given = 0o644): Promise<void> => {
+  const mode = await modeOf(file, given);
   const tmp = `${file}.${process.pid}.${randomBytes(4).toString('hex')}.tmp`;
   const handle = await open(tmp, 'w', mode);
   try {

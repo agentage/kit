@@ -33,22 +33,38 @@ const fileOf = (configDir: string, kind: ValueKind) => join(configDir, `${kind}.
 export const readValues = async (configDir: string, kind: ValueKind, id: string) =>
   (await readJsonFile<Record<string, Values>>(fileOf(configDir, kind), {}))[id] ?? {};
 
+type Rows = Record<string, Values>;
+
+// The rows of one file changed under its lock; the same object back writes nothing.
+const changeValues = (
+  configDir: string,
+  kind: ValueKind,
+  change: (all: Rows) => Rows,
+  waitMs?: number
+) => {
+  const file = fileOf(configDir, kind);
+  const write = async () => {
+    const all = await readJsonFile<Rows>(file, {});
+    const next = change(all);
+    if (next !== all) await writeJsonFile(file, next, kind === 'secrets' ? 0o600 : 0o644);
+  };
+  return withFileLock(file, write, waitMs);
+};
+
 export const writeValues = (
   configDir: string,
   kind: ValueKind,
   id: string,
   values?: Values,
   waitMs?: number
-) => {
-  const file = fileOf(configDir, kind);
-  return withFileLock(
-    file,
-    async () => {
-      const all = await readJsonFile<Record<string, Values>>(file, {});
-      if (values) all[id] = values;
-      else delete all[id];
-      await writeJsonFile(file, all, kind === 'secrets' ? 0o600 : 0o644);
+) =>
+  changeValues(
+    configDir,
+    kind,
+    (all) => {
+      const rest = { ...all };
+      delete rest[id];
+      return values ? { ...rest, [id]: values } : rest;
     },
     waitMs
   );
-};

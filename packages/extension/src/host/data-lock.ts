@@ -1,6 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { rmSync } from 'node:fs';
-import { link, readFile, rename, unlink, writeFile } from 'node:fs/promises';
+import { link, readFile, unlink, writeFile } from 'node:fs/promises';
 import { setTimeout as sleep } from 'node:timers/promises';
 
 export const DATA_DIR_LOCKED = 'DATA_DIR_LOCKED';
@@ -79,21 +79,24 @@ const take = async (lock: string): Promise<boolean> => {
   }
 };
 
-// Only one starter moves the stale file away; one that moved a fresh lock puts it back and refuses.
-const clearStale = async (lock: string, pid: number): Promise<void> => {
-  const moved = unique(`${lock}.stale`);
-  const gone = await rename(lock, moved).then(
-    () => false,
-    (err: NodeJS.ErrnoException) => err.code === 'ENOENT'
-  );
-  if (gone) return;
-  const now = await holder(moved);
-  if (now !== pid) {
-    await place(moved, lock, now).catch(() => undefined);
-    await unlink(moved);
-    throw locked(lock, now);
+// A guard left by a breaker that died is removed and taken once more.
+const takeDeadGuard = async (guard: string): Promise<boolean> => {
+  if (live(guard, await holder(guard))) return false;
+  await unlink(guard).catch(() => undefined);
+  return take(guard);
+};
+
+// One breaker at a time (<lock>.break): the lock is removed only while it still names the dead pid.
+const breakStale = async (lock: string, pid: number): Promise<void> => {
+  const guard = `${lock}.break`;
+  if (!(await take(guard)) && !(await takeDeadGuard(guard)))
+    throw locked(lock, await holder(guard));
+  try {
+    if ((await holder(lock)) === pid) await unlink(lock).catch(() => undefined);
+  } finally {
+    rmSync(guard, { force: true });
+    held.delete(guard);
   }
-  await unlink(moved);
 };
 
 const turns = new Map<string, Promise<unknown>>();
@@ -111,7 +114,7 @@ const acquire = async (lock: string): Promise<void> => {
   if (await take(lock)) return;
   const pid = await holder(lock);
   if (live(lock, pid)) throw locked(lock, pid);
-  await clearStale(lock, pid);
+  await breakStale(lock, pid);
   if (!(await take(lock))) throw locked(lock, await holder(lock));
 };
 

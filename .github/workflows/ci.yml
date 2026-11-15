@@ -159,6 +159,22 @@ jobs:
           npx playwright install chromium
           npm run test:e2e
 
+      # The one container (C7): the image builds from this kit, starts healthy and serves the api.
+      - name: One container smoke - build --container, run it, the api answers
+        working-directory: /tmp/probe
+        run: |
+          set -euo pipefail
+          node node_modules/@agentage/extension/dist/tool/cli.js build --container
+          image="ghcr.io/agentage/$(jq -r .agentage.id package.json):$(jq -r .version package.json)"
+          docker run -d --name one -p 127.0.0.1:18080:8080 -e AGENTAGE_HOST_AUTH=off "$image"
+          trap 'docker logs one 2>&1 | tail -40' ERR
+          for _ in $(seq 1 60); do
+            [ "$(docker inspect -f '{{.State.Health.Status}}' one)" = healthy ] && break; sleep 2
+          done
+          docker inspect -f '{{.State.Health.Status}}' one | grep -qx healthy
+          curl -sf "http://127.0.0.1:18080/api/probe/echo?msg=hi" | grep -q '"msg":"hi"'
+          echo "PASS one container $image"
+
       - name: Container logs on failure
         if: failure()
         run: docker compose -f /tmp/probe/.agentage/compose.json logs --no-color --tail 80 || true
@@ -293,7 +309,10 @@ jobs:
           npm ci
           # The gate validates the discovery document and the record with the kit under test.
           npm install --no-save ../probe/agentage-extension-*.tgz
-          echo "e2e validates with @agentage/extension $(jq -r .version node_modules/@agentage/extension/package.json)"
+          # The version alone cannot tell the candidate from npm (both can be 0.13.0): the source can.
+          resolved=$(jq -r '.packages["node_modules/@agentage/extension"].resolved' node_modules/.package-lock.json)
+          echo "e2e validates with @agentage/extension $(jq -r .version node_modules/@agentage/extension/package.json) from $resolved"
+          case "$resolved" in file:*) ;; *) echo "::error::the e2e kit is $resolved, not the candidate"; exit 1 ;; esac
           npx playwright install chromium
           npm run e2e -- probe gate local
 

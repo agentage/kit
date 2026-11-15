@@ -1,5 +1,5 @@
 import { fail } from '../../envelope/envelope.js';
-import { updateInstallation, withEntry, type InstallEntry } from './installation.js';
+import { persistInstallation, withEntry, type InstallEntry } from './installation.js';
 import { type Entry, type SupervisorDeps } from './supervisor.js';
 
 export type Entries = Map<string, Entry>;
@@ -27,4 +27,4 @@ export const entryOf = (entries: Entries, id: string): Entry => {
 
 // The entry of id in installation.json replaced, added, or (no install) removed.
 export const persist = (deps: SupervisorDeps, id: string, install?: InstallEntry) =>
-  updateInstallation(deps.configDir, (doc) => withEntry(doc, id, install), deps.lockMs);
+  persistInstallation(deps.configDir, (doc) => withEntry(doc, id, install), deps.lockMs);

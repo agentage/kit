@@ -64,6 +64,11 @@ const forged = async (given: Record<string, unknown>, claims: Record<string, unk
   return `Bearer aga_${await jwt}`;
 };
 const otherKey = () => generateKeyPairSync('ed25519').privateKey;
+// The first signature character flipped: the last ones hold the top bits of S, often 0 already.
+const tampered = (bearer: string) => {
+  const at = bearer.lastIndexOf('.') + 1;
+  return `${bearer.slice(0, at)}${bearer[at] === 'A' ? 'B' : 'A'}${bearer.slice(at + 1)}`;
+};
 
 describe('the token check (C4)', () => {
   it('a public route or tool needs no token; probe:read opens read with the caller', async () => {
@@ -136,13 +141,18 @@ describe('the token check (C4)', () => {
       await forged({ kid: undefined }),
       await forged({}, { exp: undefined }),
       await forged({}, { sub: 5 }),
-      `Bearer aga_${(await forged({})).slice(11, -4)}AAAA`,
+      tampered(await forged({})),
     ];
     vi.setSystemTime(Date.now() + 2000);
-    for (const [i, bearer] of bad.entries())
-      await expect(check(bearer, 'read'), String(i)).rejects.toMatchObject(
-        unauthorized('Invalid token')
-      );
+    const outcomes = await Promise.all(
+      bad.map((bearer) =>
+        check(bearer, 'read').then(
+          (ok) => ({ ok }),
+          (err: unknown) => err
+        )
+      )
+    );
+    expect(outcomes).toEqual(bad.map(() => expect.objectContaining(unauthorized('Invalid token'))));
   });
 
   it('a revoked token is 401 once the list is read again', async () => {

@@ -59,7 +59,9 @@ describe('hostEnvOf', () => {
       secretsDir: '/run/secrets',
       origin: 'http://127.0.0.1:8080',
       drainMs: 10_000,
+      storeOpenMs: 120_000,
     });
+    expect(hostEnvOf({ AGENTAGE_STORE_OPEN_MS: '500' }).storeOpenMs).toBe(500);
     expect(hostEnvOf({ AGENTAGE_DRAIN_MS: '8000' }).drainMs).toBe(8000);
     expect(hostEnvOf({ AGENTAGE_DRAIN_MS: '-1' }).drainMs).toBe(10_000);
   });

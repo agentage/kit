@@ -67,6 +67,8 @@ const relay = (upstream: ClientRequest, res: Response, next: NextFunction, ms: n
   upstream.on('response', (up: IncomingMessage) => {
     clearTimeout(timer);
     res.writeHead(up.statusCode ?? 502, endToEnd(up.headers));
+    // A child gone in the middle of its body: the answer is cut, not left open.
+    up.once('close', () => void (up.complete || res.destroy()));
     up.pipe(res);
   });
   upstream.on('error', () => {

@@ -70,7 +70,7 @@ const recordShape = {
   // /api/v{N}: an extension still on a kit before 0.13, read by a newer one; it goes in phase 4.
   openapi: z
     .string()
-    .regex(/^\/api\/(?:v[1-9][0-9]*|[a-z][a-z0-9-]*)\/openapi\.json$/)
+    .regex(/^\/api\/(?:v[0-9]+|[a-z][a-z0-9-]*)\/openapi\.json$/)
     .describe(
       '/api/{id}/openapi.json, or the old /api/v{N}; only the kit checks that {id} is the id'
     )
@@ -102,7 +102,7 @@ const FORM_RULE = {
 
 // The api prefix is /api/{id}, or the old /api/v{N}: never another extension's id.
 const openapiNamesItsExtension = ({ id, openapi }: { id: string; openapi?: string }) =>
-  !openapi || /^\/api\/v[1-9][0-9]*\//.test(openapi) || openapi === `/api/${id}/openapi.json`;
+  !openapi || /^\/api\/v[0-9]+\//.test(openapi) || openapi === `/api/${id}/openapi.json`;
 
 const OPENAPI_RULE = { message: 'openapi is /api/{id}/openapi.json', path: ['openapi'] };
 

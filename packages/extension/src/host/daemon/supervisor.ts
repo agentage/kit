@@ -10,6 +10,7 @@ import { runInstaller } from './installer-call.js';
 
 import { type PendingChanges } from './pending.js';
 import { type Queue } from './queue.js';
+import { type Stopping } from './stopping.js';
 
 // Called on every boot for each entry with a version: idempotent (docs/part-image.md).
 // signal: aborted when the daemon stops waiting (installMs); an installer may ignore it.
@@ -59,6 +60,9 @@ export interface SupervisorDeps extends Limits {
   log: Log;
   queue: Queue;
   pending: PendingChanges;
+  stopping: Stopping;
+  // The ids whose files a failed undo left unlike the list.
+  unsynced: Set<string>;
 }
 
 export const valuesOf = async (configDir: string, id: string): Promise<Values> => ({
@@ -96,7 +100,7 @@ const launchFor = async (
   const dir = await dirOf(deps, entry, install, given);
   const pkg = await readManifest(dir);
   const spec = { id: entry.id, dir, dataDir: dataDirOf(deps.configDir, entry.id), ...values };
-  const child = await deps.launch({ ...spec, origin: deps.origin() });
+  const child = await deps.launch({ ...spec, origin: deps.origin(), storeOpenMs: deps.healthMs });
   await healthy(child.port, deps.healthMs).catch(async (err: unknown) => {
     await child.stop();
     throw err;

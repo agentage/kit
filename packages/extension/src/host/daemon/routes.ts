@@ -11,6 +11,7 @@ import { changeExtension, removeExtension } from './ops.js';
 import { type Pending, type PendingChanges } from './pending.js';
 import { waitAtMost } from './queue.js';
 import { proxyTo } from './proxy.js';
+import { stopsNow } from './stopping.js';
 import { type SupervisorDeps } from './supervisor.js';
 
 // What /health says of the daemon itself: the values of daemon.json, so a client can prove it.
@@ -24,22 +25,43 @@ interface DaemonInfo {
   invalid: boolean;
   // installation.json could not be read at boot: every change is refused, the file is never written.
   unreadable?: string;
+  // The last change found installation.json not JSON (after boot); the next one that reads it clears it.
+  notJson?: boolean;
 }
 
-const installationOf = ({ invalid, unreadable }: DaemonInfo) => {
+const installationOf = ({ invalid, unreadable, notJson }: DaemonInfo) => {
   if (unreadable) return { installation: 'unreadable', installationError: unreadable };
-  return invalid ? { installation: 'invalid' } : {};
+  return invalid || notJson ? { installation: 'invalid' } : {};
 };
 
-const healthOf = (entries: Entries, info: DaemonInfo, pending: PendingChanges) => {
+const reasonOf = (err: unknown) => (err as { details?: { reason?: string } }).details?.reason;
+
+// A refusal for a file that turned not JSON shows in /health until a change reads the file again.
+const checkReadable = (deps: SupervisorDeps, info: DaemonInfo) =>
+  assertReadable(deps.configDir, info.unreadable).then(
+    () => void (info.notJson = false),
+    (err: unknown) => {
+      info.notJson = reasonOf(err) === 'not JSON';
+      throw err;
+    }
+  );
+
+const healthOf = (deps: SupervisorDeps, entries: Entries, info: DaemonInfo) => {
   const all = [...entries.values()];
   const settled = all.every((e) => e.state === 'running' || e.state === 'disabled');
-  const status = settled && !info.invalid && !info.unreadable ? 'ok' : 'degraded';
+  const synced = !deps.unsynced.size;
+  const clean = !info.invalid && !info.unreadable && !info.notJson;
+  const status = settled && synced && clean ? 'ok' : 'degraded';
   const self = { service: DAEMON_SERVICE, pid: info.pid, protocol: info.protocol };
   const extensions = all.map(summary);
-  const changing = pending.list();
+  const changing = deps.pending.list();
   const busy = changing.length ? { pending: changing } : {};
-  return { status, version: info.version, ...self, extensions, ...busy, ...installationOf(info) };
+  const marks = {
+    ...busy,
+    ...(!synced && { unsynced: [...deps.unsynced] }),
+    ...installationOf(info),
+  };
+  return { status, version: info.version, ...self, extensions, ...marks };
 };
 
 // What a POST body names, for /health: the id, or the folder.
@@ -55,7 +77,8 @@ const runner =
   <T>(what: Omit<Pending, 'since'>, fn: () => Promise<T>) =>
     p.track(what, () =>
       waitAtMost(deps.queue, deps.installMs, async () => {
-        await assertReadable(deps.configDir, info.unreadable);
+        if (deps.stopping.signal.aborted) throw stopsNow();
+        await checkReadable(deps, info);
         return fn();
       })
     );
@@ -108,7 +131,7 @@ export const daemonApp = (
   app.use('/api/:id', proxyTo(entries, deps));
   app.get(
     '/health',
-    (_req, res) => void res.set('Cache-Control', 'no-store').json(healthOf(entries, info, pending))
+    (_req, res) => void res.set('Cache-Control', 'no-store').json(healthOf(deps, entries, info))
   );
   hostRoutes(app, deps, entries, info, pending);
   app.use(notFound);

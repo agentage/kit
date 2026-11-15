@@ -10,6 +10,7 @@ import { runInstaller } from './installer-call.js';
 
 import { type PendingChanges } from './pending.js';
 import { type Queue } from './queue.js';
+import { type Stopping } from './stopping.js';
 
 // Called on every boot for each entry with a version: idempotent (docs/part-image.md).
 // signal: aborted when the daemon stops waiting (installMs); an installer may ignore it.
@@ -59,6 +60,7 @@ export interface SupervisorDeps extends Limits {
   log: Log;
   queue: Queue;
   pending: PendingChanges;
+  stopping: Stopping;
 }
 
 export const valuesOf = async (configDir: string, id: string): Promise<Values> => ({

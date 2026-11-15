@@ -10,6 +10,7 @@ import { type Entries } from './entries.js';
 import { limitsOf, type Limits } from './limits.js';
 import { pendingChanges } from './pending.js';
 import { serialQueue } from './queue.js';
+import { launchUnlessStopping, stopAll, stoppingOf, type Stopping } from './stopping.js';
 import { daemonApp } from './routes.js';
 import { runInstaller } from './installer-call.js';
 import { halt, startEntry, type Entry, type Installer, type SupervisorDeps } from './supervisor.js';
@@ -61,10 +62,12 @@ const boot = async (deps: SupervisorDeps, entries: Entries): Promise<void> => {
   for (const entry of off) await resolveDir(deps, entry);
 };
 
-const stopper = (server: Server, entries: Entries, deps: SupervisorDeps) => {
+const stopper = (server: Server, entries: Entries, deps: SupervisorDeps, life: AbortController) => {
   let stopped: Promise<void> | undefined;
   const stop = async () => {
+    life.abort();
     await Promise.all([...entries.values()].map((entry) => halt(entry, deps.drainMs)));
+    await stopAll(deps.stopping);
     await closeNow(server);
     await removeDaemonFile(deps.configDir);
   };
@@ -81,28 +84,31 @@ const announce = ({ configDir, version, startedBy }: DaemonOptions, port: number
     startedBy,
   });
 
-const depsOf = (opts: DaemonOptions, launch: Launch, origin: () => string): SupervisorDeps => ({
-  configDir: opts.configDir,
-  launch,
-  install: opts.install,
-  log: createLog({ extension: 'host', part: 'api', version: opts.version }),
-  origin,
-  ...limitsOf(opts),
-  queue: serialQueue(),
-  pending: pendingChanges(),
-});
+const depsOf = (opts: DaemonOptions, launch: Launch, origin: () => string, stopping: Stopping) =>
+  ({
+    configDir: opts.configDir,
+    launch: launchUnlessStopping(stopping, launch),
+    stopping,
+    install: opts.install,
+    log: createLog({ extension: 'host', part: 'api', version: opts.version }),
+    origin,
+    ...limitsOf(opts),
+    queue: serialQueue(),
+    pending: pendingChanges(),
+  }) satisfies SupervisorDeps;
 
 // Read and check the file, listen, write daemon.json, start the children; a failed boot undoes it.
 export const startDaemon = async (opts: DaemonOptions, launch: Launch): Promise<Daemon> => {
   await mkdir(opts.configDir, { recursive: true });
   let port = opts.port ?? DAEMON_PORT;
-  const deps = depsOf(opts, launch, () => `http://127.0.0.1:${port}`);
+  const life = new AbortController();
+  const deps = depsOf(opts, launch, () => `http://127.0.0.1:${port}`, stoppingOf(life.signal));
   const { entries, ...file } = await loadEntries(opts.configDir);
   const info = { version: opts.version, pid: process.pid, protocol: DAEMON_PROTOCOL, ...file };
   const app = daemonApp(deps, entries, () => port, info);
   const server = await listen(app, port, '127.0.0.1');
   port = (server.address() as AddressInfo).port;
-  const stop = stopper(server, entries, deps);
+  const stop = stopper(server, entries, deps, life);
   try {
     await announce(opts, port);
     await deps.queue(() => boot(deps, entries));

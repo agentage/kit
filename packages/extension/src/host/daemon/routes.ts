@@ -11,6 +11,7 @@ import { changeExtension, removeExtension } from './ops.js';
 import { type Pending, type PendingChanges } from './pending.js';
 import { waitAtMost } from './queue.js';
 import { proxyTo } from './proxy.js';
+import { stopsNow } from './stopping.js';
 import { type SupervisorDeps } from './supervisor.js';
 
 // What /health says of the daemon itself: the values of daemon.json, so a client can prove it.
@@ -55,6 +56,7 @@ const runner =
   <T>(what: Omit<Pending, 'since'>, fn: () => Promise<T>) =>
     p.track(what, () =>
       waitAtMost(deps.queue, deps.installMs, async () => {
+        if (deps.stopping.signal.aborted) throw stopsNow();
         await assertReadable(deps.configDir, info.unreadable);
         return fn();
       })

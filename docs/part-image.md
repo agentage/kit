@@ -80,7 +80,9 @@ out when nothing is pending. An installer call past `installMs` stays listed wit
 until it ends, and a second installer call for that id meanwhile is 409 `CONFLICT` with that row
 in `error.details`. A `POST` for an id that is installed is 409 `CONFLICT` with `error.details`
 `{ id, version?, source? }` of the entry that is there. A change that waits `installMs` for the
-changes before it (the boot too) is 503 `UNAVAILABLE` and never runs.
+changes before it (the boot too) is 503 `UNAVAILABLE` and never runs. Once `stop()` begins, a queued change is
+503 `UNAVAILABLE` ("the daemon stops"), no child starts, and a child still starting is stopped
+before `stop()` resolves.
 
 `POST /host/extensions` with `enabled: false` records the extension (the installer runs for an
 `{ id }`) and never starts it. At each boot the installer runs for a disabled `{ id }` entry too:

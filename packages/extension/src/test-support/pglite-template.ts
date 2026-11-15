@@ -11,7 +11,7 @@ declare module 'vitest' {
 }
 
 // One initdb per run (about 5 s of CPU each): every in-process store starts from a copy of it.
-export default async function setup(project: TestProject) {
+export const setup = async (project: TestProject) => {
   const dir = await mkdtemp(join(tmpdir(), 'agentage-pglite-template-'));
   const db = new PGlite(join(dir, 'data'));
   await db.query('select 1');
@@ -22,4 +22,4 @@ export default async function setup(project: TestProject) {
   await db.close();
   project.provide('pgliteTemplate', dir);
   return () => rm(dir, { recursive: true, force: true });
-}
+};

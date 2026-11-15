@@ -32,6 +32,7 @@ describe('public surface', () => {
 
   it('the tool exports what the cli and the build call', () => {
     expect(Object.keys(tool).sort()).toEqual([
+      'CAPABILITIES',
       'KIT_VERSION',
       'PROTOCOL_VERSIONS',
       'PackageSchema',

@@ -1,8 +1,10 @@
 import { readFile } from 'node:fs/promises';
+import { request } from 'node:http';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { startOn } from '../testing/test-server.js';
 import { HOSTED_MANIFEST, hostedPackage } from '../test-support/hosted-fixture.js';
+import { serveApp } from '../test-support/http.js';
 import { json, tempDir, tempPackage } from '../test-support/packages.js';
 import { DATA_DIR_LOCKED } from './data-lock.js';
 import { hostExtension, type HostedExtension } from './host-extension.js';
@@ -22,7 +24,38 @@ afterEach(async () => {
   vi.restoreAllMocks();
 });
 
+// fetch cannot set Host: a raw request, as a page under another name would send it.
+const statusOf = (url: string, headers: Record<string, string>) =>
+  new Promise<number | undefined>((resolve, reject) => {
+    const req = request(`${url}/api/hosted/echo`, { headers }, (res) => {
+      res.resume();
+      resolve(res.statusCode);
+    });
+    req.on('error', reject).end();
+  });
+
 describe('hostExtension', () => {
+  it('localOnly mounts the guard of the daemon: Host, Origin and Sec-Fetch-Site', async () => {
+    vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    const opts = { dataDir: '', secrets: SECRETS, localOnly: true };
+    const served = await serveApp((await host(await hostedPackage(), opts)).app);
+    const at = served.url.slice('http://'.length);
+    try {
+      expect(await statusOf(served.url, { host: at })).toBe(200);
+      expect(await statusOf(served.url, { host: at.replace('127.0.0.1', 'localhost') })).toBe(200);
+      expect(await statusOf(served.url, { host: 'evil.example' })).toBe(403);
+      expect(await statusOf(served.url, { host: at, origin: 'https://evil.example' })).toBe(403);
+      expect(await statusOf(served.url, { host: at, 'sec-fetch-site': 'cross-site' })).toBe(403);
+      const open = await serveApp(
+        (await host(await hostedPackage(), { ...opts, localOnly: false })).app
+      );
+      expect(await statusOf(open.url, { host: 'evil.example' })).toBe(200);
+      await open.close();
+    } finally {
+      await served.close();
+    }
+  });
+
   it('hosts the api at /api/{id}/* with no token, settings over defaults, the secret, the store', async () => {
     vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
     const opts = { dataDir: await dataDir(), settings: { 'echo.prefix': 'hey' }, secrets: SECRETS };

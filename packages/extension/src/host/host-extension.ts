@@ -16,6 +16,7 @@ import { RUNNERS } from '../runtime/part-runners.js';
 import { createPartApp, type PartAppBase } from '../server/app.js';
 import { storeCheck } from '../store/store.js';
 import { type PgliteStore } from '../store/pglite-store.js';
+import { localOnly } from './daemon/guard.js';
 import { openHostStore } from './host-store.js';
 
 export interface HostOptions {
@@ -25,6 +26,8 @@ export interface HostOptions {
   onExit?: () => void;
   // ctx.extension.origin; http://127.0.0.1 when left out.
   origin?: string;
+  // The daemon's guard: a Host of 127.0.0.1 or localhost at the port, a local Origin, no cross-site fetch.
+  localOnly?: boolean;
 }
 
 export interface HostedExtension {
@@ -97,7 +100,8 @@ const baseOf = async (h: Hosting): Promise<PartAppBase> => {
   const checks = { ...(h.store && { store: storeCheck(h.store) }), ...guard.checks };
   const resolved = { instance: randomBytes(4).toString('hex'), startedAt: Date.now() };
   const build = h.extras.build ?? buildInfoFromEnv({});
-  return { pkg: h.pkg, log: h.log, build, onExit: h.onExit, ...guard, checks, ...resolved };
+  const guards = h.opts.localOnly ? [localOnly()] : undefined;
+  return { pkg: h.pkg, log: h.log, build, onExit: h.onExit, guards, ...guard, checks, ...resolved };
 };
 
 const hostedOf = (h: Hosting, app: Express, base: PartAppBase): HostedExtension => {

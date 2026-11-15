@@ -72,6 +72,11 @@ The daemon (`createDaemon`) answers `/api/{id}/*` from the child of that extensi
 waited past `gateMs` for a change to end. A child that sends no answer headers in `answerMs` gets
 504 `UNAVAILABLE` ("The extension did not answer in <ms> ms").
 
+While a change is taken and not yet answered (queued too), `/health` lists it in `pending`:
+`[{ op: "install" | "update" | "remove", id?, source?, since }]`; the field is left out when
+nothing is pending. A `POST` for an id that is installed is 409 `CONFLICT` with
+`error.details` `{ id, version?, source? }` of the entry that is there.
+
 `POST /host/extensions` with `enabled: false` records the extension (the installer runs for an
 `{ id }`) and never starts it; a later `PATCH { enabled: true }` starts it with no second installer
 call. When `installation.json` cannot be read (`EACCES`, `EISDIR`), the daemon never writes it:

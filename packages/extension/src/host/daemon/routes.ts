@@ -8,6 +8,7 @@ import { addExtension } from './add.js';
 import { listed, summary, type Entries } from './entries.js';
 import { assertReadable } from './installation.js';
 import { changeExtension, removeExtension } from './ops.js';
+import { pendingChanges, type Pending, type PendingChanges } from './pending.js';
 import { proxyTo } from './proxy.js';
 import { type SupervisorDeps } from './supervisor.js';
 
@@ -29,36 +30,61 @@ const installationOf = ({ invalid, unreadable }: DaemonInfo) => {
   return invalid ? { installation: 'invalid' } : {};
 };
 
-const healthOf = (entries: Entries, info: DaemonInfo) => {
+const healthOf = (entries: Entries, info: DaemonInfo, pending: PendingChanges) => {
   const all = [...entries.values()];
   const settled = all.every((e) => e.state === 'running' || e.state === 'disabled');
   const status = settled && !info.invalid && !info.unreadable ? 'ok' : 'degraded';
   const self = { service: DAEMON_SERVICE, pid: info.pid, protocol: info.protocol };
   const extensions = all.map(summary);
-  return { status, version: info.version, ...self, extensions, ...installationOf(info) };
+  const changing = pending.list();
+  const busy = changing.length ? { pending: changing } : {};
+  return { status, version: info.version, ...self, extensions, ...busy, ...installationOf(info) };
+};
+
+// What a POST body names, for /health: the id, or the folder.
+const named = (body: unknown): Omit<Pending, 'op' | 'since'> => {
+  const { id, source } = (body ?? {}) as Record<string, unknown>;
+  if (typeof id === 'string') return { id };
+  return typeof source === 'string' ? { source } : {};
 };
 
 // Every change in the queue, and none while installation.json cannot be read.
-const changes = (deps: SupervisorDeps, entries: Entries, info: DaemonInfo) => {
-  const run = <T>(fn: () => Promise<T>) =>
-    deps.queue(async () => (await assertReadable(deps.configDir, info.unreadable), fn()));
-  const id = (params: Record<string, string | string[]>) => String(params['id']);
-  const add: RequestHandler = async (req, res) =>
-    void res.status(201).json(ok(await run(() => addExtension(deps, entries, req.body))));
-  const change: RequestHandler = async (req, res) =>
-    void res.json(ok(await run(() => changeExtension(deps, entries, id(req.params), req.body))));
-  const purge = (q: unknown) => (q as Record<string, unknown>)['purge'] === 'true';
-  const remove: RequestHandler = async (req, res) =>
-    void res.json(
-      ok(await run(() => removeExtension(deps, entries, id(req.params), purge(req.query))))
+const runner =
+  (deps: SupervisorDeps, info: DaemonInfo, p: PendingChanges) =>
+  <T>(what: Omit<Pending, 'since'>, fn: () => Promise<T>) =>
+    p.track(what, () =>
+      deps.queue(async () => (await assertReadable(deps.configDir, info.unreadable), fn()))
     );
+
+const changes = (deps: SupervisorDeps, entries: Entries, info: DaemonInfo, p: PendingChanges) => {
+  const run = runner(deps, info, p);
+  const id = (params: Record<string, string | string[]>) => String(params['id']);
+  const add: RequestHandler = async (req, res) => {
+    const what = { op: 'install' as const, ...named(req.body) };
+    res.status(201).json(ok(await run(what, () => addExtension(deps, entries, req.body))));
+  };
+  const change: RequestHandler = async ({ params, body }, res) => {
+    const what = { op: 'update' as const, id: id(params) };
+    res.json(ok(await run(what, () => changeExtension(deps, entries, id(params), body))));
+  };
+  const purge = (q: unknown) => (q as Record<string, unknown>)['purge'] === 'true';
+  const remove: RequestHandler = async ({ params, query }, res) => {
+    const what = { op: 'remove' as const, id: id(params) };
+    res.json(ok(await run(what, () => removeExtension(deps, entries, what.id, purge(query)))));
+  };
   return { add, change, remove };
 };
 
-const hostRoutes = (app: Express, deps: SupervisorDeps, entries: Entries, info: DaemonInfo) => {
+const hostRoutes = (
+  app: Express,
+  deps: SupervisorDeps,
+  entries: Entries,
+  info: DaemonInfo,
+  p: PendingChanges
+) => {
   app.get('/host/extensions', (_req, res) => void res.json(ok([...entries.values()].map(listed))));
   const json = express.json({ limit: BODY_LIMIT });
-  const { add, change, remove } = changes(deps, entries, info);
+  const { add, change, remove } = changes(deps, entries, info, p);
   app.post('/host/extensions', json, add);
   app.patch('/host/extensions/:id', json, change);
   app.delete('/host/extensions/:id', remove);
@@ -72,14 +98,15 @@ export const daemonApp = (
   info: DaemonInfo
 ): Express => {
   const app = express();
+  const pending = pendingChanges();
   app.disable('x-powered-by');
   app.use(agcidMiddleware, localOnly(port));
   app.use('/api/:id', proxyTo(entries, deps));
   app.get(
     '/health',
-    (_req, res) => void res.set('Cache-Control', 'no-store').json(healthOf(entries, info))
+    (_req, res) => void res.set('Cache-Control', 'no-store').json(healthOf(entries, info, pending))
   );
-  hostRoutes(app, deps, entries, info);
+  hostRoutes(app, deps, entries, info, pending);
   app.use(notFound);
   app.use(errorHandler(deps.log));
   return app;

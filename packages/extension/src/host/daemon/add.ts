@@ -24,9 +24,17 @@ const AddSchema = z.union([
   }),
 ]);
 
+// The entry a 409 names, so a client can tell a repeat from another package of that id.
+const existing = ({ id, version, install }: Entry) => ({
+  id,
+  ...(version ? { version } : {}),
+  ...(install.source ? { source: install.source } : {}),
+});
+
 const reserve = (entries: Entries, id: string): void => {
   if (id === RESERVED_ID) throw fail('VALIDATION_ERROR', 'the id host is reserved');
-  if (entries.has(id)) throw fail('CONFLICT', `${id} is installed`);
+  const has = entries.get(id);
+  if (has) throw fail('CONFLICT', `${id} is installed`, { details: existing(has) });
 };
 
 const sourceEntry = async (source: string) => {

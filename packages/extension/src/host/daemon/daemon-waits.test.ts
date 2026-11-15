@@ -125,11 +125,17 @@ describe('a slow installer at boot', () => {
 
   it('POST { id } with an installer that never answers is 504 after installMs and records nothing', async () => {
     const install = vi.fn<Installer>(() => new Promise(() => undefined));
-    h = await startHarness({ install, installMs: 100 });
-    expect(await h.call('POST', '/host/extensions', { id: 'probe' })).toMatchObject({
-      status: 504,
-      body: { error: { code: 'UNAVAILABLE', message: 'the installer did not answer in 100 ms' } },
+    h = await startHarness({ install, installMs: 1_000 });
+    const posted = h.call('POST', '/host/extensions', { id: 'probe' });
+    await vi.waitFor(() => expect(install).toHaveBeenCalled());
+    expect((await h.call('GET', '/health')).body).toMatchObject({
+      pending: [{ op: 'install', id: 'probe', since: expect.any(String) }],
     });
+    expect(await posted).toMatchObject({
+      status: 504,
+      body: { error: { code: 'UNAVAILABLE', message: 'the installer did not answer in 1000 ms' } },
+    });
+    expect((await h.call('GET', '/health')).body).not.toHaveProperty('pending');
     expect((await h.call('GET', '/host/extensions')).body).toMatchObject({ data: [] });
     expect(await doc()).toEqual({});
   });

@@ -78,9 +78,12 @@ describe('daemon refusals', () => {
     });
     const dir = await hostedPackage();
     await h.call('POST', '/host/extensions', { source: dir });
-    expect(await h.call('POST', '/host/extensions', { source: dir })).toMatchObject(
-      code(409, 'CONFLICT')
-    );
+    expect(await h.call('POST', '/host/extensions', { source: dir })).toMatchObject({
+      status: 409,
+      body: {
+        error: { code: 'CONFLICT', details: { id: 'hosted', version: '1.0.0', source: dir } },
+      },
+    });
     expect(await h.call('POST', '/host/extensions', { source: '/nonexistent/x' })).toMatchObject(
       code(400, 'VALIDATION_ERROR')
     );

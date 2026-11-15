@@ -3,9 +3,9 @@ import { type ExtensionPackage } from '../manifest/manifest.schema.js';
 import { type Env } from '../runtime/build-info.js';
 import { settingDefaults, type SettingValue } from './context.js';
 
-type Setting = NonNullable<ExtensionPackage['agentage']['settings']>[string];
+export type Setting = NonNullable<ExtensionPackage['agentage']['settings']>[string];
 
-const fits = (setting: Setting, value: unknown): value is SettingValue => {
+export const fits = (setting: Setting, value: unknown): value is SettingValue => {
   if (setting.type === 'integer' ? !Number.isInteger(value) : typeof value !== setting.type)
     return false;
   return !setting.enum || setting.enum.includes(String(value));

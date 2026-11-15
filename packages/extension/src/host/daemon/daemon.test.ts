@@ -62,6 +62,9 @@ describe('daemon routes (C5)', () => {
     expect(health.body).toEqual({
       status: 'ok',
       version: '0.13.0',
+      service: 'agentage-daemon',
+      pid: process.pid,
+      protocol: 1,
       extensions: [{ id: 'hosted', version: '1.0.0', state: 'running', pid }],
     });
   });
@@ -110,14 +113,14 @@ describe('daemon routes (C5)', () => {
     expect(await read('secrets.json')).toEqual({});
   });
 
-  it('PATCH enabled: false stops it (503, disabled), true starts it again', async () => {
+  it('PATCH enabled: false stops it (404, disabled), true starts it again', async () => {
     await installed();
     expect(
       (await h!.call('PATCH', '/host/extensions/hosted', { enabled: false })).body
     ).toMatchObject({ data: { state: 'disabled' } });
     expect(await h!.call('GET', '/api/hosted/echo')).toMatchObject({
-      status: 503,
-      body: { error: { code: 'UNAVAILABLE' } },
+      status: 404,
+      body: { success: false, error: { code: 'NOT_FOUND', message: 'hosted is disabled' } },
     });
     expect(await read('installation.json')).toMatchObject({
       extensions: [{ id: 'hosted', enabled: false }],
@@ -135,7 +138,7 @@ describe('daemon routes (C5)', () => {
     });
   });
 
-  it('a PATCH the new child refuses answers 400 START_FAILED and the old child runs again', async () => {
+  it('a PATCH with a setting of the wrong type is 400 INVALID_SETTING; the old child runs on', async () => {
     const plain = {
       ...HOSTED_MANIFEST,
       agentage: { ...HOSTED_MANIFEST.agentage, parts: { api: true } },
@@ -144,9 +147,9 @@ describe('daemon routes (C5)', () => {
     const refused = await h!.call('PATCH', '/host/extensions/hosted', {
       settings: { 'echo.prefix': 3 },
     });
-    expect(refused).toMatchObject({ status: 400, body: { error: { code: 'START_FAILED' } } });
-    expect((refused.body as { error: { message: string } }).error.message).toContain(
-      'setting echo.prefix: 3'
+    expect(refused).toMatchObject({ status: 400, body: { error: { code: 'INVALID_SETTING' } } });
+    expect((refused.body as { error: { message: string } }).error.message).toBe(
+      'setting echo.prefix: 3 is not a valid string'
     );
     expect(await h!.call('GET', '/api/hosted/echo?msg=hi')).toMatchObject({
       status: 200,

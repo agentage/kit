@@ -40,3 +40,14 @@ package in `dir` at `/api/{id}/*`. The daemon child and the one container run th
 On loopback there is no token check. SIGTERM drains the open requests, closes the store and
 exits 0. `ctx.exit()` does the same. The host brings `@electric-sql/pglite`; the package does not
 need it.
+
+The daemon (`createDaemon`) answers `/api/{id}/*` from the child of that extension. It answers 404
+`NOT_FOUND` for an id that is not installed or is disabled; a client does not retry it. It answers
+503 `UNAVAILABLE` with `Retry-After` while the extension is starting or failed, or when a request
+waited past 30 s for a change to end.
+
+The daemon (`createDaemon`) answers `/health` with `service: "agentage-daemon"`, `pid`, `version`
+and `protocol`, the values of `daemon.json`, so a client can prove which process it talks to. A
+`PATCH {settings}` string becomes the type the manifest declares (`"5"` to `5`, `"true"`); any
+other value, or an undeclared key, is `400 INVALID_SETTING`. An `Installer` error with a string
+`code` (and `status` 400, 404 or 502) is the client's error; any other error is a logged `500`.

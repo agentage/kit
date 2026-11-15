@@ -11,6 +11,7 @@ import {
 } from './daemon-files.js';
 import { keepBadCopy, readInstallation } from './installation.js';
 import { type Entries } from './ops.js';
+import { serialQueue } from './queue.js';
 import { daemonApp } from './routes.js';
 import {
   DRAIN_MS,
@@ -91,6 +92,7 @@ const depsOf = (opts: DaemonOptions, launch: Launch, origin: () => string): Supe
   origin,
   drainMs: opts.drainMs ?? DRAIN_MS,
   healthMs: opts.healthMs ?? HEALTH_MS,
+  queue: serialQueue(),
 });
 
 // Read and check the file, listen, write daemon.json, start the children; a failed boot undoes it.
@@ -99,14 +101,14 @@ export const startDaemon = async (opts: DaemonOptions, launch: Launch): Promise<
   let port = opts.port ?? DAEMON_PORT;
   const deps = depsOf(opts, launch, () => `http://127.0.0.1:${port}`);
   const { entries, invalid } = await loadEntries(opts.configDir);
-  const info = { version: opts.version, invalid };
+  const info = { version: opts.version, pid: process.pid, protocol: DAEMON_PROTOCOL, invalid };
   const app = daemonApp(deps, entries, () => port, info);
   const server = await listen(app, port, '127.0.0.1');
   port = (server.address() as AddressInfo).port;
   const stop = stopper(server, entries, deps);
   try {
     await announce(opts, port);
-    await boot(deps, entries);
+    await deps.queue(() => boot(deps, entries));
   } catch (err) {
     await stop();
     throw err;

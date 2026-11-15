@@ -5,11 +5,15 @@ import { type Exit, type Launch } from './child.js';
 import { dataDirOf, readValues } from './daemon-files.js';
 import { type InstallEntry } from './installation.js';
 import { laneOf, retire, type Lane } from './lane.js';
+import { runInstaller } from './installer-call.js';
+
+import { type Queue } from './queue.js';
 
 export const GATE_MS = 30_000;
 
 // Called again on every boot for each entry with a version, one entry at a time: it must be
-// idempotent and fast for a version that is installed.
+// idempotent and fast for a version that is installed. An error with a string code (and status
+// 400, 404 or 502) reaches the client as the envelope with that code and message; others are a 500.
 export type Installer = (spec: {
   id: string;
   version?: string;
@@ -52,16 +56,11 @@ export interface SupervisorDeps {
   // The open requests of an old child get drainMs; a new child answers /health within healthMs.
   drainMs: number;
   healthMs: number;
+  queue: Queue;
 }
 
 export const DRAIN_MS = 10_000;
 export const HEALTH_MS = 60_000;
-
-export const NO_INSTALLER = 'this daemon has no installer: install a folder with { source }';
-
-// 501 as C5 says, in the envelope; the closed code set has no NOT_IMPLEMENTED.
-export const noInstaller = () =>
-  Object.assign(fail('UNAVAILABLE', NO_INSTALLER), { status: 501, retryAfter: undefined });
 
 export const valuesOf = async (configDir: string, id: string): Promise<Values> => ({
   settings: await readValues(configDir, 'settings', id),
@@ -73,8 +72,7 @@ const dirOf = async (deps: SupervisorDeps, entry: Entry, install: InstallEntry, 
   if (given) return given;
   if (install.source) return install.source;
   if (entry.dir && install.version === entry.install.version) return entry.dir;
-  if (!deps.install) throw noInstaller();
-  return (await deps.install({ id: entry.id, version: install.version })).dir;
+  return (await runInstaller(deps, { id: entry.id, version: install.version })).dir;
 };
 
 // Healthy before it gets the route: the child's own /health answers 200.

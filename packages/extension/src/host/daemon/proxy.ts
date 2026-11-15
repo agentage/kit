@@ -7,10 +7,11 @@ import { GATE_MS } from './supervisor.js';
 
 const waited = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms).unref());
 
-// The lane of a running extension, after a swap in progress; 404 not installed, 503 not running.
+// 404 not installed or disabled (chosen, not to retry); 503 starting, failed, or held past gateMs.
 const laneFor = async (entries: Entries, id: string, gateMs: number): Promise<Lane> => {
   const entry = entries.get(id);
   if (!entry) throw fail('NOT_FOUND', `${id} is not installed`);
+  if (entry.state === 'disabled') throw fail('NOT_FOUND', `${id} is disabled`);
   if (entry.gate) await Promise.race([entry.gate, waited(gateMs)]);
   if (!entry.lane) throw fail('UNAVAILABLE', `${id} is ${entry.state}`, { retryAfter: 5 });
   return entry.lane;

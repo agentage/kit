@@ -14,10 +14,10 @@ afterEach(async () => {
 });
 
 // fetch cannot set Host, so a raw request: what a page under another name would send.
-const raw = (headers: Record<string, string>) =>
+const raw = (headers: Record<string, string>, path = '/health', method = 'GET') =>
   new Promise<{ status?: number; body: string }>((resolve, reject) => {
     const req = request(
-      { host: '127.0.0.1', port: h.daemon.port, path: '/health', headers },
+      { host: '127.0.0.1', port: h.daemon.port, path, method, headers },
       (res) => {
         let body = '';
         res.on('data', (chunk: Buffer) => (body += chunk.toString()));
@@ -34,7 +34,36 @@ const code = (status: number, value: string) => ({
 });
 
 describe('daemon refusals', () => {
-  it('403 for a Host or an Origin other than the daemon itself, on every route', async () => {
+  it('403 on every route and method for another Host, Origin, or a cross-site or same-site fetch', async () => {
+    const at = { host: `127.0.0.1:${h.daemon.port}` };
+    const routes = [
+      ['GET', '/health'],
+      ['GET', '/host/extensions'],
+      ['POST', '/host/extensions'],
+      ['PATCH', '/host/extensions/hosted'],
+      ['DELETE', '/host/extensions/hosted'],
+      ['GET', '/api/hosted/echo'],
+      ['POST', '/api/hosted/echo'],
+    ];
+    const refused = [
+      { host: 'evil.example:4243' },
+      { ...at, origin: 'https://evil.example' },
+      { ...at, 'sec-fetch-site': 'cross-site' },
+      { ...at, 'sec-fetch-site': 'same-site' },
+    ];
+    for (const [method, path] of routes)
+      for (const headers of refused)
+        expect([method, path, (await raw(headers, path, method)).status]).toEqual([
+          method,
+          path,
+          403,
+        ]);
+    const fromHere = { ...at, 'sec-fetch-site': 'same-origin' };
+    expect((await raw(fromHere)).status).toBe(200);
+    expect((await raw({ ...at, 'sec-fetch-site': 'none' })).status).toBe(200);
+  });
+
+  it('a Host by either name passes; an Origin must be the daemon', async () => {
     const at = `127.0.0.1:${h.daemon.port}`;
     expect((await raw({ host: 'evil.example:4243' })).status).toBe(403);
     expect((await raw({ host: `localhost:${h.daemon.port}` })).status).toBe(200);

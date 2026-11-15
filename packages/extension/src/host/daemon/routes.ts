@@ -25,10 +25,18 @@ const serial = () => {
   };
 };
 
-const healthOf = (entries: Entries, version: string) => {
+export interface DaemonInfo {
+  version: string;
+  // installation.json had rows (or a shape) C3 refuses: they are left out, the file kept as .bad.
+  invalid: boolean;
+}
+
+const healthOf = (entries: Entries, { version, invalid }: DaemonInfo) => {
   const all = [...entries.values()];
-  const settled = all.every((e) => e.state === 'running' || e.state === 'disabled');
-  return { status: settled ? 'ok' : 'degraded', version, extensions: all.map(summary) };
+  const settled = !invalid && all.every((e) => e.state === 'running' || e.state === 'disabled');
+  const extensions = all.map(summary);
+  const status = settled ? 'ok' : 'degraded';
+  return { status, version, extensions, ...(invalid && { installation: 'invalid' }) };
 };
 
 const changes = (deps: SupervisorDeps, entries: Entries) => {
@@ -60,7 +68,7 @@ export const daemonApp = (
   deps: SupervisorDeps,
   entries: Entries,
   port: () => number,
-  version: string
+  info: DaemonInfo
 ): Express => {
   const app = express();
   app.disable('x-powered-by');
@@ -68,7 +76,7 @@ export const daemonApp = (
   app.use('/api/:id', proxyTo(entries));
   app.get(
     '/health',
-    (_req, res) => void res.set('Cache-Control', 'no-store').json(healthOf(entries, version))
+    (_req, res) => void res.set('Cache-Control', 'no-store').json(healthOf(entries, info))
   );
   hostRoutes(app, deps, entries);
   app.use(notFound);

@@ -30,9 +30,11 @@ export const enter = (lane: Lane): (() => void) => {
 export const drained = (lane: Lane): Promise<void> =>
   lane.open === 0 ? Promise.resolve() : new Promise((resolve) => lane.idle.push(resolve));
 
-// Waits for the open requests, then drains and stops the child.
-export const retire = async (lane: Lane | undefined): Promise<void> => {
+const waited = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms).unref());
+
+// Waits for the open requests (at most drainMs, so a hung one blocks nothing), then stops the child.
+export const retire = async (lane: Lane | undefined, drainMs: number): Promise<void> => {
   if (!lane) return;
-  await drained(lane);
+  await Promise.race([drained(lane), waited(drainMs)]);
   await lane.child.stop();
 };

@@ -1,14 +1,20 @@
-import { join } from 'node:path';
+import { copyFile } from 'node:fs/promises';
+import { isAbsolute, join } from 'node:path';
+import { z } from 'zod';
+import { ExtensionIdSchema } from '../../manifest/primitives.schema.js';
 import { readJsonFile, withFileLock, writeJsonFile } from './json-file.js';
 
 // One extension in installation.json (C3): a version, or a source folder; other keys round-trip.
-export interface InstallEntry {
-  id: string;
-  version?: string;
-  source?: string;
-  enabled?: boolean;
-  [key: string]: unknown;
-}
+const InstallEntrySchema = z.looseObject({
+  id: ExtensionIdSchema,
+  version: z.string().min(1).optional(),
+  source: z.string().refine(isAbsolute).optional(),
+  enabled: z.boolean().optional(),
+});
+
+const InstallationSchema = z.looseObject({ host: z.string(), extensions: z.array(z.unknown()) });
+
+export type InstallEntry = z.infer<typeof InstallEntrySchema>;
 
 export interface Installation {
   host: string;
@@ -16,12 +22,30 @@ export interface Installation {
   [key: string]: unknown;
 }
 
+// The rows that pass the C3 schema; invalid: the file had other rows, or was not C3 at all.
+export interface CheckedInstallation {
+  doc: Installation;
+  invalid: boolean;
+}
+
 export const INSTALLATION_FILE = 'installation.json';
 
 const EMPTY: Installation = { host: 'local', extensions: [] };
 
-export const readInstallation = (configDir: string): Promise<Installation> =>
-  readJsonFile(join(configDir, INSTALLATION_FILE), EMPTY);
+const checked = (raw: unknown): CheckedInstallation => {
+  const top = InstallationSchema.safeParse(raw);
+  if (!top.success) return { doc: EMPTY, invalid: true };
+  const rows = top.data.extensions.map((row) => InstallEntrySchema.safeParse(row));
+  const extensions = rows.flatMap((row) => (row.success ? [row.data] : []));
+  return { doc: { ...top.data, extensions }, invalid: extensions.length < rows.length };
+};
+
+export const readInstallation = async (configDir: string): Promise<CheckedInstallation> =>
+  checked(await readJsonFile(join(configDir, INSTALLATION_FILE), EMPTY).catch(() => null));
+
+// A bad file is kept as installation.json.bad before the daemon writes the valid rows over it.
+export const keepBadCopy = (configDir: string): Promise<void> =>
+  copyFile(join(configDir, INSTALLATION_FILE), join(configDir, `${INSTALLATION_FILE}.bad`));
 
 // Read, change and write under the lock: the daemon is the only writer.
 export const updateInstallation = (
@@ -30,7 +54,7 @@ export const updateInstallation = (
 ): Promise<Installation> => {
   const file = join(configDir, INSTALLATION_FILE);
   return withFileLock(file, async () => {
-    const next = change(await readInstallation(configDir));
+    const next = change((await readInstallation(configDir)).doc);
     await writeJsonFile(file, next);
     return next;
   });

@@ -23,6 +23,7 @@ const echo = async (id: string) => {
     body: (await res.json()) as { data?: { msg: string; pid: number } },
   };
 };
+const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const alive = (pid: number) => {
   try {
     return process.kill(pid, 0);
@@ -35,7 +36,7 @@ beforeAll(async () => {
   if (!existsSync(MAIN)) throw new Error(`${MAIN} is missing: npm run build first`);
   vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
   vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
-  h = await startHarness({ launch: forkLaunch(MAIN) });
+  h = await startHarness({ launch: forkLaunch(MAIN), drainMs: 300 });
   await writeFile(
     join(h.configDir, 'secrets.json'),
     json({ hosted: { 'api-token': 't' }, other: { 'api-token': 't' } })
@@ -73,6 +74,37 @@ describe('daemon with child processes', () => {
     expect(alive(b.body.data!.pid)).toBe(false);
   });
 
+  it('a request sent during the swap is held, then served by the new child with the new settings', async () => {
+    const old = (await echo('other')).body.data!.pid;
+    const slow = fetch(`http://127.0.0.1:${h.daemon.port}/api/other/slow`);
+    await pause(30);
+    const change = h.call('PATCH', '/host/extensions/other', {
+      settings: { 'echo.prefix': 'new' },
+    });
+    await pause(60);
+    const held = await echo('other');
+    expect((await slow).status).toBe(200);
+    expect((await change).status).toBe(200);
+    expect(held.body.data).toMatchObject({ msg: 'new hi' });
+    expect(held.body.data!.pid).not.toBe(old);
+  });
+
+  it('a request that never ends holds neither the swap nor the next change (drainMs, then SIGKILL)', async () => {
+    const hung = fetch(`http://127.0.0.1:${h.daemon.port}/api/other/hang`).then((r) => r.status);
+    await pause(30);
+    const started = Date.now();
+    const change = await h.call('PATCH', '/host/extensions/other', {
+      settings: { 'echo.prefix': 'a' },
+    });
+    expect(change.status).toBe(200);
+    expect(await hung).toBe(503);
+    expect(Date.now() - started).toBeLessThan(9_000);
+    const next = await h.call('PATCH', '/host/extensions/other', {
+      settings: { 'echo.prefix': 'b' },
+    });
+    expect([next.status, (await echo('other')).body.data?.msg]).toEqual([200, 'b hi']);
+  }, 20_000);
+
   it('a child that refuses to start is failed with its own reason', async () => {
     const lone = { ...HOSTED_MANIFEST, agentage: { ...HOSTED_MANIFEST.agentage, id: 'lone' } };
     const added = await h.call('POST', '/host/extensions', { source: await hostedPackage(lone) });
@@ -89,7 +121,7 @@ describe('daemon with child processes', () => {
       expect(health).toMatchObject({
         status: 'degraded',
         extensions: [
-          { id: 'hosted', state: 'failed', error: 'the process exited' },
+          { id: 'hosted', state: 'failed', error: 'the process exited (signal SIGKILL)' },
           { id: 'other', state: 'running' },
         ],
       });
@@ -98,9 +130,12 @@ describe('daemon with child processes', () => {
     expect((await echo('hosted')).status).toBe(503);
   });
 
-  it('stop ends every child', async () => {
+  it('stop ends every child, also one with a request that never ends', async () => {
     const { body } = await echo('other');
+    const hung = fetch(`http://127.0.0.1:${h.daemon.port}/api/other/hang`).then((r) => r.status);
+    await pause(30);
     await h.daemon.stop();
     expect(alive(body.data!.pid)).toBe(false);
-  });
+    expect(await hung).toBe(503);
+  }, 20_000);
 });

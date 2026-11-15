@@ -1,4 +1,4 @@
-import { request, type IncomingMessage } from 'node:http';
+import { request, type IncomingHttpHeaders, type IncomingMessage } from 'node:http';
 import { type NextFunction, type Request, type RequestHandler, type Response } from 'express';
 import { fail } from '../../envelope/envelope.js';
 import { enter, type Lane } from './lane.js';
@@ -16,18 +16,43 @@ const laneFor = async (entries: Entries, id: string, gateMs: number): Promise<La
   return entry.lane;
 };
 
+const HOP = [
+  'connection',
+  'keep-alive',
+  'proxy-authenticate',
+  'proxy-authorization',
+  'te',
+  'trailer',
+  'transfer-encoding',
+  'upgrade',
+];
+
+// RFC 9110 7.6.1: hop-by-hop headers, and those the Connection header names, stay on their hop.
+export const endToEnd = (headers: IncomingHttpHeaders): IncomingHttpHeaders => {
+  const named = String(headers['connection'] ?? '')
+    .toLowerCase()
+    .split(',');
+  const drop = new Set([...HOP, ...named.map((h) => h.trim())]);
+  return Object.fromEntries(Object.entries(headers).filter(([key]) => !drop.has(key)));
+};
+
 const answer = (res: Response) => (up: IncomingMessage) => {
-  res.writeHead(up.statusCode ?? 502, up.headers);
+  res.writeHead(up.statusCode ?? 502, endToEnd(up.headers));
   up.pipe(res);
 };
 
 // Streams the request to the child as it came (path and query kept), no pooled connection.
 const forward = (req: Request, res: Response, next: NextFunction, lane: Lane): void => {
   const leave = enter(lane);
-  res.on('close', leave);
-  const { method, headers, originalUrl: path } = req;
+  const { method, originalUrl: path } = req;
+  const headers = endToEnd(req.headers);
   const options = { host: '127.0.0.1', port: lane.child.port, method, path, headers, agent: false };
   const upstream = request(options, answer(res));
+  // A client that went away aborts the request to the child too.
+  res.on('close', () => {
+    if (!res.writableFinished) upstream.destroy();
+    leave();
+  });
   upstream.on('error', () => {
     leave();
     if (res.headersSent) return void res.destroy();

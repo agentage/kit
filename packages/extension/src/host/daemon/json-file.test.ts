@@ -1,4 +1,5 @@
-import { readFile, stat, utimes, writeFile } from 'node:fs/promises';
+import { spawnSync } from 'node:child_process';
+import { readFile, readdir, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { tempDir } from '../../test-support/packages.js';
@@ -15,7 +16,7 @@ describe('json files of the daemon', () => {
     await expect(readJsonFile(dir, {})).rejects.toThrow('EISDIR');
   });
 
-  it('the lock runs one writer at a time and takes over a stale lock', async () => {
+  it('the lock runs one writer at a time and takes over the lock of a dead process', async () => {
     const dir = await tempDir();
     const file = join(dir, 'n.json');
     await writeJsonFile(file, 0);
@@ -23,10 +24,9 @@ describe('json files of the daemon', () => {
       withFileLock(file, async () => writeJsonFile(file, (await readJsonFile(file, 0)) + 1));
     await Promise.all(Array.from({ length: 10 }, bump));
     expect(await readJsonFile(file, 0)).toBe(10);
-    await writeFile(`${file}.lock`, '');
-    const old = new Date(Date.now() - 60_000);
-    await utimes(`${file}.lock`, old, old);
+    await writeFile(`${file}.lock`, String(spawnSync(process.execPath, ['-e', '']).pid));
     await bump();
     expect(JSON.parse(await readFile(file, 'utf8'))).toBe(11);
+    expect(await readdir(dir)).toEqual(['n.json']);
   });
 });

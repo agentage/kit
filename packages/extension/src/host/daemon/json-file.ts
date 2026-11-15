@@ -1,4 +1,5 @@
-import { chmod, open, readFile, rename, stat, unlink, writeFile } from 'node:fs/promises';
+import { chmod, open, readFile, rename } from 'node:fs/promises';
+import { DATA_DIR_LOCKED, lockDataDir } from '../data-lock.js';
 
 export const readJsonFile = async <T>(file: string, fallback: T): Promise<T> => {
   try {
@@ -9,46 +10,40 @@ export const readJsonFile = async <T>(file: string, fallback: T): Promise<T> => 
   }
 };
 
-// A reader sees the old file or the new one, never half of one.
+// A reader sees the old file or the new one, never half of one, also after a power loss.
 export const writeJsonFile = async (file: string, value: unknown, mode = 0o644): Promise<void> => {
   const tmp = `${file}.${process.pid}.tmp`;
-  await writeFile(tmp, `${JSON.stringify(value, null, 2)}\n`, { mode });
+  const handle = await open(tmp, 'w', mode);
+  try {
+    await handle.writeFile(`${JSON.stringify(value, null, 2)}\n`);
+    await handle.sync();
+  } finally {
+    await handle.close();
+  }
   await chmod(tmp, mode);
   await rename(tmp, file);
 };
 
-const STALE_MS = 10_000;
 const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
-// A lock left by a process that died holding it is taken over after STALE_MS.
-const takeOver = async (lock: string): Promise<void> => {
-  const age = await stat(lock).then(
-    (s) => Date.now() - s.mtimeMs,
-    () => 0
-  );
-  if (age > STALE_MS) await unlink(lock).catch(() => undefined);
-};
-
-const acquire = async (lock: string): Promise<void> => {
-  for (let tries = 0; tries < 200; tries += 1) {
+// The pid lock of data-lock.ts: a dead holder's lock is taken over, a live one is waited for.
+const acquire = async (file: string): Promise<() => Promise<void>> => {
+  for (let tries = 0; ; tries += 1) {
     try {
-      return void (await (await open(lock, 'wx')).close());
+      return await lockDataDir(file);
     } catch (err) {
-      if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err;
-      await takeOver(lock);
+      if ((err as { code?: string }).code !== DATA_DIR_LOCKED || tries >= 200) throw err;
       await pause(25);
     }
   }
-  throw new Error(`${lock} is held by another process`);
 };
 
-// One writer at a time across processes: an exclusive lock file beside the file.
+// One writer at a time across processes: an exclusive lock file (<file>.lock) beside the file.
 export const withFileLock = async <T>(file: string, fn: () => Promise<T>): Promise<T> => {
-  const lock = `${file}.lock`;
-  await acquire(lock);
+  const release = await acquire(file);
   try {
     return await fn();
   } finally {
-    await unlink(lock).catch(() => undefined);
+    await release();
   }
 };

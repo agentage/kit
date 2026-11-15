@@ -2,9 +2,10 @@ import { isAbsolute } from 'node:path';
 import { z } from 'zod';
 import { fail } from '../../envelope/envelope.js';
 import { parse } from '../../envelope/parse.js';
-import { ExtensionIdSchema } from '../../manifest/primitives.schema.js';
+import { ExtensionIdSchema, SecretNameSchema } from '../../manifest/primitives.schema.js';
 import { readManifest } from '../../manifest/read-manifest.js';
 import { purgeData, writeValues } from './daemon-files.js';
+import { checkSecrets } from './secret-names.js';
 import { updateInstallation, withEntry, type InstallEntry } from './installation.js';
 import {
   halt,
@@ -28,7 +29,7 @@ const PatchSchema = z.strictObject({
   version: z.string().min(1).optional(),
   enabled: z.boolean().optional(),
   settings: z.record(z.string(), z.unknown()).optional(),
-  secrets: z.record(z.string(), z.string()).optional(),
+  secrets: z.record(SecretNameSchema, z.string()).optional(),
 });
 
 type Patch = z.infer<typeof PatchSchema>;
@@ -119,10 +120,12 @@ const nextInstall = async (deps: SupervisorDeps, entry: Entry, patch: Patch) => 
 };
 
 const nextOf = async (deps: SupervisorDeps, entry: Entry, patch: Patch): Promise<Next> => {
+  const next = await nextInstall(deps, entry, patch);
+  const dir = next.dir ?? entry.dir ?? entry.install.source;
+  await checkSecrets(dir, Object.keys(patch.secrets ?? {}), entry.id);
   const was = await valuesOf(deps.configDir, entry.id);
   const settings = { ...was.settings, ...patch.settings };
-  const values = { settings, secrets: { ...was.secrets, ...patch.secrets } };
-  return { ...(await nextInstall(deps, entry, patch)), values };
+  return { ...next, values: { settings, secrets: { ...was.secrets, ...patch.secrets } } };
 };
 
 const save = async (deps: SupervisorDeps, entry: Entry, to: Next) => {
@@ -132,18 +135,31 @@ const save = async (deps: SupervisorDeps, entry: Entry, to: Next) => {
   await writeValues(deps.configDir, 'secrets', entry.id, to.values.secrets);
 };
 
-// Disabled: stopped. Running: swapped with 0 lost requests. Not running: started once saved.
-const apply = async (deps: SupervisorDeps, entry: Entry, to: Next) => {
-  const enabled = to.install.enabled !== false;
-  if (!enabled) {
-    await halt(entry);
-    entry.state = 'disabled';
-  } else if (entry.lane) await swap(deps, entry, to);
-  await save(deps, entry, to);
-  if (enabled && !entry.lane) await startEntry(deps, entry);
+// A change that could not be written stops the new child and starts the old one from the files.
+const saveOrRestore = async (deps: SupervisorDeps, entry: Entry, to: Next, dir?: string) => {
+  const was = entry.install;
+  await save(deps, entry, to).catch(async (err: unknown) => {
+    Object.assign(entry, { install: was, dir });
+    await halt(entry, deps.drainMs);
+    await startEntry(deps, entry);
+    throw err;
+  });
 };
 
-// PATCH: values persist only once the new child runs; a refused change keeps the old one.
+// Disabled: stopped. Else one rule, running or not: the swap, then the files; values persist
+// only once the new child runs.
+const apply = async (deps: SupervisorDeps, entry: Entry, to: Next) => {
+  if (to.install.enabled === false) {
+    await halt(entry, deps.drainMs);
+    entry.state = 'disabled';
+    return save(deps, entry, to);
+  }
+  const dir = entry.dir;
+  await swap(deps, entry, to);
+  await saveOrRestore(deps, entry, to, dir);
+};
+
+// PATCH: a refused change keeps the old one and is 400 START_FAILED.
 export const changeExtension = async (
   deps: SupervisorDeps,
   entries: Entries,
@@ -165,7 +181,7 @@ export const removeExtension = async (
 ) => {
   const entry = entryOf(entries, id);
   entries.delete(id);
-  await halt(entry);
+  await halt(entry, deps.drainMs);
   await persist(deps, id);
   await writeValues(deps.configDir, 'settings', id);
   await writeValues(deps.configDir, 'secrets', id);

@@ -1,13 +1,15 @@
 import { fail } from '../../envelope/envelope.js';
 import { type Log } from '../../log/log.js';
 import { readManifest } from '../../manifest/read-manifest.js';
-import { type Launch } from './child.js';
+import { type Exit, type Launch } from './child.js';
 import { dataDirOf, readValues } from './daemon-files.js';
 import { type InstallEntry } from './installation.js';
 import { laneOf, retire, type Lane } from './lane.js';
 
 export const GATE_MS = 30_000;
 
+// Called again on every boot for each entry with a version, one entry at a time: it must be
+// idempotent and fast for a version that is installed.
 export type Installer = (spec: {
   id: string;
   version?: string;
@@ -47,7 +49,13 @@ export interface SupervisorDeps {
   origin: () => string;
   install?: Installer;
   log: Log;
+  // The open requests of an old child get drainMs; a new child answers /health within healthMs.
+  drainMs: number;
+  healthMs: number;
 }
+
+export const DRAIN_MS = 10_000;
+export const HEALTH_MS = 60_000;
 
 export const NO_INSTALLER = 'this daemon has no installer: install a folder with { source }';
 
@@ -70,8 +78,11 @@ const dirOf = async (deps: SupervisorDeps, entry: Entry, install: InstallEntry, 
 };
 
 // Healthy before it gets the route: the child's own /health answers 200.
-const healthy = async (port: number): Promise<void> => {
-  const res = await fetch(`http://127.0.0.1:${port}/health`);
+const healthy = async (port: number, ms: number): Promise<void> => {
+  const signal = AbortSignal.timeout(ms);
+  const res = await fetch(`http://127.0.0.1:${port}/health`, { signal }).catch(() => {
+    throw new Error(`health did not answer in ${ms} ms`);
+  });
   if (res.status !== 200) throw new Error(`health answered ${res.status}`);
 };
 
@@ -87,20 +98,21 @@ export const launchFor = async (
   const pkg = await readManifest(dir);
   const spec = { id: entry.id, dir, dataDir: dataDirOf(deps.configDir, entry.id), ...values };
   const child = await deps.launch({ ...spec, origin: deps.origin() });
-  await healthy(child.port).catch(async (err: unknown) => {
+  await healthy(child.port, deps.healthMs).catch(async (err: unknown) => {
     await child.stop();
     throw err;
   });
   Object.assign(entry, { dir, version: pkg.version });
   const lane = laneOf(child, pkg.version);
-  void child.exited.then(() => exitedEarly(deps, entry, lane));
+  void child.exited.then((how) => exitedEarly(deps, entry, lane, how));
   return lane;
 };
 
 // A child that exits while it is the route is failed; a retired one was detached first.
-const exitedEarly = (deps: SupervisorDeps, entry: Entry, lane: Lane): void => {
+const exitedEarly = (deps: SupervisorDeps, entry: Entry, lane: Lane, how: Exit): void => {
   if (entry.lane !== lane) return;
-  Object.assign(entry, { lane: undefined, state: 'failed', error: 'the process exited' });
+  const why = how.signal ? `signal ${how.signal}` : `code ${how.code}`;
+  Object.assign(entry, { lane: undefined, state: 'failed', error: `the process exited (${why})` });
   deps.log.warn('extension process exited', { id: entry.id });
 };
 
@@ -131,28 +143,40 @@ const hold = (entry: Entry): (() => void) => {
   };
 };
 
-// One writer per data folder, so one sequence for every extension: hold, drain and stop the
-// old child, start the new one, release. A refusal starts the old one again and is a 400.
+// The old install again after a refused change; a disabled one stays stopped.
+const restore = async (deps: SupervisorDeps, entry: Entry): Promise<void> => {
+  if (entry.install.enabled === false) entry.state = 'disabled';
+  else await startEntry(deps, entry);
+};
+
+export const startFailed = (entry: Entry, err: unknown) =>
+  fail(
+    'VALIDATION_ERROR',
+    `${entry.id} failed to start with this change: ${(err as Error).message}`,
+    {
+      code: 'START_FAILED',
+    }
+  );
+
+// One writer per data folder, so one sequence for every extension, running or not: hold, drain
+// and stop the old child, start the new one, release. A refusal restores the old one and is a 400.
 export const swap = async (deps: SupervisorDeps, entry: Entry, to: Next) => {
   const release = hold(entry);
   try {
-    await halt(entry);
+    await halt(entry, deps.drainMs);
     entry.lane = await launchFor(deps, entry, to.install, to.values, to.dir);
     Object.assign(entry, { state: 'running', error: undefined });
   } catch (err) {
-    await startEntry(deps, entry);
-    const reason = (err as Error).message;
-    throw fail('VALIDATION_ERROR', `${entry.id} failed to start with this change: ${reason}`, {
-      code: 'START_FAILED',
-    });
+    await restore(deps, entry);
+    throw startFailed(entry, err);
   } finally {
     release();
   }
 };
 
 // Detached first, so its exit is not a failure; then drained and stopped.
-export const halt = async (entry: Entry): Promise<void> => {
+export const halt = async (entry: Entry, drainMs: number): Promise<void> => {
   const lane = entry.lane;
   entry.lane = undefined;
-  await retire(lane);
+  await retire(lane, drainMs);
 };

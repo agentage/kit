@@ -1,6 +1,5 @@
 import { type Launch } from '../host/daemon/child.js';
-import { startDaemon, type Daemon } from '../host/daemon/daemon.js';
-import { type Installer } from '../host/daemon/supervisor.js';
+import { startDaemon, type Daemon, type DaemonOptions } from '../host/daemon/daemon.js';
 import { inProcessLaunch } from './in-process-launch.js';
 import { tempDir } from './packages.js';
 
@@ -13,17 +12,12 @@ export interface Harness {
 export const tempConfigDir = () => tempDir('agentage-daemon-');
 
 export const startHarness = async (
-  options: { install?: Installer; configDir?: string; launch?: Launch } = {}
+  options: Partial<DaemonOptions> & { launch?: Launch } = {}
 ): Promise<Harness> => {
+  const { launch = inProcessLaunch, ...rest } = options;
   const configDir = options.configDir ?? (await tempConfigDir());
-  const opts = {
-    configDir,
-    port: 0,
-    version: '0.13.0',
-    startedBy: 'test',
-    install: options.install,
-  };
-  const daemon = await startDaemon(opts, options.launch ?? inProcessLaunch);
+  const opts = { port: 0, version: '0.13.0', startedBy: 'test', ...rest, configDir };
+  const daemon = await startDaemon(opts, launch);
   const call = async (method: string, path: string, body?: unknown) => {
     const init = { method, headers: { 'content-type': 'application/json' } };
     const sent = body === undefined ? init : { ...init, body: JSON.stringify(body) };

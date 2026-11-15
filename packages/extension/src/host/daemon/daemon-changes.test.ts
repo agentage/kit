@@ -1,13 +1,12 @@
 import { createServer, type Server } from 'node:http';
-import { readdir, readFile, writeFile } from 'node:fs/promises';
+import { readdir, readFile } from 'node:fs/promises';
 import { type AddressInfo } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { startHarness, type Harness } from '../../test-support/daemon-harness.js';
+import { startHarness, writeSecrets, type Harness } from '../../test-support/daemon-harness.js';
 import { inProcessLaunch } from '../../test-support/in-process-launch.js';
 import { hostedPackage } from '../../test-support/hosted-fixture.js';
-import { json } from '../../test-support/packages.js';
 import { type Launch } from './child.js';
 
 let h: Harness | undefined;
@@ -18,10 +17,9 @@ afterEach(async () => {
   vi.restoreAllMocks();
 });
 
-const SECRETS = json({ hosted: { 'api-token': 't' } });
 const installed = async (options: Parameters<typeof startHarness>[0] = {}) => {
   h = await startHarness(options);
-  await writeFile(join(h.configDir, 'secrets.json'), SECRETS, { mode: 0o600 });
+  await writeSecrets(h.configDir);
   await h.call('POST', '/host/extensions', { source: await hostedPackage() });
   return h;
 };

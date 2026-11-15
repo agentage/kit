@@ -1,7 +1,9 @@
+import { writeFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import { type Launch } from '../host/daemon/child.js';
 import { startDaemon, type Daemon, type DaemonOptions } from '../host/daemon/daemon.js';
 import { inProcessLaunch } from './in-process-launch.js';
-import { tempDir } from './packages.js';
+import { json, tempDir } from './packages.js';
 
 export interface Harness {
   daemon: Daemon;
@@ -10,6 +12,14 @@ export interface Harness {
 }
 
 export const tempConfigDir = () => tempDir('agentage-daemon-');
+
+// The secret the hosted fixture needs, for each id, as the daemon keeps it (0600).
+export const writeSecrets = (configDir: string, ids = ['hosted']) =>
+  writeFile(
+    join(configDir, 'secrets.json'),
+    json(Object.fromEntries(ids.map((id) => [id, { 'api-token': 't' }]))),
+    { mode: 0o600 }
+  );
 
 export const startHarness = async (
   options: Partial<DaemonOptions> & { launch?: Launch } = {}

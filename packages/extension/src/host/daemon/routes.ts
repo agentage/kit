@@ -16,9 +16,9 @@ import { proxyTo } from './proxy.js';
 import { type SupervisorDeps } from './supervisor.js';
 
 // What /health says of the daemon itself: the values of daemon.json, so a client can prove it.
-export const DAEMON_SERVICE = 'agentage-daemon';
+const DAEMON_SERVICE = 'agentage-daemon';
 
-export interface DaemonInfo {
+interface DaemonInfo {
   version: string;
   pid: number;
   protocol: number;

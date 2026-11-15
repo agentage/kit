@@ -1,11 +1,10 @@
-import { spawnSync } from 'node:child_process';
 import { readdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { tempDir } from '../test-support/packages.js';
+import { deadPid } from '../test-support/processes.js';
 import { DATA_DIR_LOCKED, lockDataDir } from './data-lock.js';
 
-const deadPid = (): number => spawnSync(process.execPath, ['-e', '']).pid ?? 0;
 const lockIn = async (pid: number) => {
   const data = join(await tempDir('agentage-lock-'), 'hosted');
   await writeFile(`${data}.lock`, String(pid));

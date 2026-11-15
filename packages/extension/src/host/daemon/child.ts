@@ -5,7 +5,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SecretNameSchema } from '../../manifest/primitives.schema.js';
 
-export interface LaunchSpec {
+interface LaunchSpec {
   id: string;
   dir: string;
   dataDir: string;
@@ -29,7 +29,7 @@ export interface Child {
 
 export type Launch = (spec: LaunchSpec) => Promise<Child>;
 
-export const HOST_MAIN = fileURLToPath(new URL('../main.js', import.meta.url));
+const HOST_MAIN = fileURLToPath(new URL('../main.js', import.meta.url));
 const START_MS = 60_000;
 const STOP_MS = 5_000;
 const PASSED = ['PATH', 'HOME', 'TMPDIR', 'LANG', 'NODE_EXTRA_CA_CERTS'];
@@ -42,8 +42,8 @@ const secretFiles = async (spec: LaunchSpec): Promise<string> => {
   return dir;
 };
 
-const envOf = (spec: LaunchSpec, secretsDir: string): NodeJS.ProcessEnv => ({
-  ...Object.fromEntries(PASSED.flatMap((k) => (process.env[k] ? [[k, process.env[k]]] : []))),
+// What dist/host/main.js reads (docs/part-image.md), on a port the OS picks.
+export const childEnv = (spec: LaunchSpec, secretsDir: string): Record<string, string> => ({
   PORT: '0',
   AGENTAGE_EXTENSION_DIR: spec.dir,
   AGENTAGE_DATA_DIR: spec.dataDir,
@@ -51,6 +51,9 @@ const envOf = (spec: LaunchSpec, secretsDir: string): NodeJS.ProcessEnv => ({
   AGENTAGE_SECRETS_DIR: secretsDir,
   AGENTAGE_ORIGIN: spec.origin,
 });
+
+const passedEnv = () =>
+  Object.fromEntries(PASSED.flatMap((k) => (process.env[k] ? [[k, process.env[k]]] : [])));
 
 // The child's last stderr line, its msg when it is a log row: why it did not start.
 const lastWords = (tail: string, code: number | null): string => {
@@ -112,7 +115,7 @@ export const forkLaunch =
     const secretsDir = await secretFiles(spec);
     const stdio = ['ignore', 'pipe', 'pipe', 'ipc'] as const;
     // execArgv []: the daemon's own node flags (a loader, --input-type) are not the child's.
-    const env = envOf(spec, secretsDir);
+    const env = { ...passedEnv(), ...childEnv(spec, secretsDir) };
     const child = fork(main, [], { env, execArgv: [], stdio: [...stdio] });
     const exited = new Promise<Exit>((resolve) =>
       child.once('exit', (code, signal) => resolve({ code, signal }))

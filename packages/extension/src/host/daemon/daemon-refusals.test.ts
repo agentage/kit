@@ -1,7 +1,7 @@
-import { request } from 'node:http';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { startHarness, type Harness } from '../../test-support/daemon-harness.js';
 import { HOSTED_MANIFEST, hostedPackage } from '../../test-support/hosted-fixture.js';
+import { rawRequest } from '../../test-support/http.js';
 
 let h: Harness;
 beforeEach(async () => {
@@ -13,20 +13,8 @@ afterEach(async () => {
   vi.restoreAllMocks();
 });
 
-// fetch cannot set Host, so a raw request: what a page under another name would send.
 const raw = (headers: Record<string, string>, path = '/health', method = 'GET') =>
-  new Promise<{ status?: number; body: string }>((resolve, reject) => {
-    const req = request(
-      { host: '127.0.0.1', port: h.daemon.port, path, method, headers },
-      (res) => {
-        let body = '';
-        res.on('data', (chunk: Buffer) => (body += chunk.toString()));
-        res.on('end', () => resolve({ status: res.statusCode, body }));
-      }
-    );
-    req.on('error', reject);
-    req.end();
-  });
+  rawRequest(h.daemon.port, headers, path, method);
 
 const code = (status: number, value: string) => ({
   status,

@@ -55,7 +55,8 @@ docker run -p 8080:8080 -e AGENTAGE_HOST_AUTH=off -v probe-data:/data ghcr.io/ag
 
 `localOnly(port)` from `@agentage/extension/host` is the guard of the daemon, as Express middleware.
 A request needs the Host `127.0.0.1`, `localhost` or `[::1]` at that port, no other Origin, and no
-cross-site `Sec-Fetch-Site`, or it throws a 403 `FORBIDDEN` for the error handler.
+cross-site `Sec-Fetch-Site`, or it throws a 403 `FORBIDDEN` for the error handler. With no port
+given, it compares against the port of the socket the request came in on.
 `hostExtension(dir, { localOnly: true })` mounts it before every route, at the port of the socket.
 A client checks support with `capabilities` from `/tool` or `/host` (`container`, `localOnly`).
 
@@ -73,3 +74,5 @@ and `protocol`, the values of `daemon.json`, so a client can prove which process
 `PATCH {settings}` string becomes the type the manifest declares (`"5"` to `5`, `"true"`); any
 other value, or an undeclared key, is `400 INVALID_SETTING`. An `Installer` error with a string
 `code` (and `status` 400, 404 or 502) is the client's error; any other error is a logged `500`.
+The daemon calls the `Installer` again on every boot, once for each entry with a version, one at a
+time. So it must be idempotent and fast for a version that is already installed.

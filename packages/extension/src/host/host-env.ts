@@ -6,9 +6,8 @@ import { type Log } from '../log/log.js';
 import { type ExtensionPackage } from '../manifest/manifest.schema.js';
 import { portFromEnv, type Env } from '../runtime/build-info.js';
 import { GRACE_MS } from '../server/serve.js';
+import { CONTAINER_PORT } from '../tool/container-recipe.js';
 import { type HostExtras } from './host-extension.js';
-
-export const HOST_PORT = 8080;
 
 export const BIND_REFUSED =
   'AGENTAGE_HOST_BIND=all needs a token check (AGENTAGE_ISSUER, AGENTAGE_AUDIENCE, AGENTAGE_ORIGIN) or AGENTAGE_HOST_AUTH=off';
@@ -20,7 +19,7 @@ const drainMsOf = (value = ''): number => (/^[1-9][0-9]*$/.test(value) ? Number(
 
 // The entry's env with its defaults: port 8080, the current folder, loopback.
 export const hostEnvOf = (env: Env) => {
-  const port = portFromEnv(env, HOST_PORT);
+  const port = portFromEnv(env, CONTAINER_PORT);
   return {
     dir: env['AGENTAGE_EXTENSION_DIR'] || process.cwd(),
     port,

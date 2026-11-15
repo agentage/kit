@@ -1,21 +1,12 @@
 import express from 'express';
-import { writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
-import { startHarness } from '../../test-support/daemon-harness.js';
-import { HOSTED_MANIFEST, hostedPackage } from '../../test-support/hosted-fixture.js';
-import { json } from '../../test-support/packages.js';
+import { startHarness, writeSecrets } from '../../test-support/daemon-harness.js';
+import { hostedPackage, NO_STORE_MANIFEST } from '../../test-support/hosted-fixture.js';
 import { errorHandler } from '../../server/errors.js';
 import { startOn } from '../../testing/test-server.js';
 import { createLog } from '../../log/log.js';
 import { type Entries } from './ops.js';
 import { endToEnd, proxyTo } from './proxy.js';
-
-// The in-process child stops at once only with no store open; a hung handler holds no PGlite.
-const NO_STORE = {
-  ...HOSTED_MANIFEST,
-  agentage: { ...HOSTED_MANIFEST.agentage, parts: { api: true } },
-};
 import { type Entry } from './supervisor.js';
 
 describe('proxyTo', () => {
@@ -58,8 +49,8 @@ describe('a client that goes away', () => {
   it('aborts its request to the child, so a swap does not wait for it', async () => {
     vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
     const h = await startHarness({ drainMs: 5_000 });
-    await writeFile(join(h.configDir, 'secrets.json'), json({ hosted: { 'api-token': 't' } }));
-    await h.call('POST', '/host/extensions', { source: await hostedPackage(NO_STORE) });
+    await writeSecrets(h.configDir);
+    await h.call('POST', '/host/extensions', { source: await hostedPackage(NO_STORE_MANIFEST) });
     const abort = new AbortController();
     const hung = fetch(`http://127.0.0.1:${h.daemon.port}/api/hosted/hang`, abort);
     await new Promise((resolve) => setTimeout(resolve, 50));

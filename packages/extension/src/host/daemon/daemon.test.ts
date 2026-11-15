@@ -2,7 +2,11 @@ import { stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { startHarness, type Harness } from '../../test-support/daemon-harness.js';
-import { HOSTED_MANIFEST, hostedPackage } from '../../test-support/hosted-fixture.js';
+import {
+  HOSTED_MANIFEST,
+  hostedPackage,
+  NO_STORE_MANIFEST,
+} from '../../test-support/hosted-fixture.js';
 import { readJsonFile } from './json-file.js';
 
 let h: Harness | undefined;
@@ -139,11 +143,7 @@ describe('daemon routes (C5)', () => {
   });
 
   it('a PATCH with a setting of the wrong type is 400 INVALID_SETTING; the old child runs on', async () => {
-    const plain = {
-      ...HOSTED_MANIFEST,
-      agentage: { ...HOSTED_MANIFEST.agentage, parts: { api: true } },
-    };
-    await installed(plain);
+    await installed(NO_STORE_MANIFEST);
     const refused = await h!.call('PATCH', '/host/extensions/hosted', {
       settings: { 'echo.prefix': 3 },
     });

@@ -1,7 +1,7 @@
 import { writeFile } from 'node:fs/promises';
 import { type AddressInfo } from 'node:net';
 import { join } from 'node:path';
-import { type Exit, type Launch } from '../host/daemon/child.js';
+import { childEnv, type Exit, type Launch } from '../host/daemon/child.js';
 import { serveHost } from '../host/serve-host.js';
 import { tempDir } from './packages.js';
 
@@ -12,15 +12,11 @@ export const inProcessLaunch: Launch = async (spec) => {
     await writeFile(join(secretsDir, name), value);
   let done = () => undefined as void;
   const exited = new Promise<Exit>((resolve) => (done = () => resolve({ code: 0, signal: null })));
-  const env = {
-    PORT: '0',
-    AGENTAGE_EXTENSION_DIR: spec.dir,
-    AGENTAGE_DATA_DIR: spec.dataDir,
-    AGENTAGE_SETTINGS: JSON.stringify(spec.settings),
-    AGENTAGE_SECRETS_DIR: secretsDir,
-    AGENTAGE_ORIGIN: spec.origin,
-  };
-  const served = await serveHost(env, { signals: [], exit: () => done(), ready: () => undefined });
+  const served = await serveHost(childEnv(spec, secretsDir), {
+    signals: [],
+    exit: () => done(),
+    ready: () => undefined,
+  });
   const { port } = served.server.address() as AddressInfo;
   return { port, pid: process.pid, exited, stop: async () => void (served.stop(), await exited) };
 };

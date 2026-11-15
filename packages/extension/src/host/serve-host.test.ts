@@ -2,7 +2,11 @@ import { writeFile } from 'node:fs/promises';
 import { type AddressInfo } from 'node:net';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { EXIT_IN_CREATE, HOSTED_MANIFEST, hostedPackage } from '../test-support/hosted-fixture.js';
+import {
+  EXIT_IN_CREATE,
+  hostedPackage,
+  NO_STORE_MANIFEST,
+} from '../test-support/hosted-fixture.js';
 import { SHA, tempDir } from '../test-support/packages.js';
 import { BIND_REFUSED, hostEnvOf } from './host-env.js';
 import { announce, ORPHAN_MS, serveHost, type ServedHost } from './serve-host.js';
@@ -118,11 +122,7 @@ describe('serveHost', () => {
   });
 
   it('ctx.exit() inside create runs once the server listens', async () => {
-    const manifest = {
-      ...HOSTED_MANIFEST,
-      agentage: { ...HOSTED_MANIFEST.agentage, parts: { api: true } },
-    };
-    const { exit } = await start({}, await hostedPackage(manifest, EXIT_IN_CREATE));
+    const { exit } = await start({}, await hostedPackage(NO_STORE_MANIFEST, EXIT_IN_CREATE));
     await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(0));
   });
 });

@@ -1,19 +1,18 @@
 import { existsSync } from 'node:fs';
-import { writeFile } from 'node:fs/promises';
-import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
-import { startHarness, type Harness } from '../../test-support/daemon-harness.js';
-import { HOSTED_MANIFEST, hostedPackage } from '../../test-support/hosted-fixture.js';
-import { json } from '../../test-support/packages.js';
+import { startHarness, writeSecrets, type Harness } from '../../test-support/daemon-harness.js';
+import {
+  HOSTED_MANIFEST,
+  hostedPackage,
+  NO_STORE_MANIFEST,
+} from '../../test-support/hosted-fixture.js';
+import { alive } from '../../test-support/processes.js';
 import { forkLaunch } from './child.js';
 
 // The built entry: verify builds it (tsc -b) before the tests run.
 const MAIN = fileURLToPath(new URL('../../../dist/host/main.js', import.meta.url));
-const OTHER = {
-  ...HOSTED_MANIFEST,
-  agentage: { ...HOSTED_MANIFEST.agentage, id: 'other', parts: { api: true } },
-};
+const OTHER = { ...NO_STORE_MANIFEST, agentage: { ...NO_STORE_MANIFEST.agentage, id: 'other' } };
 
 let h: Harness;
 const echo = async (id: string) => {
@@ -24,23 +23,13 @@ const echo = async (id: string) => {
   };
 };
 const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-const alive = (pid: number) => {
-  try {
-    return process.kill(pid, 0);
-  } catch {
-    return false;
-  }
-};
 
 beforeAll(async () => {
   if (!existsSync(MAIN)) throw new Error(`${MAIN} is missing: npm run build first`);
   vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
   vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
   h = await startHarness({ launch: forkLaunch(MAIN), drainMs: 300 });
-  await writeFile(
-    join(h.configDir, 'secrets.json'),
-    json({ hosted: { 'api-token': 't' }, other: { 'api-token': 't' } })
-  );
+  await writeSecrets(h.configDir, ['hosted', 'other']);
   await h.call('POST', '/host/extensions', { source: await hostedPackage() });
   await h.call('POST', '/host/extensions', { source: await hostedPackage(OTHER) });
 });

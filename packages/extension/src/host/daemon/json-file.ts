@@ -1,5 +1,6 @@
 import { randomBytes } from 'node:crypto';
 import { chmod, open, readFile, rename } from 'node:fs/promises';
+import { setTimeout as sleep } from 'node:timers/promises';
 import { DATA_DIR_LOCKED, lockDataDir } from '../data-lock.js';
 
 export const readJsonFile = async <T>(file: string, fallback: T): Promise<T> => {
@@ -25,8 +26,6 @@ export const writeJsonFile = async (file: string, value: unknown, mode = 0o644):
   await rename(tmp, file);
 };
 
-const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
-
 // The pid lock of data-lock.ts: a dead holder's lock is taken over, a live one is waited for.
 const acquire = async (file: string): Promise<() => Promise<void>> => {
   for (let tries = 0; ; tries += 1) {
@@ -34,7 +33,7 @@ const acquire = async (file: string): Promise<() => Promise<void>> => {
       return await lockDataDir(file);
     } catch (err) {
       if ((err as { code?: string }).code !== DATA_DIR_LOCKED || tries >= 200) throw err;
-      await pause(25);
+      await sleep(25);
     }
   }
 };

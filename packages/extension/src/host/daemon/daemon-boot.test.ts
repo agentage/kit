@@ -1,11 +1,16 @@
 import { mkdir, readFile, stat, writeFile } from 'node:fs/promises';
-import { createServer } from 'node:net';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { startHarness, tempConfigDir, type Harness } from '../../test-support/daemon-harness.js';
+import {
+  startHarness,
+  tempConfigDir,
+  writeSecrets,
+  type Harness,
+} from '../../test-support/daemon-harness.js';
 import { inProcessLaunch } from '../../test-support/in-process-launch.js';
 import { hostedPackage } from '../../test-support/hosted-fixture.js';
 import { json } from '../../test-support/packages.js';
+import { freePort } from '../../test-support/processes.js';
 import { startDaemon } from './daemon.js';
 
 let h: Harness | undefined;
@@ -15,14 +20,6 @@ afterEach(async () => {
   h = undefined;
   vi.restoreAllMocks();
 });
-
-const freePort = () =>
-  new Promise<number>((resolve) => {
-    const server = createServer().listen(0, '127.0.0.1', () => {
-      const { port } = server.address() as { port: number };
-      server.close(() => resolve(port));
-    });
-  });
 
 describe('daemon boot with a bad installation.json', () => {
   it('a file that is not JSON: starts empty, /health says invalid, a copy is kept as .bad', async () => {
@@ -48,7 +45,7 @@ describe('daemon boot with a bad installation.json', () => {
       { id: 'Bad' },
     ];
     await writeFile(join(configDir, 'installation.json'), json({ host: 'local', extensions }));
-    await writeFile(join(configDir, 'secrets.json'), json({ hosted: { 'api-token': 't' } }));
+    await writeSecrets(configDir);
     h = await startHarness({ configDir });
     const health = (await h.call('GET', '/health')).body;
     expect(health).toMatchObject({

@@ -6,8 +6,7 @@ import { ExtensionIdSchema, SecretNameSchema } from '../../manifest/primitives.s
 import { readManifest } from '../../manifest/read-manifest.js';
 import { purgeData, writeValues } from './daemon-files.js';
 import { runInstaller } from './installer-call.js';
-import { checkSecrets } from './secret-names.js';
-import { coerceSettings } from './setting-values.js';
+import { checkedSettings } from './patch-values.js';
 import { updateInstallation, withEntry, type InstallEntry } from './installation.js';
 import {
   halt,
@@ -19,7 +18,7 @@ import {
   type SupervisorDeps,
 } from './supervisor.js';
 
-export const RESERVED_ID = 'host';
+const RESERVED_ID = 'host';
 
 const AddSchema = z.union([
   z.strictObject({ id: ExtensionIdSchema, version: z.string().min(1).optional() }),
@@ -121,8 +120,7 @@ const nextInstall = async (deps: SupervisorDeps, entry: Entry, patch: Patch) => 
 const nextOf = async (deps: SupervisorDeps, entry: Entry, patch: Patch): Promise<Next> => {
   const next = await nextInstall(deps, entry, patch);
   const dir = next.dir ?? entry.dir ?? entry.install.source;
-  await checkSecrets(dir, Object.keys(patch.secrets ?? {}), entry.id);
-  const given = await coerceSettings(dir, patch.settings ?? {}, entry.id);
+  const given = await checkedSettings(dir, patch, entry.id);
   const was = await valuesOf(deps.configDir, entry.id);
   const settings = { ...was.settings, ...given };
   return { ...next, values: { settings, secrets: { ...was.secrets, ...patch.secrets } } };
@@ -146,8 +144,7 @@ const saveOrRestore = async (deps: SupervisorDeps, entry: Entry, to: Next, dir?:
   });
 };
 
-// Disabled: stopped. Else one rule, running or not: the swap, then the files; values persist
-// only once the new child runs.
+// Disabled: stopped. Else the swap, then the files: values persist once the new child runs.
 const apply = async (deps: SupervisorDeps, entry: Entry, to: Next) => {
   if (to.install.enabled === false) {
     await halt(entry, deps.drainMs);

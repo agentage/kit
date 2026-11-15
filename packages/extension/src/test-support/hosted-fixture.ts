@@ -14,6 +14,12 @@ export const HOSTED_MANIFEST = {
   },
 };
 
+// The same package with no store: an in-process child then stops at once, also with a hung request.
+export const NO_STORE_MANIFEST = {
+  ...HOSTED_MANIFEST,
+  agentage: { ...HOSTED_MANIFEST.agentage, parts: { api: true } },
+};
+
 // No imports, so it loads from a temp folder: a plain middleware is a router to Express.
 const API = `export const create = (ctx) => async (req, res, next) => {
   if (req.path === '/echo') {

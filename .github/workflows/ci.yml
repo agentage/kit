@@ -201,10 +201,23 @@ jobs:
         with:
           path: platform
 
+      # The same probe branch as the image smoke: the PR's name, else vars.PROBE_REF, else master.
+      - name: Pick the extension-probe branch
+        id: probe-ref
+        env:
+          PROBE_REF: ${{ vars.PROBE_REF }}
+        run: |
+          branch="${PROBE_REF:-master}"
+          if [ -n "${GITHUB_HEAD_REF:-}" ] && git ls-remote --exit-code --heads https://github.com/agentage/extension-probe.git "$GITHUB_HEAD_REF" >/dev/null; then
+            branch="$GITHUB_HEAD_REF"
+          fi
+          echo "branch=$branch" >> "$GITHUB_OUTPUT"
+
       - name: Checkout agentage/extension-probe
         uses: actions/checkout@v7
         with:
           repository: agentage/extension-probe
+          ref: ${{ steps.probe-ref.outputs.branch }}
           path: probe
 
       # agentage/e2e is private; the org PAT_TOKEN reads it. Dependabot runs get no secrets.

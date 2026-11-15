@@ -121,6 +121,12 @@
       },
       "additionalProperties": false
     },
+    "image": {
+      "description": "The one image (build --container). A record has part images or this image: never both, never none.",
+      "type": "string",
+      "maxLength": 256,
+      "pattern": "^[a-z0-9][a-z0-9.-]*(:[0-9]{1,5})?(\\/[a-z0-9][a-z0-9_.-]*)+\\/[a-z][a-z0-9-]*@sha256:[0-9a-f]{64}$"
+    },
     "openapi": {
       "type": "string",
       "pattern": "^\\/api\\/(?:v[0-9]+|[a-z][a-z0-9-]*)\\/openapi\\.json$"

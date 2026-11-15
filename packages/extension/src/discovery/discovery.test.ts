@@ -85,6 +85,22 @@ describe('build record', () => {
     const other = { api: `ghcr.io/agentage/memory-api@${DIGEST}` };
     expect(() => validateRecord(recordOf(API_MANIFEST, BUILD, other))).toThrow(/\{id\}-\{part\}/);
   });
+
+  it('takes the one image {id}@sha256 in place of part images, never both, never none', () => {
+    const one = { ...recordOf(API_MANIFEST, BUILD, {}), image: `ghcr.io/agentage/probe@${DIGEST}` };
+    expect(validateRecord(one).image).toBe(one.image);
+    const nested = { ...one, image: `ghcr.io/agentage/team/probe@${DIGEST}` };
+    expect(validateRecord(nested).image).toBe(nested.image);
+    const doc = discoveryDocument(validateRecord(one), 'https://probe.next.agentage.io');
+    expect(DiscoveryDocumentSchema.safeParse(doc).success).toBe(true);
+    const both = { ...one, parts: { api: { image: API_IMAGE } } };
+    expect(() => validateRecord(both)).toThrow(/the one image and no part image/);
+    expect(() => validateRecord(recordOf(API_MANIFEST, BUILD, {}))).toThrow(/at least one part/);
+    const other = { ...one, image: `ghcr.io/agentage/memory@${DIGEST}` };
+    expect(() => validateRecord(other)).toThrow(/the one image \{id\}/);
+    const tag = { ...one, image: 'ghcr.io/agentage/probe:0.1.0' };
+    expect(() => validateRecord(tag)).toThrow(/image/);
+  });
 });
 
 describe('discovery document', () => {

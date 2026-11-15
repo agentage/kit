@@ -4,16 +4,18 @@ import { fail } from '../../envelope/envelope.js';
 // What a browser says of a request another site started (an <img>, a link, a form).
 const FOREIGN = ['cross-site', 'same-site'];
 
-// Only this machine, by name: a page elsewhere (DNS rebinding, a cross-site form or GET) gets 403.
+// Only this machine, by name (127.0.0.1, localhost, [::1] at the port): a page elsewhere (DNS rebinding, a cross-site form or GET) gets 403.
+// No port given: the port the request came in on.
 export const localOnly =
-  (port: () => number): RequestHandler =>
+  (port?: () => number): RequestHandler =>
   (req, _res, next) => {
-    const hosts = [`127.0.0.1:${port()}`, `localhost:${port()}`];
+    const at = port?.() ?? req.socket.localPort;
+    const hosts = [`127.0.0.1:${at}`, `localhost:${at}`, `[::1]:${at}`];
     const origin = req.get('origin');
     const hostOk = hosts.includes(req.get('host') ?? '');
     const originOk = origin === undefined || hosts.some((host) => origin === `http://${host}`);
     const siteOk = !FOREIGN.includes(req.get('sec-fetch-site') ?? '');
     if (!hostOk || !originOk || !siteOk)
-      throw fail('FORBIDDEN', 'Only this machine may call the daemon');
+      throw fail('FORBIDDEN', 'Only this machine may call this server');
     next();
   };

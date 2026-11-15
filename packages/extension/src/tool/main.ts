@@ -20,6 +20,9 @@ const USAGE = `usage: agentage-extension <build|up|down|token> [options]
 
   build      one image per part from the kit recipe
     --push     push the images and write dist/agentage-extension.json with their digests
+    --container one image, ghcr.io/agentage/<id>:<version>, that runs the api part; it
+               lists the parts it does not run yet; with --push the record is
+               dist/agentage-container.json
     --registry image registry and owner (default: ghcr.io/agentage)
   up         the release images on Docker: store, dev issuer, gateway on localhost:4280
   down       remove what up started; --keep-data keeps the store volume
@@ -37,6 +40,7 @@ const defaultDeps: MainDeps = {
 
 const OPTIONS = {
   push: { type: 'boolean' },
+  container: { type: 'boolean' },
   dir: { type: 'string' },
   registry: { type: 'string' },
   'keep-data': { type: 'boolean' },
@@ -53,7 +57,12 @@ type Values = ReturnType<typeof parse>['values'];
 const COMMANDS: Record<string, (values: Values, deps: MainDeps) => Promise<void>> = {
   build: async (v, deps) => {
     for (const line of buildLines(
-      await deps.build({ push: v.push, dir: v.dir, registry: v.registry })
+      await deps.build({
+        push: v.push,
+        container: v.container,
+        dir: v.dir,
+        registry: v.registry,
+      })
     ))
       deps.out(line);
   },

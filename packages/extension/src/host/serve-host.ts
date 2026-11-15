@@ -1,7 +1,7 @@
 import { type Server } from 'node:http';
 import { type AddressInfo } from 'node:net';
 import { createLog } from '../log/log.js';
-import { type Env } from '../runtime/build-info.js';
+import { buildInfoFromEnv, type Env } from '../runtime/build-info.js';
 import { listen, shutdownOn } from '../server/serve.js';
 import { guardOf, hostEnvOf } from './host-env.js';
 import { hostWith, type HostedExtension } from './host-extension.js';
@@ -45,7 +45,7 @@ const exitHook = () => {
 };
 
 // SIGTERM, ctx.exit() and a gone parent drain the server, then stop the host and exit.
-const drainOn = (server: Server, host: HostedExtension, deps: ServeHostDeps) => {
+const drainOn = (server: Server, host: HostedExtension, deps: ServeHostDeps, graceMs: number) => {
   const log = createLog({ extension: host.id, part: 'api', version: host.version });
   const exit = deps.exit ?? ((code: number) => process.exit(code));
   const done = (code: number) => void host.stop().finally(() => exit(code));
@@ -55,6 +55,7 @@ const drainOn = (server: Server, host: HostedExtension, deps: ServeHostDeps) => 
     log,
     exit: done,
     signals: deps.signals,
+    graceMs,
   });
   return { log, stop };
 };
@@ -66,9 +67,9 @@ export const serveHost = async (env: Env, deps: ServeHostDeps = {}): Promise<Ser
   const hook = exitHook();
   const { dataDir, settings, origin, secretsDir } = at;
   const opts = { dataDir, settings, origin, onExit: hook.onExit };
-  const host = await hostWith(at.dir, opts, { secretsDir, guard });
+  const host = await hostWith(at.dir, opts, { secretsDir, guard, build: buildInfoFromEnv(env) });
   const server = await listen(host.app, at.port, at.bind);
-  const { log, stop } = drainOn(server, host, deps);
+  const { log, stop } = drainOn(server, host, deps, at.drainMs);
   const { port } = server.address() as AddressInfo;
   log.info('listening', { port, bind: at.bind });
   (deps.ready ?? announce)(port, stop);

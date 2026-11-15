@@ -9,9 +9,11 @@ export interface ServeOptions {
   log: Log;
   exit?: (code: number) => void;
   signals?: NodeJS.Signals[];
+  // How long a drain may take before the process exits 1.
+  graceMs?: number;
 }
 
-const GRACE_MS = 10_000;
+export const GRACE_MS = 10_000;
 
 export const listen = (app: Express, port: number, host?: string): Promise<Server> =>
   new Promise((resolve, reject) => {
@@ -20,14 +22,14 @@ export const listen = (app: Express, port: number, host?: string): Promise<Serve
   });
 
 // Open requests are answered; a keep-alive connection is closed once idle, not at its timeout.
-const drain = (server: Server, exit: (code: number) => void): void => {
+const drain = (server: Server, exit: (code: number) => void, graceMs: number): void => {
   const idle = setInterval(() => server.closeIdleConnections(), 100).unref();
   server.close((err) => {
     clearInterval(idle);
     exit(err ? 1 : 0);
   });
   server.closeIdleConnections();
-  setTimeout(() => exit(1), GRACE_MS).unref();
+  setTimeout(() => exit(1), graceMs).unref();
 };
 
 // SIGTERM drains; a close error or a drain past the grace period exits 1; a second Ctrl-C at once.
@@ -44,7 +46,7 @@ export const shutdownOn = (server: Server, options: ServeOptions): (() => void) 
     if (stopping) return;
     stopping = true;
     options.log.info('shutting down');
-    drain(server, exit);
+    drain(server, exit, options.graceMs ?? GRACE_MS);
   };
   for (const signal of options.signals ?? ['SIGTERM', 'SIGINT'])
     process.on(signal, () => stop(signal));

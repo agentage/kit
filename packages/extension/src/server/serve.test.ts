@@ -37,6 +37,22 @@ describe('serve', () => {
     }
   });
 
+  it('exits 1 after graceMs when given (the one image sets 8 s)', () => {
+    vi.useFakeTimers({ toFake: ['setTimeout'] });
+    try {
+      const exit = vi.fn();
+      const stuck = { close: vi.fn(), closeIdleConnections: vi.fn() } as unknown as Server;
+      const log = createTestContext().log;
+      shutdownOn(stuck, { app: express(), port: 0, log, exit, signals: [], graceMs: 8_000 })();
+      vi.advanceTimersByTime(7_999);
+      expect(exit).not.toHaveBeenCalled();
+      vi.advanceTimersByTime(1);
+      expect(exit).toHaveBeenCalledWith(1);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it('rejects when the port is taken', async () => {
     const first = await listen(express(), 0, '127.0.0.1');
     const address = first.address();

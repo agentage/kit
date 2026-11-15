@@ -5,13 +5,23 @@ import { plural } from './up/lines.js';
 
 const shortDigest = (digest: string): string => digest.slice(0, 'sha256:'.length + 8);
 
-// One line per image, the record path last: what `agentage extension build` prints.
+const rowsOf = ({ images, container }: BuildResult) => [
+  ...images.map(({ part, tag, digest }) => ({ label: part, tag, digest })),
+  ...(container ? [{ label: container.runs.join(','), ...container }] : []),
+];
+
+const skippedLines = ({ container }: BuildResult): string[] =>
+  (container?.skipped ?? []).map((part) => `${part.padEnd(8)}not run by the one image yet`);
+
+// One line per image (the one image under the parts it runs), skipped parts, then the record.
 export const buildLines = (result: BuildResult, cwd: string = process.cwd()): string[] => {
-  const width = Math.max(...result.images.map((image) => image.tag.length)) + 2;
-  const lines = result.images.map((image) => {
-    const state = image.digest ? `${shortDigest(image.digest)} pushed` : 'built';
-    return `${image.part.padEnd(8)}${image.tag.padEnd(width)}${state}`;
+  const rows = rowsOf(result);
+  const width = Math.max(...rows.map((row) => row.tag.length)) + 2;
+  const lines = rows.map((row) => {
+    const state = row.digest ? `${shortDigest(row.digest)} pushed` : 'built';
+    return `${row.label.padEnd(8)}${row.tag.padEnd(width)}${state}`;
   });
+  lines.push(...skippedLines(result));
   if (result.recordFile) lines.push(`${'record'.padEnd(8)}${relative(cwd, result.recordFile)}`);
   return lines;
 };

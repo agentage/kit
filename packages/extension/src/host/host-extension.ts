@@ -3,6 +3,7 @@ import { type Express } from 'express';
 import { createContext, type PartContext } from '../context/context.js';
 import { readSecrets, secretsFrom } from '../context/secrets.js';
 import { settingsOf } from '../context/settings.js';
+import { type BuildInfo } from '../discovery/discovery.js';
 import { readOpenapi } from '../discovery/openapi.js';
 import { healthBody, type HealthCheck } from '../health/health.js';
 import { type HealthBody } from '../health/health.schema.js';
@@ -15,6 +16,7 @@ import { RUNNERS } from '../runtime/part-runners.js';
 import { createPartApp, type PartAppBase } from '../server/app.js';
 import { storeCheck } from '../store/store.js';
 import { type PgliteStore } from '../store/pglite-store.js';
+import { localOnly } from './daemon/guard.js';
 import { openHostStore } from './host-store.js';
 
 export interface HostOptions {
@@ -24,6 +26,8 @@ export interface HostOptions {
   onExit?: () => void;
   // ctx.extension.origin; http://127.0.0.1 when left out.
   origin?: string;
+  // The daemon's guard: a Host of 127.0.0.1 or localhost at the port, a local Origin, no cross-site fetch.
+  localOnly?: boolean;
 }
 
 export interface HostedExtension {
@@ -38,6 +42,8 @@ export interface HostedExtension {
 export interface HostExtras {
   secretsDir?: string;
   guard?: (pkg: ExtensionPackage, log: Log) => Promise<Partial<PartAppBase>>;
+  // The image's COMMIT_SHA and BUILD_TIME for /health; zeros when left out.
+  build?: BuildInfo;
 }
 
 interface Hosting {
@@ -70,7 +76,7 @@ const contextOf = async (h: Hosting, checks: Record<string, HealthCheck>): Promi
     pkg: h.pkg,
     part: 'api',
     origin: h.opts.origin ?? 'http://127.0.0.1',
-    commit: buildInfoFromEnv({}).commit,
+    commit: (h.extras.build ?? buildInfoFromEnv({})).commit,
     log: h.log,
     settings: settingsOf(h.pkg, h.opts.settings ?? {}, h.log),
     store: h.store,
@@ -93,8 +99,9 @@ const baseOf = async (h: Hosting): Promise<PartAppBase> => {
   const guard = (await h.extras.guard?.(h.pkg, h.log)) ?? {};
   const checks = { ...(h.store && { store: storeCheck(h.store) }), ...guard.checks };
   const resolved = { instance: randomBytes(4).toString('hex'), startedAt: Date.now() };
-  const build = buildInfoFromEnv({});
-  return { pkg: h.pkg, log: h.log, build, onExit: h.onExit, ...guard, checks, ...resolved };
+  const build = h.extras.build ?? buildInfoFromEnv({});
+  const guards = h.opts.localOnly ? [localOnly()] : undefined;
+  return { pkg: h.pkg, log: h.log, build, onExit: h.onExit, guards, ...guard, checks, ...resolved };
 };
 
 const hostedOf = (h: Hosting, app: Express, base: PartAppBase): HostedExtension => {

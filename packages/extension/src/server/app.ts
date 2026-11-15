@@ -38,6 +38,8 @@ export interface PartAppBase {
   // Given by a host that also reads its health directly, so both answers name one instance.
   instance?: string;
   startedAt?: number;
+  // Run before every route, /health included (the host's localOnly option).
+  guards?: RequestHandler[];
 }
 
 export interface PartAppOptions extends PartAppBase {
@@ -106,7 +108,7 @@ export const createPartApp = (options: PartAppOptions): Express => {
   const app = express();
   // The gateway calls parts over a private network; its X-Forwarded-Proto then sets req.protocol.
   app.set('trust proxy', 'loopback, linklocal, uniquelocal');
-  app.use(dropCookie, agcidMiddleware, helmet(options.helmet));
+  app.use(dropCookie, agcidMiddleware, helmet(options.helmet), ...(options.guards ?? []));
   app.get('/health', healthHandler(options));
   // After /health: it is probed every few seconds and never gets a request line.
   app.use(requestLine(options.log, options.onExit));

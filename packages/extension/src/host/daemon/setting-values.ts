@@ -15,7 +15,7 @@ const valueOf = (key: string, setting: Setting | undefined, given: unknown) => {
   if (!setting) throw refused(key, 'not declared in the manifest');
   const value = typeof given === 'string' ? (PARSE[setting.type]?.(given) ?? given) : given;
   if (!fits(setting, value))
-    throw refused(key, `${JSON.stringify(given)} is not a ${setting.type}`);
+    throw refused(key, `${JSON.stringify(given)} is not a valid ${setting.type}`);
   return value;
 };
 

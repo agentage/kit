@@ -149,7 +149,7 @@ describe('daemon routes (C5)', () => {
     });
     expect(refused).toMatchObject({ status: 400, body: { error: { code: 'INVALID_SETTING' } } });
     expect((refused.body as { error: { message: string } }).error.message).toBe(
-      'setting echo.prefix: 3 is not a string'
+      'setting echo.prefix: 3 is not a valid string'
     );
     expect(await h!.call('GET', '/api/hosted/echo?msg=hi')).toMatchObject({
       status: 200,

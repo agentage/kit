@@ -33,6 +33,7 @@ describe('a daemon that stops while changes wait', () => {
     release();
     const file = join(h.configDir, 'installation.json');
     await vi.waitFor(async () => expect(await readFile(file, 'utf8')).toContain('slow'));
+    // A negative check: no event says "no launch came", so a fixed wait gives one the time to.
     await pause(300);
     expect(launch).toHaveBeenCalledTimes(1);
     expect(await readFile(join(h.configDir, 'settings.json'), 'utf8').catch(() => '')).toBe('');
@@ -41,8 +42,11 @@ describe('a daemon that stops while changes wait', () => {
   it('stops a child whose start was in flight when stop began', async () => {
     const children: Child[] = [];
     const exits: Promise<unknown>[] = [];
+    let entered = false;
+    let go = () => undefined as void;
     const slow: Launch = async (spec) => {
-      await pause(300);
+      entered = true;
+      await new Promise<void>((resolve) => (go = resolve));
       const child = await inProcessLaunch(spec);
       children.push(child);
       exits.push(child.exited);
@@ -52,8 +56,10 @@ describe('a daemon that stops while changes wait', () => {
     await writeSecrets(h.configDir);
     const source = await hostedPackage(NO_STORE_MANIFEST);
     void h.call('POST', '/host/extensions', { source }).catch(() => undefined);
-    await pause(100);
-    await h.daemon.stop();
+    await vi.waitFor(() => expect(entered).toBe(true));
+    const stopped = h.daemon.stop();
+    go();
+    await stopped;
     expect(children).toHaveLength(1);
     let settled = false;
     void Promise.all(exits).then(() => (settled = true));

@@ -1,3 +1,4 @@
+import type * as FsPromises from 'node:fs/promises';
 import { readdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
@@ -8,7 +9,7 @@ import { DATA_DIR_LOCKED, EMPTY_LOCK_MS, lockDataDir } from './data-lock.js';
 // A volume with no hard links (some CIFS and FUSE mounts): link fails with EPERM.
 const fs = vi.hoisted(() => ({ noLink: false, links: 0 }));
 vi.mock('node:fs/promises', async (original) => {
-  const real = await original<typeof import('node:fs/promises')>();
+  const real = await original<typeof FsPromises>();
   const link: typeof real.link = async (from, to) => {
     fs.links += 1;
     if (!fs.noLink) return real.link(from, to);

@@ -120,6 +120,25 @@ describe('daemon with child processes', () => {
     expect((await echo('hosted')).status).toBe(503);
   });
 
+  it('a child that exits with a code is failed with "(code N)" in the list and /health', async () => {
+    const crash = { ...OTHER, agentage: { ...OTHER.agentage, id: 'crash' } };
+    await writeSecrets(h.configDir, ['hosted', 'other', 'crash']);
+    await h.call('POST', '/host/extensions', { source: await hostedPackage(crash) });
+    expect((await echo('crash')).status).toBe(200);
+    await fetch(`http://127.0.0.1:${h.daemon.port}/api/crash/crash`);
+    const error = 'the process exited (code 3)';
+    await vi.waitFor(async () => {
+      const health = (await h.call('GET', '/health')).body;
+      expect(health).toMatchObject({
+        extensions: [{}, {}, { id: 'crash', state: 'failed', error }],
+      });
+    });
+    expect((await h.call('GET', '/host/extensions')).body).toMatchObject({
+      data: [{}, {}, { id: 'crash', state: 'failed', error }],
+    });
+    await h.call('DELETE', '/host/extensions/crash');
+  });
+
   it('stop ends every child, also one with a request that never ends', async () => {
     const { body } = await echo('other');
     const hung = fetch(`http://127.0.0.1:${h.daemon.port}/api/other/hang`).then((r) => r.status);

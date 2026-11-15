@@ -81,14 +81,8 @@ export const startDaemon = async (opts: DaemonOptions, launch: Launch): Promise<
   await mkdir(opts.configDir, { recursive: true });
   let port = opts.port ?? DAEMON_PORT;
   const deps = depsOf(opts, launch, () => `http://127.0.0.1:${port}`);
-  const { entries, invalid, unreadable } = await loadEntries(opts.configDir);
-  const info = {
-    version: opts.version,
-    pid: process.pid,
-    protocol: DAEMON_PROTOCOL,
-    invalid,
-    unreadable,
-  };
+  const { entries, ...file } = await loadEntries(opts.configDir);
+  const info = { version: opts.version, pid: process.pid, protocol: DAEMON_PROTOCOL, ...file };
   const app = daemonApp(deps, entries, () => port, info);
   const server = await listen(app, port, '127.0.0.1');
   port = (server.address() as AddressInfo).port;
@@ -105,4 +99,4 @@ export const startDaemon = async (opts: DaemonOptions, launch: Launch): Promise<
 
 // One daemon on 127.0.0.1, one child process for each extension (D1).
 export const createDaemon = (opts: DaemonOptions): Promise<Daemon> =>
-  startDaemon(opts, forkLaunch());
+  startDaemon(opts, forkLaunch(undefined, opts.startMs));

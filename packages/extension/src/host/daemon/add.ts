@@ -58,13 +58,7 @@ export const addExtension = async (deps: SupervisorDeps, entries: Entries, body:
   const off = spec.enabled === false;
   const install: InstallEntry = off ? { ...got.install, enabled: false } : got.install;
   await persist(deps, install.id, install);
-  const entry: Entry = {
-    id: install.id,
-    install,
-    state: 'disabled',
-    version: got.version,
-    dir: got.dir,
-  };
+  const entry: Entry = { ...got, id: install.id, install, state: 'disabled' };
   entries.set(entry.id, entry);
   if (!off) await startEntry(deps, entry);
   return summary(entry);

@@ -2,6 +2,8 @@
 export const LIMITS = {
   // An old child's open requests before it is stopped.
   drainMs: 10_000,
+  // A forked child's port report; then SIGKILL.
+  startMs: 60_000,
   // A new child's own /health, once it reported its port.
   healthMs: 60_000,
   // A write waits for another process that holds the lock of a daemon file.

@@ -33,7 +33,12 @@ export const shutdownOn = (server: Server, options: ServeOptions): (() => void) 
     if (stopping) return;
     stopping = true;
     options.log.info('shutting down');
-    server.close((err) => exit(err ? 1 : 0));
+    // A keep-alive connection goes idle after its answer; close it then, not at its timeout.
+    const idle = setInterval(() => server.closeIdleConnections(), 100).unref();
+    server.close((err) => {
+      clearInterval(idle);
+      exit(err ? 1 : 0);
+    });
     server.closeIdleConnections();
     setTimeout(() => exit(1), GRACE_MS).unref();
   };

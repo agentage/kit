@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as contracts from './contracts/index.js';
+import * as host from './host/index.js';
 import * as kit from './index.js';
 import * as logs from './logs/index.js';
 import * as tool from './tool/index.js';
@@ -65,6 +66,10 @@ describe('public surface', () => {
       'OkEnvelopeSchema',
       'isAgcid',
     ]);
+  });
+
+  it('the host subpath exports what the daemon and the cli call', () => {
+    expect(Object.keys(host).sort()).toEqual(['hostExtension']);
   });
 
   it('the logs subpath exports the event line', () => {

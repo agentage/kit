@@ -19,13 +19,16 @@ const valueOf = (file: string, refused: string): Promise<string> =>
     }
   );
 
-// Each declared name from its mounted file; a missing or empty file stops the part, named, never valued.
-export const readSecrets = async (pkg: ExtensionPackage, part: Part, dir: string) => {
-  const names = mountedIn(pkg, part);
-  const refused = (name: string) => `${part} refused to start: secret ${name}`;
-  const read = names.map(
-    async (name) => [name, await valueOf(join(dir, name), refused(name))] as const
-  );
+const refusal = (part: Part) => (name: string) => `${part} refused to start: secret ${name}`;
+
+// Each name the part mounts, from value(name); an empty value stops the part, named, never valued.
+export const secretsFrom = async (
+  pkg: ExtensionPackage,
+  part: Part,
+  value: (name: string) => Promise<string>
+) => {
+  const refused = refusal(part);
+  const read = mountedIn(pkg, part).map(async (name) => [name, await value(name)] as const);
   const pairs = await Promise.all(read);
   const missing = pairs.find(([, value]) => value === '');
   if (missing) throw new Error(`${refused(missing[0])} has no value`);
@@ -34,6 +37,10 @@ export const readSecrets = async (pkg: ExtensionPackage, part: Part, dir: string
   );
   return Object.freeze(withAbsent(secrets, part, pkg));
 };
+
+// Each declared name from its mounted file; a missing or empty file stops the part, named, never valued.
+export const readSecrets = (pkg: ExtensionPackage, part: Part, dir: string) =>
+  secretsFrom(pkg, part, (name) => valueOf(join(dir, name), refusal(part)(name)));
 
 // A secret of other parts throws on read, never reads empty; spread and keys skip it.
 export const withAbsent = (values: Record<string, string>, part: Part, pkg?: ExtensionPackage) => {

@@ -27,7 +27,7 @@ const localOf = (res: Response, key: string): string | undefined => {
 
 // One http row per request on finish; a ctx.exit() asked for in it shuts the part down after.
 export const requestLine =
-  (log: Log): RequestHandler =>
+  (log: Log, onExit: () => void = sigtermOnce): RequestHandler =>
   (req, res, next) => {
     const start = performance.now();
     const scope = requestScope.getStore();
@@ -43,7 +43,7 @@ export const requestLine =
           errorType: localOf(res, 'errorType'),
           clientInfo: localOf(res, 'clientInfo'),
         });
-      if (scope?.exit) sigtermOnce();
+      if (scope?.exit) onExit();
     });
     next();
   };

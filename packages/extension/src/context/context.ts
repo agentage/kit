@@ -60,11 +60,13 @@ export const healthRegistrar =
   };
 
 // Inside a request: after its answer (server/request-line.ts); outside one: now.
-const exitAfterAnswer = (): void => {
-  const scope = requestScope.getStore();
-  if (scope) scope.exit = true;
-  else sigtermOnce();
-};
+const exitAfterAnswer =
+  (onExit: () => void = sigtermOnce) =>
+  (): void => {
+    const scope = requestScope.getStore();
+    if (scope) scope.exit = true;
+    else onExit();
+  };
 
 // ctx.store is always there; without a store part in the manifest it says so on first use.
 export const NO_STORE: Store = {
@@ -90,6 +92,8 @@ export interface ContextInput {
   platform?: PlatformInfo;
   // The part's /health checks, the same object the health handler reads.
   checks?: Record<string, HealthCheck>;
+  // What ctx.exit() does once due; the image's SIGTERM by default, a host's own stop.
+  onExit?: () => void;
 }
 
 export const createContext = (input: ContextInput): PartContext => {
@@ -118,7 +122,7 @@ export const createContext = (input: ContextInput): PartContext => {
     store: store ?? NO_STORE,
     secrets,
     platform,
-    exit: exitAfterAnswer,
+    exit: exitAfterAnswer(input.onExit),
     health: healthRegistrar(input.checks ?? {}),
   });
 };

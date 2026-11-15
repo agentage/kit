@@ -93,9 +93,15 @@ describe('daemon refusals', () => {
       body: { success: false, error: { code: 'UNAVAILABLE' } },
     });
     await h.call('POST', '/host/extensions', { source: await hostedPackage() });
-    expect(await h.call('PATCH', '/host/extensions/hosted', { version: '2.0.0' })).toMatchObject(
-      code(400, 'VALIDATION_ERROR')
-    );
+    expect(await h.call('PATCH', '/host/extensions/hosted', { version: '2.0.0' })).toMatchObject({
+      status: 400,
+      body: { error: { message: 'hosted runs a folder: it has no version' } },
+    });
+    const secret = await h.call('PATCH', '/host/extensions/hosted', { secrets: { nope: 'x' } });
+    expect(secret).toMatchObject({
+      status: 400,
+      body: { error: { code: 'VALIDATION_ERROR', message: 'hosted declares no secret nope' } },
+    });
   });
 
   it('a body that is not JSON is 400, a body over the limit 413, both in the envelope', async () => {

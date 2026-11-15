@@ -51,7 +51,7 @@ const testPackage = (
   agentage: { id: ctx.extension.id, parts },
 });
 
-const startOn = async (app: Express): Promise<TestServer> => {
+export const startOn = async (app: Express): Promise<TestServer> => {
   const server = await listen(app, 0, '127.0.0.1');
   const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
   return {

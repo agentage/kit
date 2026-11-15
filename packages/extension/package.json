@@ -32,6 +32,10 @@
       "types": "./dist/contracts/index.d.ts",
       "default": "./dist/contracts/index.js"
     },
+    "./host": {
+      "types": "./dist/host/index.d.ts",
+      "default": "./dist/host/index.js"
+    },
     "./logs": {
       "types": "./dist/logs/index.d.ts",
       "default": "./dist/logs/index.js"

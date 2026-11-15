@@ -15,6 +15,7 @@ export default defineConfig({
         'packages/*/src/test-support/**',
         '**/index.ts',
         'packages/extension/src/runtime/main.ts',
+        'packages/extension/src/host/main.ts',
         'packages/extension/src/tool/cli.ts',
         'packages/extension/src/schemas/write-schemas.ts',
         'packages/widget/src/bundle/cli.ts',

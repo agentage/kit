@@ -33,6 +33,11 @@ export interface PartAppBase {
   tokenCheck?: TokenCheck;
   // The RFC 9728 document a token-protected part serves at /.well-known/oauth-protected-resource.
   resource?: Record<string, unknown>;
+  // A ctx.exit() asked for in a request: SIGTERM by default (server/request-line.ts).
+  onExit?: () => void;
+  // Given by a host that also reads its health directly, so both answers name one instance.
+  instance?: string;
+  startedAt?: number;
 }
 
 export interface PartAppOptions extends PartAppBase {
@@ -92,6 +97,8 @@ const healthHandler = (options: PartAppOptions): RequestHandler =>
     build: options.build,
     checks: options.checks,
     log: options.log,
+    instance: options.instance,
+    startedAt: options.startedAt,
   });
 
 // The kit app every part image runs: agcid, headers, /health, discovery, the part, the envelope.
@@ -102,7 +109,7 @@ export const createPartApp = (options: PartAppOptions): Express => {
   app.use(dropCookie, agcidMiddleware, helmet(options.helmet));
   app.get('/health', healthHandler(options));
   // After /health: it is probed every few seconds and never gets a request line.
-  app.use(requestLine(options.log));
+  app.use(requestLine(options.log, options.onExit));
   if (options.part !== 'worker') {
     app.use('/.well-known', cors(PUBLIC_CORS));
     app.get('/.well-known/agentage-extension.json', discoveryHandler(options));

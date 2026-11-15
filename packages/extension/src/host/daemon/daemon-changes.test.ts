@@ -43,6 +43,12 @@ const silentAt = (at: number, status?: number): Launch => {
 };
 
 describe('daemon changes', () => {
+  it('a child gets the daemon healthMs as its store bound, so createDaemon raises both', async () => {
+    const launch = vi.fn<Launch>(inProcessLaunch);
+    await installed({ launch, healthMs: 4_321 });
+    expect(launch.mock.calls[0]?.[0]).toMatchObject({ storeOpenMs: 4_321 });
+  });
+
   it('a new child that never answers /health is refused after healthMs; the old one runs again', async () => {
     await installed({ launch: silentAt(2), healthMs: 200 });
     const change = await h!.call('PATCH', '/host/extensions/hosted', {

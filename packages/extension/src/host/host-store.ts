@@ -1,5 +1,4 @@
 import { mkdir } from 'node:fs/promises';
-import { setTimeout as sleep } from 'node:timers/promises';
 import { type Log } from '../log/log.js';
 import { type ExtensionPackage } from '../manifest/manifest.schema.js';
 import { hasStore } from '../manifest/parts.js';
@@ -9,11 +8,14 @@ import { lockDataDir } from './data-lock.js';
 
 const unlocked = async () => undefined;
 
-// How long the host waits for the store to open (and to close) before it goes on without it.
-export const STORE_OPEN_MS = 30_000;
+// How long the host waits for the store to open (and to close); the daemon sets its healthMs.
+export const STORE_OPEN_MS = 120_000;
 
 const within = <T>(work: Promise<T>, ms: number): Promise<T | 'late'> =>
-  Promise.race([work, sleep(ms, 'late' as const, { ref: false })]);
+  Promise.race([
+    work,
+    new Promise<'late'>((resolve) => setTimeout(() => resolve('late'), ms).unref()),
+  ]);
 
 // A close past openMs keeps the data lock: PGlite may still write there until the process exits.
 const closer = (store: PgliteStore, release: () => Promise<void>, openMs: number) => async () => {

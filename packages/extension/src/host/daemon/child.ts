@@ -13,6 +13,8 @@ interface LaunchSpec {
   settings: Record<string, unknown>;
   secrets: Record<string, string>;
   origin: string;
+  // The daemon's own health limit (healthMs), so one rule bounds the child's store open.
+  storeOpenMs?: number;
 }
 
 export interface Exit {
@@ -50,6 +52,7 @@ export const childEnv = (spec: LaunchSpec, secretsDir: string): Record<string, s
   AGENTAGE_SETTINGS: JSON.stringify(spec.settings),
   AGENTAGE_SECRETS_DIR: secretsDir,
   AGENTAGE_ORIGIN: spec.origin,
+  ...(spec.storeOpenMs && { AGENTAGE_STORE_OPEN_MS: String(spec.storeOpenMs) }),
 });
 
 const passedEnv = () =>

@@ -100,7 +100,7 @@ const launchFor = async (
   const dir = await dirOf(deps, entry, install, given);
   const pkg = await readManifest(dir);
   const spec = { id: entry.id, dir, dataDir: dataDirOf(deps.configDir, entry.id), ...values };
-  const child = await deps.launch({ ...spec, origin: deps.origin() });
+  const child = await deps.launch({ ...spec, origin: deps.origin(), storeOpenMs: deps.healthMs });
   await healthy(child.port, deps.healthMs).catch(async (err: unknown) => {
     await child.stop();
     throw err;

@@ -25,7 +25,7 @@ const problems = async (dir: string) =>
 describe('a ctx.route api part: openapi.json is generated', () => {
   it('writes the whole document, then surface passes and a second write changes nothing', async () => {
     const dir = await withApi(ROUTES('Echo'));
-    expect(await problems(dir)).toEqual([expect.stringContaining('GET /api/v1/echo')]);
+    expect(await problems(dir)).toEqual([expect.stringContaining('GET /api/probe/echo')]);
     expect(await writeContracts(dir)).toEqual(['openapi.json']);
     const text = await readFile(join(dir, 'openapi.json'), 'utf8');
     expect(text).toMatch(/^\{\n {2}"openapi": "3\.1\.0",\n {2}"info"/);
@@ -39,7 +39,9 @@ describe('a ctx.route api part: openapi.json is generated', () => {
     await writeContracts(first);
     const dir = await withApi(ROUTES('Echo it'));
     await writeFile(join(dir, 'openapi.json'), await readFile(join(first, 'openapi.json')));
-    expect(await problems(dir)).toEqual(['differs from the generated contract (GET /api/v1/echo)']);
+    expect(await problems(dir)).toEqual([
+      'differs from the generated contract (GET /api/probe/echo)',
+    ]);
   });
 
   it('is missing until written, and refuses routes beside a returned router', async () => {

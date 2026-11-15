@@ -13,7 +13,7 @@ const BUILD = { commit: '0'.repeat(40), buildTime: '2026-11-05T10:00:00Z' };
 const PKG = { ...API_MANIFEST, agentage: { id: 'probe', parts: { api: true, mcp: true } } };
 const OPENAPI = {
   openapi: '3.1.0',
-  paths: { '/api/v1/echo': { get: { security: [] } }, '/api/v1/body': { post: {} } },
+  paths: { '/api/probe/echo': { get: { security: [] } }, '/api/probe/body': { post: {} } },
 };
 const MCP_HEADERS = {
   'content-type': 'application/json',
@@ -73,12 +73,12 @@ describe('token check on api routes', () => {
   it('asks for the access the OpenAPI operation declares, before the body is read', async () => {
     const { asked, check } = recorder();
     const s = await api(check);
-    const echo = await fetch(`${s.url}/api/v1/echo`, { headers: { authorization: 'Bearer t' } });
+    const echo = await fetch(`${s.url}/api/probe/echo`, { headers: { authorization: 'Bearer t' } });
     expect(await echo.json()).toEqual({
       success: true,
       data: { sub: 'usr_1', scopes: ['probe:read'] },
     });
-    await fetch(`${s.url}/api/v1/body`, { method: 'POST' });
+    await fetch(`${s.url}/api/probe/body`, { method: 'POST' });
     expect(asked).toEqual([
       ['Bearer t', 'public'],
       [undefined, 'read'],
@@ -87,7 +87,7 @@ describe('token check on api routes', () => {
 
   it('a refusal is its envelope: 401 even for a body that would not parse, 503 with Retry-After', async () => {
     const s = await api(recorder(() => fail('UNAUTHORIZED', 'No token')).check);
-    const res = await fetch(`${s.url}/api/v1/body`, {
+    const res = await fetch(`${s.url}/api/probe/body`, {
       method: 'POST',
       headers: { 'content-type': 'application/json', agcid: '3fd6a48e2afa49f5f130b533e39c1d61' },
       body: '{nope',
@@ -103,7 +103,7 @@ describe('token check on api routes', () => {
     });
     await served?.close();
     const down = await api(recorder(() => fail('UNAVAILABLE', 'JWKS unreachable')).check);
-    const busy = await fetch(`${down.url}/api/v1/echo`, {
+    const busy = await fetch(`${down.url}/api/probe/echo`, {
       headers: { agcid: 'df7e0c6818e2daa20eee8903cd16f2d6' },
     });
     expect(busy.status).toBe(503);
@@ -120,9 +120,9 @@ describe('token check on api routes', () => {
 
   it('tokens off: no check runs and every route stays anonymous', async () => {
     const s = await api();
-    const echo = await fetch(`${s.url}/api/v1/echo`);
+    const echo = await fetch(`${s.url}/api/probe/echo`);
     expect(await echo.json()).toEqual({ success: true, data: null });
-    const body = await fetch(`${s.url}/api/v1/body`, { method: 'POST' });
+    const body = await fetch(`${s.url}/api/probe/body`, { method: 'POST' });
     expect([body.status, await body.json()]).toEqual([200, { success: true, data: 1 }]);
   });
 });

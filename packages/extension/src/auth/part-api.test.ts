@@ -29,7 +29,7 @@ const start = () => startPart(dir, 'api', authEnv(issuer, dir));
 describe('an api part checks tokens (C5, C6)', () => {
   it('401 without a token, 403 naming the scope, 200 no-store with the caller; public stays open', async () => {
     const url = await start();
-    const none = await fetch(`${url}/api/v1/echo`, {
+    const none = await fetch(`${url}/api/probe/echo`, {
       headers: { agcid: 'a256f13a2f60fa2869e39488f5974e70' },
     });
     expect([none.status, none.headers.get('www-authenticate')]).toEqual([401, RESOURCE]);
@@ -42,17 +42,17 @@ describe('an api part checks tokens (C5, C6)', () => {
       },
     });
     const memory = await issuer.bearer({ scope: 'memory:read' });
-    const refused = await fetch(`${url}/api/v1/echo`, { headers: { authorization: memory } });
+    const refused = await fetch(`${url}/api/probe/echo`, { headers: { authorization: memory } });
     expect([refused.status, refused.headers.get('www-authenticate')]).toEqual([403, INSUFFICIENT]);
     expect(await refused.json()).toMatchObject({ error: { message: 'Needs probe:read' } });
     const read = await issuer.bearer({ scope: 'probe:read', sub: 'usr_1' });
-    const echo = await fetch(`${url}/api/v1/echo`, { headers: { authorization: read } });
+    const echo = await fetch(`${url}/api/probe/echo`, { headers: { authorization: read } });
     expect(echo.headers.get('cache-control')).toBe('no-store');
     expect(await echo.json()).toEqual({
       success: true,
       data: { sub: 'usr_1', scopes: ['probe:read'] },
     });
-    const ticks = await fetch(`${url}/api/v1/ticks`);
+    const ticks = await fetch(`${url}/api/probe/ticks`);
     expect([ticks.headers.get('cache-control'), await ticks.json()]).toEqual([
       null,
       { success: true, data: null },
@@ -63,9 +63,14 @@ describe('an api part checks tokens (C5, C6)', () => {
     const url = await start();
     const read = await issuer.bearer({ scope: 'probe:read' });
     const write = await issuer.bearer({ scope: 'probe:write' });
-    const paths = ['/api/v1/items', '/api/v1/Items', '/api/v1/items/', '/API/V1/ITEMS/'];
+    const paths = [
+      '/api/probe/items',
+      '/api/probe/Items',
+      '/api/probe/items/',
+      '/API/PROBE/ITEMS/',
+    ];
     // /items/me is read in OpenAPI, but Express routes it to /items/:id, registered first.
-    for (const path of [...paths, '/api/v1/items/me']) {
+    for (const path of [...paths, '/api/probe/items/me']) {
       const post = (authorization: string) =>
         fetch(`${url}${path}`, { method: 'POST', headers: { authorization } });
       expect((await post(read)).status, path).toBe(403);
@@ -91,7 +96,7 @@ describe('an api part checks tokens (C5, C6)', () => {
     const read = await issuer.bearer({ scope: 'probe:read' });
     await issuer.close();
     const url = await start();
-    const res = await fetch(`${url}/api/v1/echo`, { headers: { authorization: read } });
+    const res = await fetch(`${url}/api/probe/echo`, { headers: { authorization: read } });
     expect([res.status, res.headers.get('retry-after')]).toEqual([503, '5']);
     expect(await res.json()).toMatchObject({ error: { code: 'UNAVAILABLE' } });
   });

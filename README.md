@@ -63,7 +63,7 @@ export function create(ctx: McpContext) {
 
 - `pages`: a map of paths to pages, files or redirects.
 - `ui`: a `widgets` map of React components.
-- `api`: an Express router mounted at `/api/v1/`.
+- `api`: an Express router mounted at `/api/{id}/`.
 - `mcp`: MCP tools, as above.
 - `worker`: jobs on a five-field cron. A job never runs twice at once.
 - `cli`: one handler per command in `agentage.commands`.

@@ -12,6 +12,7 @@ import {
   type PartImages,
 } from '../discovery/discovery.js';
 import { type ExtensionRecord } from '../discovery/discovery.schema.js';
+import { apiPrefix } from '../discovery/openapi.js';
 import { createHealthHandler, type HealthCheck } from '../health/health.js';
 import { type Log } from '../log/log.js';
 import { type ExtensionPackage } from '../manifest/manifest.schema.js';
@@ -46,6 +47,8 @@ export interface ApiAppOptions extends PartAppBase {
   wellKnown?: WellKnownEntry[];
   // Registered ctx.route routes: a request none of them matches is 404 before any token check.
   routes?: { method: string; path: string }[];
+  // More prefixes that serve the same router (runPart keeps /api/v1 for the cloud until phase 4).
+  aliases?: string[];
 }
 
 // api-standards section 6: CORS * without credentials on /.well-known/, /api/, /ui/ and /mcp.
@@ -130,32 +133,37 @@ const wellKnownHandler =
   };
 
 // Before the body is read: each request checked for the access its OpenAPI operation declares.
-const routeGuard =
-  (options: ApiAppOptions): RequestHandler =>
-  async (req, res, next) => {
+const routeGuard = (options: ApiAppOptions): RequestHandler => {
+  const prefix = apiPrefix(options.pkg.agentage.id);
+  return async (req, res, next) => {
     const { routes } = options;
     const known = routes?.find(
       (r) => r.method === req.method.toLowerCase() && sameShape(r.path, req.path)
     );
-    if (known) res.locals['route'] = `/api/v1${known.path}`;
+    // The mount as called (an alias too), so the row counts the callers of each prefix.
+    if (known) res.locals['route'] = `${req.baseUrl.toLowerCase()}${known.path}`;
     if (!options.tokenCheck || (routes?.length && !known)) return next();
-    const access = routeAccess(options.openapi, req.method, `/api/v1${req.path}`);
+    const access = routeAccess(options.openapi, req.method, `${prefix}${req.path}`);
     const caller = await options.tokenCheck(req.get('authorization'), access);
     if (caller) res.setHeader('Cache-Control', 'no-store');
     setCaller(req, caller);
     next();
   };
+};
 
 export const createApiApp = (options: ApiAppOptions): Express =>
   createPartApp({
     ...options,
     part: 'api',
     mount: (app) => {
-      app.use('/api/v1', cors(PUBLIC_CORS));
+      const prefixes = [apiPrefix(options.pkg.agentage.id), ...(options.aliases ?? [])];
+      app.use(prefixes, cors(PUBLIC_CORS));
       for (const { name, render } of options.wellKnown ?? [])
         app.get(`/.well-known/${name}`, wellKnownHandler(render));
-      if (options.openapi) app.get('/api/v1/openapi.json', openapiHandler(options.openapi));
+      const { openapi } = options;
+      if (openapi)
+        for (const at of prefixes) app.get(`${at}/openapi.json`, openapiHandler(openapi));
       const json = express.json({ limit: BODY_LIMIT });
-      app.use('/api/v1', routeGuard(options), json, options.router);
+      app.use(prefixes, routeGuard(options), json, options.router);
     },
   });

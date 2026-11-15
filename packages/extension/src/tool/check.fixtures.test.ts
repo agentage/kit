@@ -12,7 +12,7 @@ const FIXTURES = resolve(import.meta.dirname, '../../fixtures');
 const REFUSED: Record<string, string> = {
   manifest: 'manifest: agentage.id: lowercase id, never a name the platform owns',
   entries: 'entries: part api does not export create',
-  surface: 'surface: openapi.json differs from the generated contract (GET /api/v1/echo)',
+  surface: 'surface: openapi.json differs from the generated contract (GET /api/base/echo)',
   stack: 'stack: express ^4.19.0, needs ^5',
   store:
     'store: migrations/002-broken.sql:1 fails on postgres:18-alpine: ERROR: relation "missing" does not exist',

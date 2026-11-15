@@ -5,7 +5,7 @@ import { scopeOf } from '../auth/token-check.js';
 import { createContext } from '../context/context.js';
 import { type RecordExtras } from '../discovery/discovery.js';
 import { WidgetSchema } from '../discovery/discovery.schema.js';
-import { OPENAPI_PATH, readOpenapi } from '../discovery/openapi.js';
+import { openapiPath, readOpenapi } from '../discovery/openapi.js';
 import { createLog } from '../log/log.js';
 import { loadCreate } from '../manifest/entry.js';
 import { readJsonIfExists } from '../manifest/read-manifest.js';
@@ -79,7 +79,7 @@ export const recordExtras = async (dir: string, pkg: ExtensionPackage): Promise<
     if (tools.length > 0) extras.tools = tools;
   }
   if (code.ui) extras.widgets = await widgetsOf(dir);
-  if (code.api && (await readOpenapi(dir))) extras.openapi = OPENAPI_PATH;
+  if (code.api && (await readOpenapi(dir))) extras.openapi = openapiPath(pkg.agentage.id);
   if (migratesStore(pkg)) extras.migrations = (await sqlFiles(join(dir, 'migrations'))).length;
   return extras;
 };

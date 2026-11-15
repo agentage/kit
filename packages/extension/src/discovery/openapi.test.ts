@@ -42,7 +42,7 @@ describe('readOpenapi', () => {
 });
 
 describe('the api serves its openapi document', () => {
-  it('bare JSON at /api/v1/openapi.json with open CORS, beside the routes', async () => {
+  it('bare JSON at /api/probe/openapi.json with open CORS, beside the routes', async () => {
     const router = Router().get('/echo', (_req, res) => void res.json({ success: true, data: 1 }));
     const app = createApiApp({
       pkg: API_MANIFEST,
@@ -52,13 +52,13 @@ describe('the api serves its openapi document', () => {
       openapi: DOC,
     });
     served = await serveApp(app);
-    const res = await fetch(`${served.url}/api/v1/openapi.json`, {
+    const res = await fetch(`${served.url}/api/probe/openapi.json`, {
       headers: { origin: 'https://x.io' },
     });
     expect(res.status).toBe(200);
     expect(res.headers.get('access-control-allow-origin')).toBe('*');
     expect(await res.json()).toEqual(DOC);
-    expect(await (await fetch(`${served.url}/api/v1/echo`)).json()).toEqual({
+    expect(await (await fetch(`${served.url}/api/probe/echo`)).json()).toEqual({
       success: true,
       data: 1,
     });
@@ -72,7 +72,7 @@ describe('the api serves its openapi document', () => {
       router: Router(),
     });
     served = await serveApp(app);
-    expect((await fetch(`${served.url}/api/v1/openapi.json`)).status).toBe(404);
+    expect((await fetch(`${served.url}/api/probe/openapi.json`)).status).toBe(404);
   });
 
   it('runPart reads it from the package folder, and refuses to start on an invalid one', async () => {
@@ -91,7 +91,7 @@ describe('the api serves its openapi document', () => {
     };
     server = await runPart({ ...options, dir, serve: { signals: [] } });
     const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
-    expect(await (await fetch(`${url}/api/v1/openapi.json`)).json()).toEqual(DOC);
+    expect(await (await fetch(`${url}/api/probe/openapi.json`)).json()).toEqual(DOC);
     const bad = await tempPackage({ ...files, 'openapi.json': json({ openapi: '2.0' }) });
     await expect(runPart({ ...options, dir: bad, serve: { signals: [] } })).rejects.toThrow(
       /OpenAPI 3\.1/

@@ -23,6 +23,7 @@ describe('up files', () => {
     const gateway = (await read('gateway.yml'))['http'] as { routers: Record<string, object> };
     expect(Object.keys(gateway.routers).sort()).toEqual([
       'api',
+      'api-v1',
       'mcp',
       'pages',
       'reserved',
@@ -40,6 +41,6 @@ describe('up files', () => {
 
 describe('routesOf', () => {
   it('lists the routes of the parts in gateway order', () => {
-    expect(routesOf(API_MANIFEST)).toEqual(['/api/v1/']);
+    expect(routesOf(API_MANIFEST)).toEqual(['/api/probe/']);
   });
 });

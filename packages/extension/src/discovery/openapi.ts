@@ -3,7 +3,9 @@ import { z } from 'zod';
 import { readJsonIfExists } from '../manifest/read-manifest.js';
 
 export const OPENAPI_FILE = 'openapi.json';
-export const OPENAPI_PATH = '/api/v1/openapi.json';
+// The api part's URL prefix: the extension id, no version (D3 of S1.1.1).
+export const apiPrefix = (id: string): string => `/api/${id}`;
+export const openapiPath = (id: string): string => `${apiPrefix(id)}/openapi.json`;
 
 const OpenapiSchema = z.looseObject({
   openapi: z.string().regex(/^3\.1\.[0-9]+$/, { message: 'OpenAPI 3.1' }),

@@ -42,7 +42,7 @@ describe('runPart', () => {
       'record.json': json({ ...record, parts: { api: { image } } }),
       'openapi.json': json({
         openapi: '3.1.0',
-        paths: { '/api/v1/echo': { get: { security: [] } } },
+        paths: { '/api/probe/echo': { get: { security: [] } } },
       }),
     });
     const env = {
@@ -68,13 +68,36 @@ describe('runPart', () => {
     expect(startup?.['fields']).toMatchObject({ 'agentage.startup.commit': SHA });
     const health = (await (await fetch(`${base}/health`)).json()) as { data: { commit: string } };
     expect(health.data.commit).toBe(SHA);
-    const echo = await (await fetch(`${base}/api/v1/echo?msg=hi`)).json();
+    const echo = await (await fetch(`${base}/api/probe/echo?msg=hi`)).json();
     expect(echo).toEqual({ success: true, data: { msg: 'hi' } });
     const doc = await (await fetch(`${base}/.well-known/agentage-extension.json`)).json();
     expect(doc).toMatchObject({
       host: 'https://probe.next.agentage.io',
       parts: { api: { image } },
     });
+  });
+
+  it('also answers the old /api/v1 prefix with the same router and access', async () => {
+    const dir = await tempPackage({
+      'package.json': json(API_MANIFEST),
+      'openapi.json': json({
+        openapi: '3.1.0',
+        paths: { '/api/probe/echo': { get: { security: [] } } },
+      }),
+    });
+    const env = {
+      PORT: '0',
+      AGENTAGE_ORIGIN: 'https://probe.next.agentage.io',
+      AGENTAGE_ISSUER: 'https://127.0.0.1:9',
+      AGENTAGE_AUDIENCE: '*.agentage.io',
+    };
+    const importModule = async () => echoModule;
+    server = await runPart({ dir, part: 'api', env, importModule, serve: { signals: [] } });
+    const base = `http://127.0.0.1:${portOf(server)}`;
+    for (const prefix of ['/api/probe', '/api/v1']) {
+      const echo = await fetch(`${base}${prefix}/echo?msg=hi`);
+      expect(await echo.json()).toEqual({ success: true, data: { msg: 'hi' } });
+    }
   });
 
   it('refuses a part the manifest does not have, and modules without create', async () => {

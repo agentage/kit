@@ -15,7 +15,7 @@ const AGCID = '825f5fe46cf881ced6bd9a89f6be790b';
 
 const inRequest = (headers: Record<string, string>, fn: () => void) => {
   const res = { locals: {}, setHeader: () => undefined };
-  const req = { get: (name: string) => headers[name], path: '/api/v1/x' };
+  const req = { get: (name: string) => headers[name], path: '/api/probe/x' };
   agcidMiddleware(req as never, res as never, fn);
 };
 
@@ -35,12 +35,12 @@ describe('log', () => {
 
   it('writes an error row with type, message, stack, where and ', () => {
     const { log, lines } = capture();
-    log.error(new TypeError('boom'), '/api/v1/x');
+    log.error(new TypeError('boom'), '/api/probe/x');
     log.error('plain', { job: 'tick' });
     expect(lines[0]).toMatchObject({ level: 'error', kind: 'error', msg: 'TypeError: boom' });
     expect(lines[0]?.['fields']).toMatchObject({
       ...{ 'exception.type': 'TypeError', 'exception.message': 'boom' },
-      'agentage.where': '/api/v1/x',
+      'agentage.where': '/api/probe/x',
     });
     expect(lines[1]).toMatchObject({ msg: 'Error: plain', fields: { job: 'tick' } });
   });

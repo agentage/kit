@@ -2,7 +2,7 @@ import { type Request, type RequestHandler, type Response } from 'express';
 import { requestScope, sigtermOnce } from '../agcid/current.js';
 import { type Log } from '../log/log.js';
 
-const MOUNTS = ['/api/v1', '/mcp', '/.well-known', '/ui'];
+const MOUNT = /^\/(?:api\/[^/]+|mcp|\.well-known|ui)(?=\/|$)/;
 const ASSET = /\.(m?js|css|map|png|jpe?g|gif|svg|ico|webp|avif|woff2?|ttf)$/i;
 
 // The matched route template, never the raw URL, so no id or query string reaches the log.
@@ -10,7 +10,7 @@ export const routeOf = (req: Request, res?: Response): string => {
   const known: unknown = res?.locals?.['route'];
   if (typeof known === 'string') return known;
   const url = req.originalUrl?.split('?')[0] ?? '';
-  const prefix = MOUNTS.find((m) => url === m || url.startsWith(`${m}/`)) ?? '';
+  const prefix = MOUNT.exec(url)?.[0] ?? '';
   const path: unknown = (req.route as { path?: unknown } | undefined)?.path;
   if (typeof path !== 'string') return '(unmatched)';
   return path.startsWith(prefix) ? path : `${prefix}${path}`;

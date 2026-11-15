@@ -6,9 +6,9 @@ const DOC = {
   openapi: '3.1.0',
   security: [{ agentage: ['probe:read'] }],
   paths: {
-    '/api/v1/echo': { get: { security: [] } },
-    '/api/v1/ticks': { get: {}, post: { security: [{ agentage: ['probe:write'] }] } },
-    '/api/v1/ticks/{id}': { delete: { security: [{ agentage: ['probe:admin'] }] } },
+    '/api/probe/echo': { get: { security: [] } },
+    '/api/probe/ticks': { get: {}, post: { security: [{ agentage: ['probe:write'] }] } },
+    '/api/probe/ticks/{id}': { delete: { security: [{ agentage: ['probe:admin'] }] } },
   },
 };
 
@@ -24,16 +24,16 @@ describe('access', () => {
   });
 
   it('finds the operation of a request, templates included; anything undeclared needs read', () => {
-    expect(routeAccess(DOC, 'GET', '/api/v1/echo')).toBe('public');
-    expect(routeAccess(DOC, 'GET', '/api/v1/ticks')).toBe('read');
-    expect(routeAccess(DOC, 'POST', '/api/v1/ticks')).toBe('write');
+    expect(routeAccess(DOC, 'GET', '/api/probe/echo')).toBe('public');
+    expect(routeAccess(DOC, 'GET', '/api/probe/ticks')).toBe('read');
+    expect(routeAccess(DOC, 'POST', '/api/probe/ticks')).toBe('write');
     // As Express routes: without case, one trailing slash ignored.
-    expect(routeAccess(DOC, 'POST', '/api/v1/Ticks/')).toBe('write');
-    expect(routeAccess(DOC, 'DELETE', '/API/V1/TICKS/42/')).toBe('admin');
-    expect(routeAccess(DOC, 'DELETE', '/api/v1/ticks/42')).toBe('admin');
-    expect(routeAccess(DOC, 'PUT', '/api/v1/echo')).toBe('read');
-    expect(routeAccess(DOC, 'GET', '/api/v1/nope')).toBe('read');
-    expect(routeAccess(null, 'GET', '/api/v1/echo')).toBe('read');
+    expect(routeAccess(DOC, 'POST', '/api/probe/Ticks/')).toBe('write');
+    expect(routeAccess(DOC, 'DELETE', '/API/PROBE/TICKS/42/')).toBe('admin');
+    expect(routeAccess(DOC, 'DELETE', '/api/probe/ticks/42')).toBe('admin');
+    expect(routeAccess(DOC, 'PUT', '/api/probe/echo')).toBe('read');
+    expect(routeAccess(DOC, 'GET', '/api/probe/nope')).toBe('read');
+    expect(routeAccess(null, 'GET', '/api/probe/echo')).toBe('read');
   });
 
   // Express may route /x/admin to the /x/:id handler (first registered): every match counts.

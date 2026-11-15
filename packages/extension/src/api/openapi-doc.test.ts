@@ -29,32 +29,34 @@ const doc = () => {
 };
 
 describe('generatedOpenapi', () => {
-  it('names the package, the bearer scheme and each route under /api/v1', () => {
+  it('names the package, the bearer scheme and each route under /api/probe', () => {
     const { info, paths } = doc();
     expect(info).toEqual({ title: API_MANIFEST.agentage.id, version: API_MANIFEST.version });
     expect(Object.keys(paths)).toEqual([
-      '/api/v1/echo',
-      '/api/v1/ping',
-      '/api/v1/items/{id}',
-      '/api/v1/docs/{n}',
+      '/api/probe/echo',
+      '/api/probe/ping',
+      '/api/probe/items/{id}',
+      '/api/probe/docs/{n}',
     ]);
   });
 
   it('turns the scope into security: read by default, [] when public', () => {
     const { paths } = doc();
     const id = API_MANIFEST.agentage.id;
-    expect(paths['/api/v1/echo']?.['get']?.['security']).toEqual([{ pat: [`${id}:read`] }]);
-    expect(paths['/api/v1/ping']?.['get']?.['security']).toEqual([]);
-    expect(paths['/api/v1/items/{id}']?.['put']?.['security']).toEqual([{ pat: [`${id}:write`] }]);
+    expect(paths['/api/probe/echo']?.['get']?.['security']).toEqual([{ pat: [`${id}:read`] }]);
+    expect(paths['/api/probe/ping']?.['get']?.['security']).toEqual([]);
+    expect(paths['/api/probe/items/{id}']?.['put']?.['security']).toEqual([
+      { pat: [`${id}:write`] },
+    ]);
   });
 
   it('lists a get input as query parameters, a put input as the body, path params as strings', () => {
     const { paths } = doc();
-    const echo = paths['/api/v1/echo']?.['get'];
+    const echo = paths['/api/probe/echo']?.['get'];
     expect(echo?.['parameters']).toEqual([
       { name: 'msg', in: 'query', required: true, schema: { type: 'string', maxLength: 9 } },
     ]);
-    const put = paths['/api/v1/items/{id}']?.['put'];
+    const put = paths['/api/probe/items/{id}']?.['put'];
     expect(put?.['parameters']).toEqual([
       { name: 'id', in: 'path', required: true, schema: { type: 'string' } },
     ]);
@@ -66,13 +68,13 @@ describe('generatedOpenapi', () => {
 
   it('wraps the output in the envelope, adds 400 only for a route with input', () => {
     const { paths } = doc();
-    const responses = paths['/api/v1/echo']?.['get']?.['responses'] as Record<string, Response>;
+    const responses = paths['/api/probe/echo']?.['get']?.['responses'] as Record<string, Response>;
     expect(responses['200']!.content['application/json']!.schema.properties.data).toEqual({
       ...MSG_JSON,
       additionalProperties: false,
     });
     expect(responses['400']?.description).toBe('VALIDATION_ERROR');
-    const ping = paths['/api/v1/ping']?.['get']?.['responses'] as Record<string, Response>;
+    const ping = paths['/api/probe/ping']?.['get']?.['responses'] as Record<string, Response>;
     expect([
       Object.keys(ping),
       ping['200']!.content['application/json']!.schema.properties.data,
@@ -83,9 +85,9 @@ describe('generatedOpenapi', () => {
     const { paths } = doc();
     const codes = (path: string, method: string) =>
       Object.keys(paths[path]?.[method]?.['responses'] as object);
-    expect(codes('/api/v1/echo', 'get')).toEqual(['200', '400', '401', '403']);
-    expect(codes('/api/v1/items/{id}', 'put')).toEqual(['200', '400', '401', '403', '404']);
-    const put = paths['/api/v1/items/{id}']?.['put']?.['responses'] as Record<string, Response>;
+    expect(codes('/api/probe/echo', 'get')).toEqual(['200', '400', '401', '403']);
+    expect(codes('/api/probe/items/{id}', 'put')).toEqual(['200', '400', '401', '403', '404']);
+    const put = paths['/api/probe/items/{id}']?.['put']?.['responses'] as Record<string, Response>;
     expect(put['404']).toEqual({
       description: 'NOT_FOUND',
       content: { 'application/json': { schema: { $ref: '#/components/schemas/Error' } } },
@@ -94,7 +96,7 @@ describe('generatedOpenapi', () => {
 
   it('an etag route takes If-Match, answers ETag and 412; optional is anonymous or read', () => {
     const generated = doc() as ReturnType<typeof doc> & { components: { schemas: object } };
-    const put = generated.paths['/api/v1/docs/{n}']?.['put'];
+    const put = generated.paths['/api/probe/docs/{n}']?.['put'];
     expect(put?.['security']).toEqual([{}, { pat: [`${API_MANIFEST.agentage.id}:read`] }]);
     expect(put?.['parameters']).toEqual([
       { name: 'n', in: 'path', required: true, schema: { type: 'string', maxLength: 3 } },
@@ -113,8 +115,8 @@ describe('generatedOpenapi', () => {
     const { paths } = generatedOpenapi(API_MANIFEST, routes) as {
       paths: Record<string, Record<string, { responses: Record<string, unknown> }>>;
     };
-    const made = paths['/api/v1/made']?.['post']?.responses ?? {};
-    const gone = paths['/api/v1/gone']?.['delete']?.responses ?? {};
+    const made = paths['/api/probe/made']?.['post']?.responses ?? {};
+    const gone = paths['/api/probe/gone']?.['delete']?.responses ?? {};
     expect([Object.keys(made).includes('201'), made['200']]).toEqual([true, undefined]);
     expect(gone['204']).toEqual({ description: 'no content' });
   });
@@ -125,7 +127,7 @@ describe('generatedOpenapi', () => {
     const { paths } = generatedOpenapi(API_MANIFEST, routes) as {
       paths: Record<string, Record<string, { parameters: unknown[] }>>;
     };
-    expect(paths['/api/v1/u']?.['post']?.parameters).toEqual([
+    expect(paths['/api/probe/u']?.['post']?.parameters).toEqual([
       { name: 'email', in: 'query', required: true, schema: { type: 'string' } },
     ]);
   });

@@ -5,7 +5,7 @@ const ALL = ['pages', 'ui', 'api', 'mcp', 'worker'] as const;
 
 describe('gatewayConfig', () => {
   it('routes the url layout of the estate for the full probe', () => {
-    const { http } = gatewayConfig([...ALL], '0.2.0');
+    const { http } = gatewayConfig([...ALL], { id: 'probe', version: '0.2.0' });
     expect(Object.keys(http.services).sort()).toEqual([
       'api',
       'gateway-miss',
@@ -20,7 +20,8 @@ describe('gatewayConfig', () => {
       Object.entries(http.routers).map(([name, r]) => [name, [r.rule, r.priority, r.service]])
     );
     expect(rules).toMatchObject({
-      api: ['PathPrefix(`/api/v1/`)', 100, 'api'],
+      api: ['PathPrefix(`/api/probe/`)', 100, 'api'],
+      'api-v1': ['PathPrefix(`/api/v1/`)', 100, 'api'],
       mcp: ['Path(`/mcp`)', 100, 'mcp'],
       ui: ['PathPrefix(`/ui/0.2.0/`)', 100, 'ui'],
       pages: ['PathPrefix(`/`)', 1, 'pages'],
@@ -40,7 +41,7 @@ describe('gatewayConfig', () => {
   });
 
   it("sends a reserved-prefix miss to Traefik's own 404, under the part routers", () => {
-    const { http } = gatewayConfig([...ALL], '0.2.0');
+    const { http } = gatewayConfig([...ALL], { id: 'probe', version: '0.2.0' });
     const reserved = http.routers['reserved'];
     expect(reserved?.service).toBe('gateway-miss');
     expect(reserved?.priority).toBe(50);
@@ -53,15 +54,22 @@ describe('gatewayConfig', () => {
   });
 
   it('without pages, every other path is a miss; discovery goes to the first routed part', () => {
-    const api = gatewayConfig(['api', 'worker'], '1.0.0').http;
+    const api = gatewayConfig(['api', 'worker'], { id: 'probe', version: '1.0.0' }).http;
     expect(api.routers['host']).toMatchObject({
       rule: 'PathPrefix(`/`)',
       priority: 1,
       service: 'gateway-miss',
     });
     expect(api.routers['well-known']?.service).toBe('api');
-    expect(gatewayConfig(['mcp'], '1.0.0').http.routers['well-known']?.service).toBe('mcp');
-    expect(gatewayConfig(['worker'], '1.0.0').http.routers['well-known']).toBeUndefined();
+    expect(
+      gatewayConfig(['mcp'], { id: 'probe', version: '1.0.0' }).http.routers['api-v1']
+    ).toBeUndefined();
+    expect(
+      gatewayConfig(['mcp'], { id: 'probe', version: '1.0.0' }).http.routers['well-known']?.service
+    ).toBe('mcp');
+    expect(
+      gatewayConfig(['worker'], { id: 'probe', version: '1.0.0' }).http.routers['well-known']
+    ).toBeUndefined();
   });
 
   it('runs Traefik on the file provider with a miss entry point and a loopback ping', () => {

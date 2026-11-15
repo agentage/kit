@@ -123,6 +123,8 @@ const inputFor = async (options: RunPartOptions, start: Start): Promise<RunnerIn
     base,
     openapi,
     importModule: options.importModule,
+    // The old prefix as a second mount, so next stays green; it goes in phase 4.
+    apiAliases: ['/api/v1'],
   };
 };
 

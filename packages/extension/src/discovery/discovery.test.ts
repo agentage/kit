@@ -104,6 +104,20 @@ describe('discovery document', () => {
     expect(valid('http://probe.next.agentage.io')).toBe(false);
     expect(valid('https://probe.next.agentage.io/')).toBe(false);
   });
+
+  it('openapi: the new /api/{id} form and the old /api/v{N} of a kit before 0.13; nothing else', () => {
+    const record = validateRecord(recordOf(API_MANIFEST, BUILD, { api: API_IMAGE }));
+    const doc = discoveryDocument(record, 'https://probe.next.agentage.io');
+    const valid = (openapi: string) => [
+      DiscoveryDocumentSchema.safeParse({ ...doc, openapi }).success,
+      ExtensionRecordSchema.safeParse({ ...record, openapi }).success,
+    ];
+    expect(valid('/api/probe/openapi.json')).toEqual([true, true]);
+    expect(valid('/api/v1/openapi.json')).toEqual([true, true]);
+    expect(valid('/api/v12/openapi.json')).toEqual([true, true]);
+    for (const wrong of ['/api/memory/openapi.json', '/api/openapi.json', '/v1/openapi.json'])
+      expect([wrong, ...valid(wrong)]).toEqual([wrong, false, false]);
+  });
 });
 
 describe('loadRecord', () => {

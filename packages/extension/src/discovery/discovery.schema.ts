@@ -60,9 +60,10 @@ const recordShape = {
   commit: CommitSchema,
   buildTime: z.iso.datetime(),
   parts: PartsRecordSchema,
+  // /api/v{N}: an extension still on a kit before 0.13, read by a newer one; it goes in phase 4.
   openapi: z
     .string()
-    .regex(/^\/api\/v[1-9][0-9]*\/openapi\.json$/)
+    .regex(/^\/api\/(?:v[0-9]+|[a-z][a-z0-9-]*)\/openapi\.json$/)
     .optional(),
   tools: z.array(ToolRecordSchema).min(1).optional(),
   widgets: z.array(WidgetSchema).min(1).optional(),
@@ -77,6 +78,12 @@ const imagesNameTheirExtension = (doc: { id: string; parts: z.infer<typeof Parts
 
 const IMAGE_RULE = { message: 'every image is {id}-{part}', path: ['parts'] };
 
+// The api prefix is /api/{id}, or the old /api/v{N}: never another extension's id.
+const openapiNamesItsExtension = ({ id, openapi }: { id: string; openapi?: string }) =>
+  !openapi || /^\/api\/v[0-9]+\//.test(openapi) || openapi === `/api/${id}/openapi.json`;
+
+const OPENAPI_RULE = { message: 'openapi is /api/{id}/openapi.json', path: ['openapi'] };
+
 // A scoped name lives only in secretParts, so an estate that does not read it mounts nothing.
 const scoped = (name: string) =>
   `secret ${name}: one or more parts, none repeated, and never also in secrets`;
@@ -90,6 +97,7 @@ export const ExtensionRecordSchema = z
     secretParts: z.record(SecretNameSchema, z.array(SecretPartSchema)).optional(),
   })
   .refine(imagesNameTheirExtension, IMAGE_RULE)
+  .refine(openapiNamesItsExtension, OPENAPI_RULE)
   .superRefine((doc, ctx) => {
     for (const [name, parts] of Object.entries(doc.secretParts ?? {}))
       if (!parts.length || new Set(parts).size !== parts.length || doc.secrets?.includes(name))
@@ -99,7 +107,8 @@ export const ExtensionRecordSchema = z
 // What a deployment serves at /.well-known/agentage-extension.json: the record plus its host.
 export const DiscoveryDocumentSchema = z
   .strictObject({ ...recordShape, host: OriginSchema })
-  .refine(imagesNameTheirExtension, IMAGE_RULE);
+  .refine(imagesNameTheirExtension, IMAGE_RULE)
+  .refine(openapiNamesItsExtension, OPENAPI_RULE);
 
 export type ExtensionRecord = z.infer<typeof ExtensionRecordSchema>;
 export type DiscoveryDocument = z.infer<typeof DiscoveryDocumentSchema>;

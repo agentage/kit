@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": { "title": "base", "version": "0.1.0" },
   "paths": {
-    "/api/v1/echo": {
+    "/api/base/echo": {
       "get": {
         "operationId": "echo",
         "security": [],

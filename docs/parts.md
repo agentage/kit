@@ -5,7 +5,7 @@ Each part of an extension package exports only `create(ctx)`. The kit owns serve
 envelope is the kit's standard JSON answer shape: `{ success, data, meta? }` or `{ success: false, error }`.
 
 ```ts
-// src/api/index.ts: an Express router mounted at /api/v1/
+// src/api/index.ts: an Express router mounted at /api/{id}/
 export const create = (ctx: PartContext): Router => {
   /* ctx.store.query(...) */
 };

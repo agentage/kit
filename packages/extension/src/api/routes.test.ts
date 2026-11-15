@@ -57,12 +57,12 @@ const post = (body: string) => ({
 describe('ctx.route', () => {
   it('validates the query, hands the caller and answers in the envelope', async () => {
     await start();
-    expect(await (await server!.fetch('/api/v1/echo?msg=hi')).json()).toEqual({
+    expect(await (await server!.fetch('/api/test/echo?msg=hi')).json()).toEqual({
       success: true,
       data: { msg: 'hi' },
     });
-    expect(await (await server!.fetch('/api/v1/who')).json()).toEqual(ok('usr_test'));
-    expect(await (await server!.fetch('/api/v1/me')).json()).toEqual({
+    expect(await (await server!.fetch('/api/test/who')).json()).toEqual(ok('usr_test'));
+    expect(await (await server!.fetch('/api/test/me')).json()).toEqual({
       success: true,
       data: 'usr_test',
     });
@@ -70,19 +70,19 @@ describe('ctx.route', () => {
 
   it('takes the JSON body and the typed path params on post', async () => {
     await start();
-    const res = await server!.fetch('/api/v1/items/i1', post('{"msg":"x"}'));
+    const res = await server!.fetch('/api/test/items/i1', post('{"msg":"x"}'));
     expect(await res.json()).toEqual({ success: true, data: { id: 'i1', msg: 'x' } });
   });
 
   it('sends a reply with its ETag and meta, and hands the handler If-Match', async () => {
     await start();
-    const res = await server!.fetch('/api/v1/doc', {
+    const res = await server!.fetch('/api/test/doc', {
       method: 'PUT',
       headers: { 'If-Match': '"v1"' },
     });
     expect(res.headers.get('etag')).toBe('"v2"');
     expect(await res.json()).toEqual(ok({ ifMatch: '"v1"' }, { at: 2 }));
-    const bare = await server!.fetch('/api/v1/doc', { method: 'PUT' });
+    const bare = await server!.fetch('/api/test/doc', { method: 'PUT' });
     expect([bare.headers.get('access-control-expose-headers'), await bare.json()]).toEqual([
       expect.stringContaining('ETag'),
       ok({}, { at: 2 }),
@@ -91,7 +91,7 @@ describe('ctx.route', () => {
 
   it('answers VALIDATION_ERROR with details, INTERNAL on a bad answer, NOT_FOUND off the routes', async () => {
     await start();
-    const query = await server!.fetch('/api/v1/echo?msg=', { headers: { agcid: AGCID } });
+    const query = await server!.fetch('/api/test/echo?msg=', { headers: { agcid: AGCID } });
     expect([query.status, ErrorEnvelopeSchema.parse(await query.json()).error]).toEqual([
       400,
       {
@@ -101,13 +101,13 @@ describe('ctx.route', () => {
         details: [{ field: 'msg', message: expect.any(String) }],
       },
     ]);
-    expect(await (await server!.fetch('/api/v1/n/42')).json()).toEqual(ok('42'));
-    const path = await server!.fetch('/api/v1/n/x');
+    expect(await (await server!.fetch('/api/test/n/42')).json()).toEqual(ok('42'));
+    const path = await server!.fetch('/api/test/n/x');
     expect(ErrorEnvelopeSchema.parse(await path.json()).error.message).toBe('Invalid path');
-    const body = await server!.fetch('/api/v1/items/i1', post('{}'));
+    const body = await server!.fetch('/api/test/items/i1', post('{}'));
     expect(ErrorEnvelopeSchema.parse(await body.json()).error.message).toBe('Invalid body');
-    expect((await server!.fetch('/api/v1/broken')).status).toBe(500);
-    const off = await server!.fetch('/api/v1/nope', {
+    expect((await server!.fetch('/api/test/broken')).status).toBe(500);
+    const off = await server!.fetch('/api/test/nope', {
       headers: { agcid: '0555843f506516e7bcbde1f38d7f19ab' },
     });
     expect([off.status, ErrorEnvelopeSchema.parse(await off.json()).error]).toEqual([
@@ -131,7 +131,7 @@ describe('ctx.route', () => {
   it('keeps a returned router working', async () => {
     const router = Router().get('/old', (_req, res) => void res.json({ old: true }));
     server = await startTestServer({ create: () => router, ctx: createTestContext() });
-    expect(await (await server.fetch('/api/v1/old')).json()).toEqual({ old: true });
+    expect(await (await server.fetch('/api/test/old')).json()).toEqual({ old: true });
   });
 });
 
@@ -153,15 +153,15 @@ describe('the route registry', () => {
 
   it('sends 201, and 204 without a body', async () => {
     await start();
-    const made = await server!.fetch('/api/v1/made', { method: 'POST' });
+    const made = await server!.fetch('/api/test/made', { method: 'POST' });
     expect([made.status, await made.json()]).toEqual([201, ok({ made: true })]);
-    const gone = await server!.fetch('/api/v1/gone', { method: 'DELETE' });
+    const gone = await server!.fetch('/api/test/gone', { method: 'DELETE' });
     expect([gone.status, await gone.text()]).toEqual([204, '']);
   });
 
   it('hands the handler a case-insensitive header', async () => {
     await start();
-    const res = await server!.fetch('/api/v1/hdr', {
+    const res = await server!.fetch('/api/test/hdr', {
       headers: { 'X-Agentage-CLI-Version': '1.2' },
     });
     expect((await res.json()) as unknown).toEqual(ok('1.2'));
@@ -169,7 +169,7 @@ describe('the route registry', () => {
 
   it('carries object details and a 4xx code override', async () => {
     await start();
-    const stale = await server!.fetch('/api/v1/stale', { method: 'PUT' });
+    const stale = await server!.fetch('/api/test/stale', { method: 'PUT' });
     expect([stale.status, ((await stale.json()) as { error: unknown }).error]).toEqual([
       412,
       expect.objectContaining({
@@ -177,7 +177,7 @@ describe('the route registry', () => {
         details: { current: 1, etag: '"v1"' },
       }),
     ]);
-    const missing = await server!.fetch('/api/v1/m');
+    const missing = await server!.fetch('/api/test/m');
     expect([missing.status, ((await missing.json()) as { error: unknown }).error]).toEqual([
       404,
       expect.objectContaining({ code: 'MACHINE_NOT_FOUND' }),
@@ -191,11 +191,11 @@ describe('the route registry', () => {
 
   it('parses the query on a post and hands the client ip', async () => {
     await start();
-    const res = await server!.fetch('/api/v1/unsub?email=a%40b.c', {
+    const res = await server!.fetch('/api/test/unsub?email=a%40b.c', {
       method: 'POST',
       headers: { 'x-forwarded-for': '203.0.113.7' },
     });
     expect(await res.json()).toEqual(ok({ email: 'a@b.c', ip: '203.0.113.7' }));
-    expect((await server!.fetch('/api/v1/unsub', { method: 'POST' })).status).toBe(400);
+    expect((await server!.fetch('/api/test/unsub', { method: 'POST' })).status).toBe(400);
   });
 });

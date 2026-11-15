@@ -84,9 +84,9 @@ describe('api app: kit routes', () => {
 });
 
 describe('api app: envelope and headers', () => {
-  it('mounts the part under /api/v1 and mints an agcid', async () => {
+  it('mounts the part under /api/probe and mints an agcid', async () => {
     const { get } = await start();
-    const res = await get('/api/v1/echo?msg=hi');
+    const res = await get('/api/probe/echo?msg=hi');
     expect(await res.json()).toEqual({ success: true, data: { msg: 'hi' } });
     expect(res.headers.get('agcid')).toMatch(UUID_V7);
     expect(res.headers.get('x-powered-by')).toBeNull();
@@ -95,17 +95,17 @@ describe('api app: envelope and headers', () => {
 
   it('sends an agcid on every response, kit routes and misses included', async () => {
     const { get } = await start();
-    const paths = ['/health', '/.well-known/agentage-extension.json', '/api/v1/echo', '/x'];
+    const paths = ['/health', '/.well-known/agentage-extension.json', '/api/probe/echo', '/x'];
     for (const path of paths) expect((await get(path)).headers.get('agcid'), path).toMatch(UUID_V7);
   });
 
   it('keeps a valid incoming agcid and replaces an invalid one', async () => {
     const { get } = await start();
-    const kept = await get('/api/v1/echo', {
+    const kept = await get('/api/probe/echo', {
       headers: { agcid: '825f5fe46cf881ced6bd9a89f6be790b' },
     });
     expect(kept.headers.get('agcid')).toBe('825f5fe46cf881ced6bd9a89f6be790b');
-    const replaced = await get('/api/v1/echo', { headers: { agcid: 'bad id' } });
+    const replaced = await get('/api/probe/echo', { headers: { agcid: 'bad id' } });
     expect(replaced.headers.get('agcid')).toMatch(UUID_V7);
   });
 
@@ -117,7 +117,7 @@ describe('api app: envelope and headers', () => {
       agcid: '70e5b2b0a2b83a9784363bba1d4be286',
     };
     const miss = { success: false, error };
-    for (const path of ['/api/v1/nope', '/api/', '/mcp/x', '/']) {
+    for (const path of ['/api/probe/nope', '/api/', '/mcp/x', '/']) {
       const res = await get(path, { headers: { agcid: '70e5b2b0a2b83a9784363bba1d4be286' } });
       expect(res.status).toBe(404);
       expect(await res.json()).toEqual(miss);
@@ -131,7 +131,7 @@ describe('api app: envelope and headers', () => {
       if (parsed['kind'] !== 'http') lines.push(parsed);
     });
     const { get } = await start({ log });
-    const res = await get('/api/v1/boom', {
+    const res = await get('/api/probe/boom', {
       headers: { agcid: '98544b79a4abe846d98f7c5e8ce03567' },
     });
     expect(res.status).toBe(500);
@@ -157,17 +157,17 @@ describe('api app: envelope and headers', () => {
 
   it('logs a 5xx only; a 4xx is the caller, not the part', async () => {
     const { get, ctx } = await start();
-    await get('/api/v1/nope');
-    await get('/api/v1/body', { method: 'POST', body: '{bad', headers: JSON_TYPE });
+    await get('/api/probe/nope');
+    await get('/api/probe/body', { method: 'POST', body: '{bad', headers: JSON_TYPE });
     const errors = () => ctx.logs.filter((entry) => !('http.route' in entry.fields));
     expect(errors()).toEqual([]);
-    await get('/api/v1/busy');
+    await get('/api/probe/busy');
     expect(errors().map((entry) => entry.message)).toEqual(['Try later']);
   });
 
   it('sends Retry-After with 503', async () => {
     const { get } = await start();
-    const res = await get('/api/v1/busy', {
+    const res = await get('/api/probe/busy', {
       headers: { agcid: 'df7e0c6818e2daa20eee8903cd16f2d6' },
     });
     expect(res.status).toBe(503);
@@ -185,7 +185,7 @@ describe('api app: envelope and headers', () => {
   it('maps a bad JSON body to 400 and an oversized one to 413', async () => {
     const { get } = await start();
     const post = (body: string) =>
-      get('/api/v1/body', { method: 'POST', body, headers: JSON_TYPE });
+      get('/api/probe/body', { method: 'POST', body, headers: JSON_TYPE });
     expect((await post('{"a":1}')).status).toBe(200);
     const bad = await post('{bad');
     const invalid = { code: 'VALIDATION_ERROR', message: 'Invalid JSON body' };
@@ -197,7 +197,7 @@ describe('api app: envelope and headers', () => {
 
   it('answers a CORS preflight on /api/ without credentials', async () => {
     const { get } = await start();
-    const res = await get('/api/v1/echo', {
+    const res = await get('/api/probe/echo', {
       method: 'OPTIONS',
       headers: { origin: 'https://a.example', 'access-control-request-method': 'GET' },
     });
@@ -217,21 +217,21 @@ describe('api app: no cookies', () => {
     const router = Router();
     router.get('/seen', (req, res) => void res.json({ cookie: req.headers.cookie ?? null }));
     const { get } = await start({ router });
-    const res = await get('/api/v1/seen', { headers: COOKIE });
+    const res = await get('/api/probe/seen', { headers: COOKIE });
     expect(await res.json()).toEqual({ cookie: null });
     expect(res.headers.get('set-cookie')).toBeNull();
   });
 
   it('logs no cookie on a failing request', async () => {
     const { ctx, get } = await start();
-    await get('/api/v1/boom', { headers: COOKIE });
+    await get('/api/probe/boom', { headers: COOKIE });
     expect(ctx.logs.length).toBeGreaterThan(0);
     expect(JSON.stringify(ctx.logs)).not.toContain('s3cr3t');
   });
 
   it('answers a CORS preflight without a credentials header', async () => {
     const { get } = await start();
-    const res = await get('/api/v1/echo', {
+    const res = await get('/api/probe/echo', {
       method: 'OPTIONS',
       headers: { origin: 'https://x.example', 'access-control-request-method': 'GET' },
     });

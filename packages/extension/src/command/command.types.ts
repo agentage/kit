@@ -13,7 +13,7 @@ export interface CommandExtension {
 
 // The extension's own api and mcp; the host adds the PAT and a fresh agcid, it reaches nothing else.
 export interface CliClient {
-  // path as the OpenAPI declares it under /api/v1, params filled: api('get', '/items/42').
+  // path as the OpenAPI declares it under /api/{id}, params filled: api('get', '/items/42').
   api(method: RouteMethod, path: string, input?: unknown): Promise<unknown>;
   // One of its own tools by name: the structuredContent.
   tool(name: string, args?: Record<string, unknown>): Promise<unknown>;

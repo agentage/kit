@@ -11,18 +11,23 @@ const RESERVED =
   'PathPrefix(`/api/`) || Path(`/mcp`) || PathPrefix(`/mcp/`) || PathPrefix(`/ui/`) || PathPrefix(`/.well-known/`) || PathPrefix(`/git/`) || Path(`/health`)';
 
 // Each routed part's path, in the order `up` prints them; /mcp is exact, the rest are prefixes.
-export const PART_PATHS = { pages: '/', ui: '/ui/{version}/', api: '/api/v1/', mcp: '/mcp' };
+export const PART_PATHS = { pages: '/', ui: '/ui/{version}/', api: '/api/{id}/', mcp: '/mcp' };
 
 type RoutedPart = keyof typeof PART_PATHS;
 
 // In this order, so the first present serves /.well-known/ (api-standards section 1).
 const ROUTED: readonly RoutedPart[] = ['api', 'mcp', 'pages', 'ui'];
 
-export const partPath = (part: RoutedPart, version: string): string =>
-  PART_PATHS[part].replace('{version}', version);
+export interface PathOf {
+  id: string;
+  version: string;
+}
 
-const ruleOf = (part: RoutedPart, version: string): string =>
-  part === 'mcp' ? 'Path(`/mcp`)' : `PathPrefix(\`${partPath(part, version)}\`)`;
+export const partPath = (part: RoutedPart, { id, version }: PathOf): string =>
+  PART_PATHS[part].replace('{version}', version).replace('{id}', id);
+
+const ruleOf = (part: RoutedPart, of: PathOf): string =>
+  part === 'mcp' ? 'Path(`/mcp`)' : `PathPrefix(\`${partPath(part, of)}\`)`;
 
 const router = (rule: string, priority: number, service: string) => ({
   rule,
@@ -32,16 +37,18 @@ const router = (rule: string, priority: number, service: string) => ({
   middlewares: ['gateway-headers'],
 });
 
-const partRouters = (routed: RoutedPart[], version: string) => {
+const partRouters = (routed: RoutedPart[], of: PathOf) => {
   const routers: Record<string, ReturnType<typeof router>> = {};
   for (const part of routed)
-    routers[part] = router(ruleOf(part, version), part === 'pages' ? 1 : 100, part);
+    routers[part] = router(ruleOf(part, of), part === 'pages' ? 1 : 100, part);
+  // The old api prefix, as runPart serves it, until phase 4.
+  if (routed.includes('api')) routers['api-v1'] = router('PathPrefix(`/api/v1/`)', 100, 'api');
   if (routed[0]) routers['well-known'] = router('PathPrefix(`/.well-known/`)', 100, routed[0]);
   return routers;
 };
 
 // Traefik's file provider: a reserved-prefix miss is Traefik's own 404, like the estate gateway.
-export const gatewayConfig = (parts: ImagePartKind[], version: string) => {
+export const gatewayConfig = (parts: ImagePartKind[], of: PathOf) => {
   const routed = ROUTED.filter((part) => parts.includes(part));
   const services: Record<string, unknown> = {
     'gateway-miss': { loadBalancer: { servers: [{ url: 'http://127.0.0.1:8081' }] } },
@@ -50,7 +57,7 @@ export const gatewayConfig = (parts: ImagePartKind[], version: string) => {
     services[part] = { loadBalancer: { servers: [{ url: `http://${part}:${PART_PORT}` }] } };
   const routers: Record<string, ReturnType<typeof router>> = {
     reserved: router(RESERVED, 50, 'gateway-miss'),
-    ...partRouters(routed, version),
+    ...partRouters(routed, of),
   };
   if (!routed.includes('pages')) routers['host'] = router('PathPrefix(`/`)', 1, 'gateway-miss');
   const headers = {

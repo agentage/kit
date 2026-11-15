@@ -28,7 +28,7 @@ const staleScope = async (file: string) => {
   const doc = JSON.parse(await readFile(file, 'utf8')) as {
     paths: Record<string, Record<string, { security: unknown }>>;
   };
-  doc.paths['/api/v1/items']!['post']!.security = [];
+  doc.paths['/api/probe/items']!['post']!.security = [];
   await writeFile(file, JSON.stringify(doc));
 };
 
@@ -51,7 +51,7 @@ afterAll(async () => {
 
 describe('a ctx.route api part behind the token check', () => {
   it('guards a route at its declared scope, not at a stale committed one', async () => {
-    const add = `${url}/api/v1/items`;
+    const add = `${url}/api/probe/items`;
     expect((await fetch(add, { method: 'POST' })).status).toBe(401);
     const write = await issuer.bearer({ scope: 'probe:write' });
     const ok = await fetch(add, { method: 'POST', headers: { authorization: write } });
@@ -59,15 +59,15 @@ describe('a ctx.route api part behind the token check', () => {
   });
 
   it('serves a public route anonymously and asks a scoped one for its bearer', async () => {
-    expect(await (await fetch(`${url}/api/v1/ping`)).json()).toEqual({
+    expect(await (await fetch(`${url}/api/probe/ping`)).json()).toEqual({
       success: true,
       data: 'pong',
     });
-    expect((await fetch(`${url}/api/v1/echo?msg=hi`)).status).toBe(401);
+    expect((await fetch(`${url}/api/probe/echo?msg=hi`)).status).toBe(401);
     const read = await issuer.bearer({ scope: 'probe:read', sub: 'usr_1' });
-    const echo = await fetch(`${url}/api/v1/echo?msg=hi`, { headers: { authorization: read } });
+    const echo = await fetch(`${url}/api/probe/echo?msg=hi`, { headers: { authorization: read } });
     expect(await echo.json()).toEqual({ success: true, data: { msg: 'hi', caller: 'usr_1' } });
-    const add = await fetch(`${url}/api/v1/items`, {
+    const add = await fetch(`${url}/api/probe/items`, {
       method: 'POST',
       headers: { authorization: read },
     });
@@ -75,7 +75,7 @@ describe('a ctx.route api part behind the token check', () => {
   });
 
   it('serves an optional route anonymously and to a read bearer, never to a bad one', async () => {
-    const who = `${url}/api/v1/whoami`;
+    const who = `${url}/api/probe/whoami`;
     expect(await (await fetch(who)).json()).toEqual({ success: true, data: null });
     const read = await issuer.bearer({ scope: 'probe:read', sub: 'usr_2' });
     const named = await fetch(who, { headers: { authorization: read } });
@@ -84,19 +84,19 @@ describe('a ctx.route api part behind the token check', () => {
   });
 
   it('serves the contract generated from the routes and answers NOT_FOUND with an agcid off the routes', async () => {
-    const doc = (await (await fetch(`${url}/api/v1/openapi.json`)).json()) as {
+    const doc = (await (await fetch(`${url}/api/probe/openapi.json`)).json()) as {
       paths: Record<string, Record<string, { security: unknown }>>;
     };
     expect(Object.keys(doc.paths)).toEqual([
-      '/api/v1/echo',
-      '/api/v1/ping',
-      '/api/v1/items',
-      '/api/v1/whoami',
+      '/api/probe/echo',
+      '/api/probe/ping',
+      '/api/probe/items',
+      '/api/probe/whoami',
     ]);
-    expect(doc.paths['/api/v1/items']?.['post']?.security).toEqual([{ pat: ['probe:write'] }]);
+    expect(doc.paths['/api/probe/items']?.['post']?.security).toEqual([{ pat: ['probe:write'] }]);
     // An undeclared path needs read, as before: the bearer first, then NOT_FOUND.
     const authorization = await issuer.bearer({ scope: 'probe:read' });
-    const off = await fetch(`${url}/api/v1/nope`, {
+    const off = await fetch(`${url}/api/probe/nope`, {
       headers: { agcid: 'ad15a1b29af002980eb6e0274d622d42', authorization },
     });
     expect([off.status, await off.json()]).toEqual([
@@ -109,6 +109,26 @@ describe('a ctx.route api part behind the token check', () => {
           agcid: 'ad15a1b29af002980eb6e0274d622d42',
         },
       },
+    ]);
+  });
+
+  it('serves the old /api/v1 mount with the same access, and logs the mount it was called on', async () => {
+    const rows = () =>
+      vi
+        .mocked(process.stderr.write)
+        .mock.calls.map(([l]) => JSON.parse(String(l)) as Record<string, unknown>);
+    expect((await fetch(`${url}/api/v1/ping`)).status).toBe(200);
+    expect((await fetch(`${url}/API/V1/echo?msg=hi`)).status).toBe(401);
+    expect((await fetch(`${url}/api/v1/echo?msg=hi`)).status).toBe(401);
+    await fetch(`${url}/api/probe/ping`);
+    const routes = rows()
+      .filter((r) => r['kind'] === 'http')
+      .map((r) => r['msg']);
+    expect(routes.slice(-4)).toEqual([
+      'GET /api/v1/ping 200',
+      'GET /api/v1/echo 401',
+      'GET /api/v1/echo 401',
+      'GET /api/probe/ping 200',
     ]);
   });
 });

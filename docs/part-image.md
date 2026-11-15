@@ -133,7 +133,7 @@ and `protocol`, the values of `daemon.json`, so a client can prove which process
 other value, or an undeclared key, is `400 INVALID_SETTING`. An `Installer` error with a string
 `code` (and `status` 400, 404 or 502) is the client's error; any other error is a logged `500`.
 The daemon calls the `Installer` again on every boot, once for each entry with a version (disabled
-ones too), one at a time, after the folder entries. So it must be idempotent and fast for a
+ones too, after the enabled ones started), one at a time, after the folder entries. So it must be idempotent and fast for a
 version that is already installed. Its spec carries a `signal`, aborted only when the daemon stops
 waiting (`installMs`); an installer that ignores it keeps running (`pending` shows it).
 Statuses, not codes, tell a retry: 503 `UNAVAILABLE` is worth a retry after `Retry-After`; 504

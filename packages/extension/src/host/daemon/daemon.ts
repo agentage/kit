@@ -51,12 +51,14 @@ const resolveDir = async (deps: SupervisorDeps, entry: Entry): Promise<void> => 
   );
 };
 
-// Folders first (no installer), then one at a time, each call bounded by installMs.
+// Enabled folders first (no installer), then enabled versions one at a time, disabled ones last.
 const boot = async (deps: SupervisorDeps, entries: Entries): Promise<void> => {
   const all = [...entries.values()];
-  const ordered = [...all.filter((e) => e.install.source), ...all.filter((e) => !e.install.source)];
-  for (const entry of ordered)
-    await (entry.state === 'disabled' ? resolveDir(deps, entry) : startEntry(deps, entry));
+  const off = all.filter((e) => e.state === 'disabled');
+  const on = all.filter((e) => e.state !== 'disabled');
+  const ordered = [...on.filter((e) => e.install.source), ...on.filter((e) => !e.install.source)];
+  for (const entry of ordered) await startEntry(deps, entry);
+  for (const entry of off) await resolveDir(deps, entry);
 };
 
 const stopper = (server: Server, entries: Entries, deps: SupervisorDeps) => {

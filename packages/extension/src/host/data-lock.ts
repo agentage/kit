@@ -61,15 +61,29 @@ const clearStale = async (lock: string, pid: number): Promise<void> => {
   await unlink(moved);
 };
 
+const turns = new Map<string, Promise<unknown>>();
+
+// One taker per lock in this process: none sees our pid in the file before it is in held.
+const inTurn = <T>(lock: string, fn: () => Promise<T>): Promise<T> => {
+  const run = (turns.get(lock) ?? Promise.resolve()).then(fn, fn);
+  const tail = run.catch(() => undefined);
+  turns.set(lock, tail);
+  void tail.then(() => turns.get(lock) === tail && turns.delete(lock));
+  return run;
+};
+
+const acquire = async (lock: string): Promise<void> => {
+  if (await take(lock)) return;
+  const pid = await holder(lock);
+  if (live(lock, pid)) throw locked(lock, pid);
+  await clearStale(lock, pid);
+  if (!(await take(lock))) throw locked(lock, await holder(lock));
+};
+
 // PGlite has one writer per folder: <dataDir>.lock holds the pid; a dead holder's lock is taken over.
 export const lockDataDir = async (dataDir: string): Promise<() => Promise<void>> => {
   const lock = `${dataDir}.lock`;
-  if (!(await take(lock))) {
-    const pid = await holder(lock);
-    if (live(lock, pid)) throw locked(lock, pid);
-    await clearStale(lock, pid);
-    if (!(await take(lock))) throw locked(lock, await holder(lock));
-  }
+  await inTurn(lock, () => acquire(lock));
   // Sync, so no other taker in this process sees the file without its entry in held.
   return async () => {
     rmSync(lock, { force: true });

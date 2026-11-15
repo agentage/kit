@@ -1,4 +1,4 @@
-import { mkdir, readdir, rm, stat } from 'node:fs/promises';
+import { mkdir, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -108,5 +108,33 @@ describe('an installation.json that cannot be read', () => {
     expect((await stat(file)).isDirectory()).toBe(true);
     await rm(file, { recursive: true });
     expect(kept).toMatchObject({ extensions: [{ id: 'hosted' }] });
+  });
+});
+
+describe('a daemon file locked by another live process', () => {
+  it('PATCH waits lockMs, is 503 naming the pid, and the old child runs on', async () => {
+    h = await startHarness({ lockMs: 100 });
+    await writeSecrets(h.configDir);
+    await h.call('POST', '/host/extensions', { source: await hostedPackage() });
+    const lock = join(h.configDir, 'installation.json.lock');
+    await writeFile(lock, String(process.ppid));
+    const refused = await h.call('PATCH', '/host/extensions/hosted', {
+      settings: { 'echo.prefix': 'hey' },
+    });
+    await rm(lock);
+    expect(refused).toMatchObject({
+      status: 503,
+      body: {
+        error: {
+          code: 'UNAVAILABLE',
+          message: `installation.json is locked by process ${process.ppid}: waited 100 ms`,
+        },
+      },
+    });
+    expect(await h.call('GET', '/api/hosted/echo?msg=hi')).toMatchObject({
+      status: 200,
+      body: { data: { msg: 'hi' } },
+    });
+    expect(await readJsonFile(join(h.configDir, 'settings.json'), {})).toEqual({});
   });
 });

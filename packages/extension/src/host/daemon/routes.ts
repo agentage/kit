@@ -74,7 +74,7 @@ export const daemonApp = (
   const app = express();
   app.disable('x-powered-by');
   app.use(agcidMiddleware, localOnly(port));
-  app.use('/api/:id', proxyTo(entries));
+  app.use('/api/:id', proxyTo(entries, deps));
   app.get(
     '/health',
     (_req, res) => void res.set('Cache-Control', 'no-store').json(healthOf(entries, info))

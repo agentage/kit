@@ -19,7 +19,7 @@ describe('proxyTo', () => {
     };
     entry.gate = new Promise(() => undefined);
     const entries: Entries = new Map([['slow', entry]]);
-    const app = express().use('/api/:id', proxyTo(entries, 50));
+    const app = express().use('/api/:id', proxyTo(entries, { gateMs: 50, answerMs: 1_000 }));
     app.use(errorHandler(createLog({ extension: 'host', part: 'api' }, () => undefined)));
     const server = await startOn(app);
     const res = await server.fetch('/api/slow/echo');

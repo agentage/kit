@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { rmSync } from 'node:fs';
 import { link, readFile, rename, unlink, writeFile } from 'node:fs/promises';
+import { setTimeout as sleep } from 'node:timers/promises';
 
 export const DATA_DIR_LOCKED = 'DATA_DIR_LOCKED';
 
@@ -15,8 +16,17 @@ const alive = (pid: number): boolean => {
   }
 };
 
-const holder = async (file: string): Promise<number> =>
-  Number(await readFile(file, 'utf8').catch(() => '0'));
+// A lock made with wx is empty until its pid is written: read again once; still empty is stale.
+export const EMPTY_LOCK_MS = 50;
+
+const pidIn = (file: string) => readFile(file, 'utf8').catch(() => '0');
+
+const holder = async (file: string): Promise<number> => {
+  const pid = await pidIn(file);
+  if (pid !== '') return Number(pid);
+  await sleep(EMPTY_LOCK_MS);
+  return Number(await pidIn(file));
+};
 
 const live = (lock: string, pid: number): boolean =>
   pid === process.pid ? held.has(lock) : pid > 0 && alive(pid);
@@ -24,7 +34,31 @@ const live = (lock: string, pid: number): boolean =>
 const locked = (lock: string, pid: number) =>
   Object.assign(new Error(`${lock.slice(0, -5)} is open in process ${pid}`), {
     code: DATA_DIR_LOCKED,
+    pid,
   });
+
+const exists = (err: unknown) => (err as NodeJS.ErrnoException).code === 'EEXIST';
+
+// No hard links on the volume (some network or FUSE mounts): an exclusive create, then the pid.
+const create = async (lock: string, pid: number): Promise<boolean> => {
+  try {
+    await writeFile(lock, String(pid), { flag: 'wx' });
+    return true;
+  } catch (err) {
+    if (!exists(err)) throw err;
+    return false;
+  }
+};
+
+// The lock file at once (a link of a full file), or by create where links fail; false: it exists.
+const place = async (from: string, lock: string, pid: number): Promise<boolean> => {
+  try {
+    await link(from, lock);
+    return true;
+  } catch (err) {
+    return exists(err) ? false : create(lock, pid);
+  }
+};
 
 const unique = (file: string) => `${file}.${process.pid}.${randomBytes(4).toString('hex')}`;
 
@@ -33,12 +67,9 @@ const take = async (lock: string): Promise<boolean> => {
   const tmp = unique(lock);
   await writeFile(tmp, String(process.pid));
   try {
-    await link(tmp, lock);
-    held.add(lock);
-    return true;
-  } catch (err) {
-    if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err;
-    return false;
+    const taken = await place(tmp, lock, process.pid);
+    if (taken) held.add(lock);
+    return taken;
   } finally {
     await unlink(tmp).catch(() => undefined);
   }
@@ -54,7 +85,7 @@ const clearStale = async (lock: string, pid: number): Promise<void> => {
   if (gone) return;
   const now = await holder(moved);
   if (now !== pid) {
-    await link(moved, lock).catch(() => undefined);
+    await place(moved, lock, now).catch(() => undefined);
     await unlink(moved);
     throw locked(lock, now);
   }

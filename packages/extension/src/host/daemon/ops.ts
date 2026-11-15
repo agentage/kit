@@ -51,8 +51,8 @@ const nextOf = async (deps: SupervisorDeps, entry: Entry, patch: Patch): Promise
 const save = async (deps: SupervisorDeps, entry: Entry, to: Next) => {
   Object.assign(entry, { install: to.install }, to.dir && { dir: to.dir });
   await persist(deps, entry.id, to.install);
-  await writeValues(deps.configDir, 'settings', entry.id, to.values.settings);
-  await writeValues(deps.configDir, 'secrets', entry.id, to.values.secrets);
+  await writeValues(deps.configDir, 'settings', entry.id, to.values.settings, deps.lockMs);
+  await writeValues(deps.configDir, 'secrets', entry.id, to.values.secrets, deps.lockMs);
 };
 
 // A change that could not be written stops the new child and starts the old one from the files.
@@ -103,8 +103,8 @@ export const removeExtension = async (
   await persist(deps, id);
   entries.delete(id);
   await halt(entry, deps.drainMs);
-  await writeValues(deps.configDir, 'settings', id);
-  await writeValues(deps.configDir, 'secrets', id);
+  await writeValues(deps.configDir, 'settings', id, undefined, deps.lockMs);
+  await writeValues(deps.configDir, 'secrets', id, undefined, deps.lockMs);
   if (purge) await purgeData(deps.configDir, id);
   return { id };
 };

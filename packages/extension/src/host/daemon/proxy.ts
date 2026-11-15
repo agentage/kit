@@ -4,7 +4,7 @@ import { type NextFunction, type Request, type RequestHandler, type Response } f
 import { fail } from '../../envelope/envelope.js';
 import { enter, type Lane } from './lane.js';
 import { type Entries } from './entries.js';
-import { GATE_MS } from './supervisor.js';
+import { type Limits } from './limits.js';
 
 // 404 not installed or disabled (chosen, not to retry); 503 starting, failed, or held past gateMs.
 const laneFor = async (entries: Entries, id: string, gateMs: number): Promise<Lane> => {
@@ -62,8 +62,8 @@ const forward = (req: Request, res: Response, next: NextFunction, lane: Lane): v
 };
 
 export const proxyTo =
-  (entries: Entries, gateMs = GATE_MS): RequestHandler =>
+  (entries: Entries, limits: Pick<Limits, 'gateMs' | 'answerMs'>): RequestHandler =>
   async (req, res, next) => {
-    const lane = await laneFor(entries, String(req.params['id']), gateMs);
+    const lane = await laneFor(entries, String(req.params['id']), limits.gateMs);
     forward(req, res, next, lane);
   };

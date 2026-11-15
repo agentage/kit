@@ -88,14 +88,19 @@ export const keepBadCopy = (configDir: string): Promise<void> =>
 // Read, change and write under the lock: the daemon is the only writer.
 export const updateInstallation = (
   configDir: string,
-  change: (doc: Installation) => Installation
+  change: (doc: Installation) => Installation,
+  waitMs?: number
 ): Promise<Installation> => {
   const file = join(configDir, INSTALLATION_FILE);
-  return withFileLock(file, async () => {
-    const next = change((await readInstallation(configDir)).doc);
-    await writeJsonFile(file, next);
-    return next;
-  });
+  return withFileLock(
+    file,
+    async () => {
+      const next = change((await readInstallation(configDir)).doc);
+      await writeJsonFile(file, next);
+      return next;
+    },
+    waitMs
+  );
 };
 
 // The entry of id replaced (or added), the order kept; undefined removes it.

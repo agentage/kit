@@ -27,4 +27,4 @@ export const entryOf = (entries: Entries, id: string): Entry => {
 
 // The entry of id in installation.json replaced, added, or (no install) removed.
 export const persist = (deps: SupervisorDeps, id: string, install?: InstallEntry) =>
-  updateInstallation(deps.configDir, (doc) => withEntry(doc, id, install));
+  updateInstallation(deps.configDir, (doc) => withEntry(doc, id, install), deps.lockMs);

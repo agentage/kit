@@ -33,12 +33,22 @@ const fileOf = (configDir: string, kind: ValueKind) => join(configDir, `${kind}.
 export const readValues = async (configDir: string, kind: ValueKind, id: string) =>
   (await readJsonFile<Record<string, Values>>(fileOf(configDir, kind), {}))[id] ?? {};
 
-export const writeValues = (configDir: string, kind: ValueKind, id: string, values?: Values) => {
+export const writeValues = (
+  configDir: string,
+  kind: ValueKind,
+  id: string,
+  values?: Values,
+  waitMs?: number
+) => {
   const file = fileOf(configDir, kind);
-  return withFileLock(file, async () => {
-    const all = await readJsonFile<Record<string, Values>>(file, {});
-    if (values) all[id] = values;
-    else delete all[id];
-    await writeJsonFile(file, all, kind === 'secrets' ? 0o600 : 0o644);
-  });
+  return withFileLock(
+    file,
+    async () => {
+      const all = await readJsonFile<Record<string, Values>>(file, {});
+      if (values) all[id] = values;
+      else delete all[id];
+      await writeJsonFile(file, all, kind === 'secrets' ? 0o600 : 0o644);
+    },
+    waitMs
+  );
 };

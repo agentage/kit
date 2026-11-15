@@ -7,26 +7,17 @@ import { forkLaunch, type Launch } from './child.js';
 import { removeDaemonFile, writeDaemonFile, DAEMON_PROTOCOL } from './daemon-files.js';
 import { bootInstallation, keepBadCopy } from './installation.js';
 import { type Entries } from './entries.js';
+import { limitsOf, type Limits } from './limits.js';
 import { serialQueue } from './queue.js';
 import { daemonApp } from './routes.js';
-import {
-  DRAIN_MS,
-  HEALTH_MS,
-  halt,
-  startEntry,
-  type Installer,
-  type SupervisorDeps,
-} from './supervisor.js';
+import { halt, startEntry, type Installer, type SupervisorDeps } from './supervisor.js';
 
-export interface DaemonOptions {
+export interface DaemonOptions extends Partial<Limits> {
   configDir: string;
   port?: number;
   install?: Installer;
   version: string;
   startedBy: string;
-  // How long an old child's open requests may take (10 s), and a new child's /health (60 s).
-  drainMs?: number;
-  healthMs?: number;
 }
 
 export interface Daemon {
@@ -80,8 +71,7 @@ const depsOf = (opts: DaemonOptions, launch: Launch, origin: () => string): Supe
   install: opts.install,
   log: createLog({ extension: 'host', part: 'api', version: opts.version }),
   origin,
-  drainMs: opts.drainMs ?? DRAIN_MS,
-  healthMs: opts.healthMs ?? HEALTH_MS,
+  ...limitsOf(opts),
   queue: serialQueue(),
 });
 

@@ -70,6 +70,20 @@ describe('proxyTo, a child that drops the socket', () => {
   });
 });
 
+describe('proxyTo, a child that drops the socket after its headers', () => {
+  it('cuts the answer (no envelope after the headers) and frees the lane', async () => {
+    const head = 'HTTP/1.1 200 OK\r\ntransfer-encoding: chunked\r\n\r\n5\r\nhello\r\n';
+    const child = await silentChild((req) => void req.socket.end(head, () => req.socket.destroy()));
+    const daemon = await daemonOn(child.entries, 1_000);
+    const res = await daemon.fetch('/api/mute/x');
+    expect(res.status).toBe(200);
+    await expect(res.text()).rejects.toThrow('terminated');
+    await vi.waitFor(() => expect(child.entry.lane?.open).toBe(0));
+    await daemon.close();
+    child.close();
+  });
+});
+
 describe('endToEnd', () => {
   it('drops hop-by-hop headers and the ones Connection names, keeps the rest', () => {
     const headers = {

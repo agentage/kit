@@ -58,8 +58,12 @@ describe('daemon boot with a bad installation.json', () => {
     expect(await h.call('DELETE', '/host/extensions/hosted')).toMatchObject({ status: 409 });
     expect(await readFile(file, 'utf8')).toBe(kept.slice(0, -5));
     expect((await h.call('GET', '/api/hosted/echo?msg=hi')).status).toBe(200);
+    const health = async () => (await h!.call('GET', '/health')).body;
+    expect(await health()).toMatchObject({ status: 'degraded', installation: 'invalid' });
     await writeFile(file, kept);
     expect(await h.call('PATCH', '/host/extensions/hosted', patch)).toMatchObject({ status: 200 });
+    expect(await health()).toMatchObject({ status: 'ok' });
+    expect(await health()).not.toHaveProperty('installation');
     expect(await readFile(file, 'utf8')).toBe(kept);
   });
 

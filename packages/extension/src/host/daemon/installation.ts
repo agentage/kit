@@ -51,7 +51,7 @@ const unreadable = (why: string, atBoot = false) =>
   fail(
     'CONFLICT',
     `${INSTALLATION_FILE} cannot be read (${why}): fix it${atBoot ? ', then restart the daemon' : ''}; no change is written`,
-    { code: 'INSTALLATION_UNREADABLE' }
+    { code: 'INSTALLATION_UNREADABLE', details: { reason: why } }
   );
 
 const reasonOf = (err: unknown) =>

@@ -25,18 +25,33 @@ interface DaemonInfo {
   invalid: boolean;
   // installation.json could not be read at boot: every change is refused, the file is never written.
   unreadable?: string;
+  // The last change found installation.json not JSON (after boot); the next one that reads it clears it.
+  notJson?: boolean;
 }
 
-const installationOf = ({ invalid, unreadable }: DaemonInfo) => {
+const installationOf = ({ invalid, unreadable, notJson }: DaemonInfo) => {
   if (unreadable) return { installation: 'unreadable', installationError: unreadable };
-  return invalid ? { installation: 'invalid' } : {};
+  return invalid || notJson ? { installation: 'invalid' } : {};
 };
+
+const reasonOf = (err: unknown) => (err as { details?: { reason?: string } }).details?.reason;
+
+// A refusal for a file that turned not JSON shows in /health until a change reads the file again.
+const checkReadable = (deps: SupervisorDeps, info: DaemonInfo) =>
+  assertReadable(deps.configDir, info.unreadable).then(
+    () => void (info.notJson = false),
+    (err: unknown) => {
+      info.notJson = reasonOf(err) === 'not JSON';
+      throw err;
+    }
+  );
 
 const healthOf = (deps: SupervisorDeps, entries: Entries, info: DaemonInfo) => {
   const all = [...entries.values()];
   const settled = all.every((e) => e.state === 'running' || e.state === 'disabled');
   const synced = !deps.unsynced.size;
-  const status = settled && synced && !info.invalid && !info.unreadable ? 'ok' : 'degraded';
+  const clean = !info.invalid && !info.unreadable && !info.notJson;
+  const status = settled && synced && clean ? 'ok' : 'degraded';
   const self = { service: DAEMON_SERVICE, pid: info.pid, protocol: info.protocol };
   const extensions = all.map(summary);
   const changing = deps.pending.list();
@@ -63,7 +78,7 @@ const runner =
     p.track(what, () =>
       waitAtMost(deps.queue, deps.installMs, async () => {
         if (deps.stopping.signal.aborted) throw stopsNow();
-        await assertReadable(deps.configDir, info.unreadable);
+        await checkReadable(deps, info);
         return fn();
       })
     );

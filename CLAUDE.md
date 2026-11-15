@@ -73,6 +73,10 @@ Read the file named here before you read `src/` (`src/` = `packages/extension/sr
 - `contracts/` the wire schemas clients read (envelopes, discovery, health, agcid); exported as
   `@agentage/extension/contracts`; it imports zod only (`contracts-imports.test.ts` guards it)
 - `index.test.ts` pins the three public surfaces (sealing): main keeps the author surface
+- `host/` `hostExtension` (one package's api part at `/api/{id}/*`, no token, PGlite in a data
+  folder), `main.ts` (the daemon child and the one container entry `dist/host/main.js`) and
+  `daemon/` (`createDaemon`: the C5 routes, one child per extension, `installation.json`);
+  exported as `@agentage/extension/host`
 - `schemas/` JSON Schema generation; `test-support/` fixtures, excluded from the build
 
 ## Layout (`packages/widget`)

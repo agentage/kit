@@ -19,11 +19,17 @@ export interface ServedHost {
   stop: () => void;
 }
 
-// The port to the daemon; the daemon gone (its IPC channel closed): drain and exit, no orphan.
-export const announce = (port: number, stop: () => void): void => {
+export const ORPHAN_MS = 10_000;
+
+// The port to the daemon; the daemon gone (its IPC channel closed): drain and exit, no orphan,
+// within ORPHAN_MS even with a request that never ends.
+export const announce = (port: number, stop: () => void, exit = process.exit): void => {
   if (!process.send) return;
   process.send({ type: 'ready', port });
-  process.once('disconnect', stop);
+  process.once('disconnect', () => {
+    stop();
+    setTimeout(() => exit(1), ORPHAN_MS).unref();
+  });
 };
 
 // A ctx.exit() before the server listens (in create) runs once it can drain.

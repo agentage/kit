@@ -5,7 +5,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { EXIT_IN_CREATE, HOSTED_MANIFEST, hostedPackage } from '../test-support/hosted-fixture.js';
 import { tempDir } from '../test-support/packages.js';
 import { BIND_REFUSED, hostEnvOf } from './host-env.js';
-import { announce, serveHost, type ServedHost } from './serve-host.js';
+import { announce, ORPHAN_MS, serveHost, type ServedHost } from './serve-host.js';
 
 const served: ServedHost[] = [];
 beforeEach(() => void vi.spyOn(process.stderr, 'write').mockImplementation(() => true));
@@ -118,15 +118,23 @@ describe('serveHost', () => {
 });
 
 describe('announce', () => {
-  it('sends the port over IPC and drains when the parent disconnects', () => {
+  it('sends the port over IPC; on disconnect drains, and exits after ORPHAN_MS if still there', () => {
+    vi.useFakeTimers();
     const send = vi.fn();
     const once = vi.spyOn(process, 'once').mockImplementation(() => process);
     const was = process.send;
     process.send = send as typeof process.send;
     const stop = vi.fn();
-    announce(4321, stop);
+    const exit = vi.fn() as unknown as typeof process.exit;
+    announce(4321, stop, exit);
     process.send = was;
     expect(send).toHaveBeenCalledWith({ type: 'ready', port: 4321 });
-    expect(once).toHaveBeenCalledWith('disconnect', stop);
+    const [event, onGone] = once.mock.calls[0] as [string, () => void];
+    expect(event).toBe('disconnect');
+    onGone();
+    expect(stop).toHaveBeenCalled();
+    vi.advanceTimersByTime(ORPHAN_MS);
+    expect(exit).toHaveBeenCalledWith(1);
+    vi.useRealTimers();
   });
 });

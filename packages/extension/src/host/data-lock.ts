@@ -33,6 +33,7 @@ const take = async (lock: string): Promise<boolean> => {
   await writeFile(tmp, String(process.pid));
   try {
     await link(tmp, lock);
+    held.add(lock);
     return true;
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code !== 'EEXIST') throw err;
@@ -68,7 +69,6 @@ export const lockDataDir = async (dataDir: string): Promise<() => Promise<void>>
     await clearStale(lock, pid);
     if (!(await take(lock))) throw locked(lock, await holder(lock));
   }
-  held.add(lock);
   return async () => {
     held.delete(lock);
     await unlink(lock).catch(() => undefined);

@@ -16,16 +16,20 @@ const alive = (pid: number): boolean => {
   }
 };
 
-// A lock made with wx is empty until its pid is written: read again once; still empty is stale.
-export const EMPTY_LOCK_MS = 50;
+// A lock made with wx is empty until its pid is written (slow on a network volume): being written
+// for EMPTY_LOCK_MS, then stale.
+export const EMPTY_LOCK_MS = 1_000;
 
 const pidIn = (file: string) => readFile(file, 'utf8').catch(() => '0');
 
 const holder = async (file: string): Promise<number> => {
-  const pid = await pidIn(file);
-  if (pid !== '') return Number(pid);
-  await sleep(EMPTY_LOCK_MS);
-  return Number(await pidIn(file));
+  const until = Date.now() + EMPTY_LOCK_MS;
+  let pid = await pidIn(file);
+  while (pid === '' && Date.now() < until) {
+    await sleep(25);
+    pid = await pidIn(file);
+  }
+  return Number(pid);
 };
 
 const live = (lock: string, pid: number): boolean =>

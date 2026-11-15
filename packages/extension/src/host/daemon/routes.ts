@@ -8,7 +8,8 @@ import { addExtension } from './add.js';
 import { listed, summary, type Entries } from './entries.js';
 import { assertReadable } from './installation.js';
 import { changeExtension, removeExtension } from './ops.js';
-import { pendingChanges, type Pending, type PendingChanges } from './pending.js';
+import { type Pending, type PendingChanges } from './pending.js';
+import { waitAtMost } from './queue.js';
 import { proxyTo } from './proxy.js';
 import { type SupervisorDeps } from './supervisor.js';
 
@@ -53,7 +54,10 @@ const runner =
   (deps: SupervisorDeps, info: DaemonInfo, p: PendingChanges) =>
   <T>(what: Omit<Pending, 'since'>, fn: () => Promise<T>) =>
     p.track(what, () =>
-      deps.queue(async () => (await assertReadable(deps.configDir, info.unreadable), fn()))
+      waitAtMost(deps.queue, deps.installMs, async () => {
+        await assertReadable(deps.configDir, info.unreadable);
+        return fn();
+      })
     );
 
 const changes = (deps: SupervisorDeps, entries: Entries, info: DaemonInfo, p: PendingChanges) => {
@@ -98,7 +102,7 @@ export const daemonApp = (
   info: DaemonInfo
 ): Express => {
   const app = express();
-  const pending = pendingChanges();
+  const pending = deps.pending;
   app.disable('x-powered-by');
   app.use(agcidMiddleware, localOnly(port));
   app.use('/api/:id', proxyTo(entries, deps));

@@ -3,6 +3,7 @@ import { isAbsolute, join } from 'node:path';
 import { z } from 'zod';
 import { fail } from '../../envelope/envelope.js';
 import { ExtensionIdSchema } from '../../manifest/primitives.schema.js';
+import { assertNoOtherDaemon } from './daemon-owner.js';
 import { readJsonFile, withFileLock, writeJsonFile } from './json-file.js';
 
 // One extension in installation.json (C3): a version, or a source folder; other keys round-trip.
@@ -26,7 +27,7 @@ export interface Installation {
   [key: string]: unknown;
 }
 
-// The rows that pass the C3 schema; invalid: the file had other rows, or was not C3 at all.
+// The rows that pass the C3 schema, the first of each id; invalid: the file had others, or was not C3.
 interface CheckedInstallation {
   doc: Installation;
   invalid: boolean;
@@ -40,14 +41,16 @@ const checked = (raw: unknown): CheckedInstallation => {
   const top = InstallationSchema.safeParse(raw);
   if (!top.success) return { doc: EMPTY, invalid: true };
   const rows = top.data.extensions.map((row) => InstallEntrySchema.safeParse(row));
-  const extensions = rows.flatMap((row) => (row.success ? [row.data] : []));
+  const valid = rows.flatMap((row) => (row.success ? [row.data] : []));
+  const extensions = valid.filter((row, at) => valid.findIndex((e) => e.id === row.id) === at);
   return { doc: { ...top.data, extensions }, invalid: extensions.length < rows.length };
 };
 
-const unreadable = (why: string) =>
+// At boot the daemon has no rows from it, so a fix needs a restart; later a fix is enough.
+const unreadable = (why: string, atBoot = false) =>
   fail(
     'CONFLICT',
-    `${INSTALLATION_FILE} cannot be read (${why}): fix it, then restart the daemon; no change is written`,
+    `${INSTALLATION_FILE} cannot be read (${why}): fix it${atBoot ? ', then restart the daemon' : ''}; no change is written`,
     { code: 'INSTALLATION_UNREADABLE' }
   );
 
@@ -77,7 +80,7 @@ export const bootInstallation = (configDir: string) =>
 
 // A change is refused when the file was unreadable at boot (why) or is unreadable now.
 export const assertReadable = async (configDir: string, why?: string): Promise<void> => {
-  if (why) throw unreadable(why);
+  if (why) throw unreadable(why, true);
   await readInstallation(configDir);
 };
 
@@ -94,12 +97,17 @@ const checkedDoc = (next: Installation): Installation => {
   return next;
 };
 
-// Read, change and write under the lock: the daemon, and the cli's one-time move, use this one path.
-export const updateInstallation = (
+/**
+ * Read, change and write installation.json under the kit's lock, the path the daemon uses.
+ * Only while no daemon runs on configDir (it reads the file at its start and owns it after):
+ * a live daemon named by daemon.json is refused, unless this is that daemon's process.
+ */
+export const updateInstallation = async (
   configDir: string,
   change: (doc: Installation) => Installation,
   waitMs?: number
 ): Promise<Installation> => {
+  await assertNoOtherDaemon(configDir);
   const file = join(configDir, INSTALLATION_FILE);
   return withFileLock(
     file,

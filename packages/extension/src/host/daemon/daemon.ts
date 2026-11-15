@@ -8,9 +8,11 @@ import { removeDaemonFile, writeDaemonFile, DAEMON_PROTOCOL } from './daemon-fil
 import { bootInstallation, keepBadCopy } from './installation.js';
 import { type Entries } from './entries.js';
 import { limitsOf, type Limits } from './limits.js';
+import { pendingChanges } from './pending.js';
 import { serialQueue } from './queue.js';
 import { daemonApp } from './routes.js';
-import { halt, startEntry, type Installer, type SupervisorDeps } from './supervisor.js';
+import { runInstaller } from './installer-call.js';
+import { halt, startEntry, type Entry, type Installer, type SupervisorDeps } from './supervisor.js';
 
 export interface DaemonOptions extends Partial<Limits> {
   configDir: string;
@@ -39,11 +41,22 @@ const loadEntries = async (configDir: string) => {
   return { entries, invalid, unreadable };
 };
 
+// A disabled entry gets its folder (configure and enable work); a failure is kept as its error.
+const resolveDir = async (deps: SupervisorDeps, entry: Entry): Promise<void> => {
+  const { id, install } = entry;
+  if (install.source) return void (entry.dir = install.source);
+  await runInstaller(deps, { id, version: install.version }).then(
+    (got) => void Object.assign(entry, { dir: got.dir, version: got.version, error: undefined }),
+    (err: Error) => void (entry.error = err.message)
+  );
+};
+
 // Folders first (no installer), then one at a time, each call bounded by installMs.
 const boot = async (deps: SupervisorDeps, entries: Entries): Promise<void> => {
-  const all = [...entries.values()].filter((entry) => entry.state === 'starting');
+  const all = [...entries.values()];
   const ordered = [...all.filter((e) => e.install.source), ...all.filter((e) => !e.install.source)];
-  for (const entry of ordered) await startEntry(deps, entry);
+  for (const entry of ordered)
+    await (entry.state === 'disabled' ? resolveDir(deps, entry) : startEntry(deps, entry));
 };
 
 const stopper = (server: Server, entries: Entries, deps: SupervisorDeps) => {
@@ -74,6 +87,7 @@ const depsOf = (opts: DaemonOptions, launch: Launch, origin: () => string): Supe
   origin,
   ...limitsOf(opts),
   queue: serialQueue(),
+  pending: pendingChanges(),
 });
 
 // Read and check the file, listen, write daemon.json, start the children; a failed boot undoes it.

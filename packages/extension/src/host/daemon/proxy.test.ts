@@ -119,7 +119,7 @@ describe('the wait for the child', () => {
       504,
       {
         success: false,
-        error: { code: 'UNAVAILABLE', message: 'The extension did not answer in 150 ms' },
+        error: { code: 'TIMEOUT', message: 'The extension did not answer in 150 ms' },
       },
     ]);
     expect(Date.now() - started).toBeLessThan(2_000);

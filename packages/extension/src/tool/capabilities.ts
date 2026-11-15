@@ -4,4 +4,5 @@ export const capabilities = Object.freeze([
   'localOnly',
   'installDisabled',
   'updateInstallation',
+  'withFileLock',
 ] as const);

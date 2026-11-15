@@ -8,6 +8,7 @@ import { laneOf, retire, type Lane } from './lane.js';
 import { type Limits } from './limits.js';
 import { runInstaller } from './installer-call.js';
 
+import { type PendingChanges } from './pending.js';
 import { type Queue } from './queue.js';
 
 // Called on every boot for each entry with a version: idempotent (docs/part-image.md).
@@ -57,6 +58,7 @@ export interface SupervisorDeps extends Limits {
   install?: Installer;
   log: Log;
   queue: Queue;
+  pending: PendingChanges;
 }
 
 export const valuesOf = async (configDir: string, id: string): Promise<Values> => ({
@@ -131,7 +133,7 @@ export const startEntry = async (deps: SupervisorDeps, entry: Entry): Promise<vo
 };
 
 // New requests of the extension wait here (the proxy gives up after gateMs) until release.
-const hold = (entry: Entry): (() => void) => {
+export const hold = (entry: Entry): (() => void) => {
   let release = () => undefined as void;
   entry.gate = new Promise<void>((resolve) => (release = resolve));
   return () => {
@@ -155,18 +157,21 @@ const startFailed = (entry: Entry, err: unknown) =>
     }
   );
 
-// One writer per data folder: hold, stop the old child, start the new one; a refusal restores it.
-export const swap = async (deps: SupervisorDeps, entry: Entry, to: Next) => {
-  const release = hold(entry);
+// One writer per data folder (the caller holds the gate): stop the old child, start the new one.
+export const swap = async (
+  deps: SupervisorDeps,
+  entry: Entry,
+  to: Next,
+  undo: () => Promise<unknown> = async () => undefined
+) => {
   try {
     await halt(entry, deps.drainMs);
     entry.lane = await launchFor(deps, entry, to.install, to.values, to.dir);
     Object.assign(entry, { state: 'running', error: undefined });
   } catch (err) {
+    await undo();
     await restore(deps, entry);
     throw startFailed(entry, err);
-  } finally {
-    release();
   }
 };
 

@@ -184,7 +184,9 @@ describe('daemon lifecycle', () => {
       const { change, answers } = await duringPatch({ settings: { 'echo.prefix': 'hey' } });
       expect(change.status).toBe(200);
       expect(answers.filter((a) => a.status !== 200)).toEqual([]);
-      expect(answers.at(-1)?.msg).toBe('hey hi');
+      // Only a request sent after the PATCH answered must see the new value.
+      const after = await h!.call('GET', '/api/hosted/echo?msg=hi');
+      expect(after.body).toMatchObject({ data: { msg: 'hey hi' } });
     }
   );
 });

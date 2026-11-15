@@ -123,8 +123,9 @@ describe('a slow installer at boot', () => {
     expect(seen?.aborted).toBe(false);
   });
 
-  it('POST { id } with an installer that never answers is 504 after installMs and records nothing', async () => {
-    const install = vi.fn<Installer>(() => new Promise(() => undefined));
+  it('POST { id } past installMs is 504 TIMEOUT, records nothing, and stays pending until the installer ends', async () => {
+    let finish = (_err: Error) => undefined as void;
+    const install = vi.fn<Installer>(() => new Promise((_ok, no) => (finish = no)));
     h = await startHarness({ install, installMs: 1_000 });
     const posted = h.call('POST', '/host/extensions', { id: 'probe' });
     await vi.waitFor(() => expect(install).toHaveBeenCalled());
@@ -133,9 +134,19 @@ describe('a slow installer at boot', () => {
     });
     expect(await posted).toMatchObject({
       status: 504,
-      body: { error: { code: 'UNAVAILABLE', message: 'the installer did not answer in 1000 ms' } },
+      body: { error: { code: 'TIMEOUT', message: 'the installer did not answer in 1000 ms' } },
     });
-    expect((await h.call('GET', '/health')).body).not.toHaveProperty('pending');
+    const timedOut = { op: 'install', id: 'probe', since: expect.any(String), timedOut: true };
+    expect((await h.call('GET', '/health')).body).toMatchObject({ pending: [timedOut] });
+    expect(await h.call('POST', '/host/extensions', { id: 'probe' })).toMatchObject({
+      status: 409,
+      body: { error: { code: 'CONFLICT', details: timedOut } },
+    });
+    expect(install).toHaveBeenCalledTimes(1);
+    finish(new Error('npm gave up'));
+    await vi.waitFor(async () =>
+      expect((await h!.call('GET', '/health')).body).not.toHaveProperty('pending')
+    );
     expect((await h.call('GET', '/host/extensions')).body).toMatchObject({ data: [] });
     expect(await doc()).toEqual({});
   });

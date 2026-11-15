@@ -12,8 +12,9 @@ export const LIMITS = {
   gateMs: 30_000,
   // A child's answer headers; then 504.
   answerMs: 60_000,
-  // One Installer call (on POST, PATCH and for each entry at boot).
-  installMs: 120_000,
+  // One Installer call (POST, PATCH, each entry at boot), and a change queued behind others:
+  // above the cli's npm bound (10 min), below its client wait (12 min).
+  installMs: 660_000,
 };
 
 export type Limits = typeof LIMITS;

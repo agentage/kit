@@ -1,4 +1,4 @@
-import { mkdir, readdir, rm, stat } from 'node:fs/promises';
+import { mkdir, readdir, rm, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
@@ -87,7 +87,7 @@ describe('an installation.json that cannot be read', () => {
     expect((await h.call('GET', '/host/extensions')).body).toMatchObject({ data: [] });
   });
 
-  it('after boot: PATCH and DELETE are 409, the child runs on, the list and the file agree', async () => {
+  it('after boot: PATCH and DELETE are 409 until the file is fixed (no restart), the child runs on', async () => {
     h = await startHarness();
     await writeSecrets(h.configDir);
     await h.call('POST', '/host/extensions', { source: await hostedPackage() });
@@ -109,7 +109,13 @@ describe('an installation.json that cannot be read', () => {
       data: [{ id: 'hosted', state: 'running', enabled: true }],
     });
     expect((await stat(file)).isDirectory()).toBe(true);
+    const refused = await h.call('DELETE', '/host/extensions/hosted');
+    expect(refused.body).toMatchObject({
+      error: { message: 'installation.json cannot be read (EISDIR): fix it; no change is written' },
+    });
     await rm(file, { recursive: true });
-    expect(kept).toMatchObject({ extensions: [{ id: 'hosted' }] });
+    await writeFile(file, JSON.stringify(kept));
+    expect(await h.call('PATCH', '/host/extensions/hosted', patch)).toMatchObject({ status: 200 });
+    expect(await doc()).toEqual(kept);
   });
 });

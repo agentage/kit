@@ -9,6 +9,7 @@ describe('capabilities', () => {
       'localOnly',
       'installDisabled',
       'updateInstallation',
+      'withFileLock',
     ]);
     expect(Object.isFrozen(tool.capabilities)).toBe(true);
     expect(host.capabilities).toBe(tool.capabilities);

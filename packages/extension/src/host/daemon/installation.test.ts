@@ -1,8 +1,11 @@
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { updateInstallation } from '../index.js';
+import { createServer } from 'node:http';
+import { type AddressInfo } from 'node:net';
+import { updateInstallation, withFileLock } from '../index.js';
 import { tempDir } from '../../test-support/packages.js';
+import { deadPid, freePort } from '../../test-support/processes.js';
 
 const fileIn = (dir: string) => join(dir, 'installation.json');
 
@@ -43,5 +46,43 @@ describe('updateInstallation (the /host export the cli move uses)', () => {
       status: 409,
       code: 'INSTALLATION_UNREADABLE',
     });
+  });
+
+  it('refuses while another live process answers /health as the daemon of that folder', async () => {
+    const dir = await tempDir();
+    const pid = process.ppid;
+    const daemon = createServer((_req, res) =>
+      res.end(JSON.stringify({ service: 'agentage-daemon', pid }))
+    );
+    await new Promise<void>((resolve) => daemon.listen(0, '127.0.0.1', resolve));
+    const port = (daemon.address() as AddressInfo).port;
+    await writeFile(join(dir, 'daemon.json'), JSON.stringify({ pid, port }));
+    await expect(updateInstallation(dir, (doc) => doc)).rejects.toMatchObject({
+      status: 409,
+      code: 'DAEMON_RUNNING',
+      message: `a daemon (process ${pid}) runs on ${dir}: change it through it`,
+    });
+    await expect(readFile(fileIn(dir))).rejects.toThrow('ENOENT');
+    daemon.close();
+  });
+
+  it('writes when daemon.json is stale: a dead pid, or a live one that is not that daemon', async () => {
+    const dir = await tempDir();
+    await writeFile(join(dir, 'daemon.json'), JSON.stringify({ pid: deadPid(), port: 1 }));
+    await updateInstallation(dir, (doc) => doc);
+    await writeFile(
+      join(dir, 'daemon.json'),
+      JSON.stringify({ pid: process.ppid, port: await freePort() })
+    );
+    await expect(updateInstallation(dir, (doc) => doc)).resolves.toMatchObject({ extensions: [] });
+  });
+});
+
+describe('withFileLock (the /host export the cli move uses for settings.json)', () => {
+  it('runs a sync or async fn under <file>.lock and removes the lock', async () => {
+    const file = join(await tempDir(), 'settings.json');
+    expect(await withFileLock(file, () => 1)).toBe(1);
+    expect(await withFileLock(file, async () => 2)).toBe(2);
+    await expect(readFile(`${file}.lock`)).rejects.toThrow('ENOENT');
   });
 });

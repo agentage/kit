@@ -12,14 +12,18 @@ import { type Entries } from './entries.js';
 import { type Limits } from './limits.js';
 
 // 404 not installed or disabled (chosen, not to retry); 503 starting, failed, or held past gateMs.
-const laneFor = async (entries: Entries, id: string, gateMs: number): Promise<Lane> => {
+const laneFor = async (entries: Entries, id: string, gateMs: number) => {
   const entry = entries.get(id);
   if (!entry) throw fail('NOT_FOUND', `${id} is not installed`);
   if (entry.state === 'disabled') throw fail('NOT_FOUND', `${id} is disabled`);
   if (entry.gate) await Promise.race([entry.gate, sleep(gateMs, undefined, { ref: false })]);
-  if (!entry.lane) throw fail('UNAVAILABLE', `${id} is ${entry.state}`, { retryAfter: 5 });
-  return entry.lane;
+  const lane = entry.lane;
+  if (!lane) throw fail('UNAVAILABLE', `${id} is ${entry.state}`, { retryAfter: 5 });
+  // Counted in the same tick it is read: a swap cannot stop this child before the request is open.
+  return { lane, leave: enter(lane) };
 };
+
+type Taken = Awaited<ReturnType<typeof laneFor>>;
 
 const HOP = [
   'connection',
@@ -41,9 +45,10 @@ export const endToEnd = (headers: IncomingHttpHeaders): IncomingHttpHeaders => {
   return Object.fromEntries(Object.entries(headers).filter(([key]) => !drop.has(key)));
 };
 
-// No answer headers in answerMs: 504 in the envelope (the closed code set has no 504 code).
+// No answer headers in answerMs: 504 TIMEOUT; the child may still apply the call.
 const noAnswer = (ms: number) =>
   Object.assign(fail('UNAVAILABLE', `The extension did not answer in ${ms} ms`), {
+    code: 'TIMEOUT',
     status: 504,
     retryAfter: undefined,
   });
@@ -74,8 +79,8 @@ const relay = (upstream: ClientRequest, res: Response, next: NextFunction, ms: n
 };
 
 // Streams the request to the child as it came (path and query kept), no pooled connection.
-const forward = (req: Request, res: Response, next: NextFunction, lane: Lane, ms: number) => {
-  const leave = enter(lane);
+const forward = (req: Request, res: Response, next: NextFunction, to: Taken, ms: number) => {
+  const { lane, leave } = to;
   const upstream = requestTo(req, lane);
   const stop = relay(upstream, res, next, ms);
   upstream.on('error', leave);
@@ -91,6 +96,6 @@ const forward = (req: Request, res: Response, next: NextFunction, lane: Lane, ms
 export const proxyTo =
   (entries: Entries, limits: Pick<Limits, 'gateMs' | 'answerMs'>): RequestHandler =>
   async (req, res, next) => {
-    const lane = await laneFor(entries, String(req.params['id']), limits.gateMs);
-    forward(req, res, next, lane, limits.answerMs);
+    const taken = await laneFor(entries, String(req.params['id']), limits.gateMs);
+    forward(req, res, next, taken, limits.answerMs);
   };

@@ -28,7 +28,8 @@ beforeAll(async () => {
   if (!existsSync(MAIN)) throw new Error(`${MAIN} is missing: npm run build first`);
   vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
   vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
-  h = await startHarness({ launch: forkLaunch(MAIN), drainMs: 300 });
+  // A request counted on the old child before the swap is answered there: drainMs covers a busy CI.
+  h = await startHarness({ launch: forkLaunch(MAIN), drainMs: 2_000 });
   await writeSecrets(h.configDir, ['hosted', 'other']);
   await h.call('POST', '/host/extensions', { source: await hostedPackage() });
   await h.call('POST', '/host/extensions', { source: await hostedPackage(OTHER) });
@@ -88,7 +89,8 @@ describe('daemon with child processes', () => {
     });
     expect(change.status).toBe(200);
     expect(await hung).toBe(503);
-    expect(Date.now() - started).toBeLessThan(9_000);
+    // drainMs (2 s), the SIGKILL after 5 s, and the start of the new child.
+    expect(Date.now() - started).toBeLessThan(10_000);
     const next = await h.call('PATCH', '/host/extensions/other', {
       settings: { 'echo.prefix': 'b' },
     });

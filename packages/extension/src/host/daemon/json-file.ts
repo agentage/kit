@@ -55,7 +55,7 @@ const acquire = async (file: string, waitMs: number): Promise<() => Promise<void
 // One writer at a time across processes: an exclusive lock file (<file>.lock) beside the file.
 export const withFileLock = async <T>(
   file: string,
-  fn: () => Promise<T>,
+  fn: () => T | Promise<T>,
   waitMs = LOCK_WAIT_MS
 ): Promise<T> => {
   const release = await acquire(file, waitMs);

@@ -77,6 +77,7 @@ describe('public surface', () => {
       'hostExtension',
       'localOnly',
       'updateInstallation',
+      'withFileLock',
     ]);
   });
 

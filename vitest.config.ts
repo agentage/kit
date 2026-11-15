@@ -6,7 +6,11 @@ export default defineConfig({
     testTimeout: 30_000,
     hookTimeout: 30_000,
     include: ['packages/*/src/**/*.test.{ts,tsx}'],
-    setupFiles: ['packages/extension/src/test-support/cleanup.ts'],
+    globalSetup: ['packages/extension/src/test-support/pglite-template.ts'],
+    setupFiles: [
+      'packages/extension/src/test-support/cleanup.ts',
+      'packages/extension/src/test-support/pglite-copy.ts',
+    ],
     coverage: {
       provider: 'v8',
       include: ['packages/*/src/**/*.{ts,tsx}'],

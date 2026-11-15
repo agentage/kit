@@ -22,14 +22,14 @@ describe('http row on a refusal', () => {
     const routes = [{ method: 'get', path: '/machines/{id}' }];
     const options = { pkg: API_MANIFEST, build: BUILD, log: recorded.log, router, routes };
     served = await serveApp(createApiApp({ ...options, tokenCheck }));
-    await fetch(`${served.url}/api/v1/machines/42`);
-    await fetch(`${served.url}/api/v1/machines/42`, { headers: { authorization: 'Bearer x' } });
-    await fetch(`${served.url}/api/v1/elsewhere`);
+    await fetch(`${served.url}/api/probe/machines/42`);
+    await fetch(`${served.url}/api/probe/machines/42`, { headers: { authorization: 'Bearer x' } });
+    await fetch(`${served.url}/api/probe/elsewhere`);
     await settle();
     const rows = recorded.lines.filter((line) => line['kind'] === 'http');
     expect(rows.map((r) => [r['http.route'], r['http.response.status_code']])).toEqual([
-      ['/api/v1/machines/{id}', 401],
-      ['/api/v1/machines/{id}', 403],
+      ['/api/probe/machines/{id}', 401],
+      ['/api/probe/machines/{id}', 403],
       ['(unmatched)', 404],
     ]);
     expect(rows.map((r) => r['agentage.auth.reason'])).toEqual([

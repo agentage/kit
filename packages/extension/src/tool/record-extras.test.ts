@@ -52,7 +52,7 @@ describe('recordExtras', () => {
     expect(extras).toEqual({
       tools: TOOLS,
       widgets: WIDGETS,
-      openapi: '/api/v1/openapi.json',
+      openapi: '/api/probe/openapi.json',
       migrations: 2,
     });
     const record = validateRecord(recordOf(FULL, BUILD, images, extras));
@@ -60,7 +60,7 @@ describe('recordExtras', () => {
       tools: TOOLS,
       commands: ['ping'],
       widgets: WIDGETS,
-      openapi: '/api/v1/openapi.json',
+      openapi: '/api/probe/openapi.json',
       parts: { store: { kind: 'postgres', migrations: 2 } },
     });
   });

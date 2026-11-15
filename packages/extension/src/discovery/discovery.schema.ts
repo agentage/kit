@@ -62,7 +62,7 @@ const recordShape = {
   parts: PartsRecordSchema,
   openapi: z
     .string()
-    .regex(/^\/api\/v[1-9][0-9]*\/openapi\.json$/)
+    .regex(/^\/api\/[a-z][a-z0-9-]*\/openapi\.json$/)
     .optional(),
   tools: z.array(ToolRecordSchema).min(1).optional(),
   widgets: z.array(WidgetSchema).min(1).optional(),

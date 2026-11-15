@@ -1,7 +1,7 @@
 import { join } from 'node:path';
 import { generatedOpenapi, schemaOf } from '../../api/openapi-doc.js';
 import { type ApiContext, type RouteEntry } from '../../api/routes.js';
-import { OPENAPI_FILE, readOpenapi } from '../../discovery/openapi.js';
+import { apiPrefix, OPENAPI_FILE, readOpenapi } from '../../discovery/openapi.js';
 import { loadCreate } from '../../manifest/entry.js';
 import { type ExtensionPackage } from '../../manifest/manifest.schema.js';
 import { normalizeParts } from '../../manifest/parts.js';
@@ -21,18 +21,18 @@ const differing = (generated: Json, committed: Json): string[] =>
     (key) => JSON.stringify(canonical(generated[key])) !== JSON.stringify(canonical(committed[key]))
   );
 
-const routeKeys = ({ path, stack }: Route): string[] =>
+const routeKeys = (prefix: string, { path, stack }: Route): string[] =>
   [path].flat().flatMap((one) => {
-    const at = `/api/v1${String(one).replace(/:(\w+)/g, '{$1}')}`;
+    const at = `${prefix}${String(one).replace(/:(\w+)/g, '{$1}')}`;
     // router.all names no method, so it has no operation to compare.
     return stack.flatMap(({ method }) => (method ? [`${method.toUpperCase()} ${at}`] : []));
   });
 
 // Express routes (of a Router or an express() app) as OpenAPI keys; a sub-router hides its routes, so it never matches one.
-const servedRoutes = (app: unknown): string[] => {
+const servedRoutes = (prefix: string, app: unknown): string[] => {
   const { stack, router } = (app ?? {}) as Router;
   return (stack ?? router?.stack ?? []).flatMap(({ name, route, handle }) => {
-    if (route) return routeKeys(route);
+    if (route) return routeKeys(prefix, route);
     return handle?.stack ? [`${name} sub-router`] : [];
   });
 };
@@ -86,7 +86,7 @@ const routeProblems = (
 
 const routerProblems = (pkg: ExtensionPackage, doc: Doc, returned: unknown) =>
   doc
-    ? apiProblems(doc, servedRoutes(returned), pkg.version)
+    ? apiProblems(doc, servedRoutes(apiPrefix(pkg.agentage.id), returned), pkg.version)
     : ['is missing: the api part commits its contract'];
 
 const apiSurface = async ({ dir, pkg }: CheckInput): Promise<Finding[]> => {

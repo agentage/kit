@@ -28,7 +28,7 @@ const C8_UP = [
   'record   .agentage/record.json                        discovery valid',
   'store    postgres:18-alpine                           1 migration applied · 1 seed',
   'issuer   dev tokens                                   http://localhost:4281',
-  'gateway  http://localhost:4280                        / · /ui/0.2.0/ · /api/v1/ · /mcp',
+  'gateway  http://localhost:4280                        / · /ui/0.2.0/ · /api/probe/ · /mcp',
   'ready    7 parts healthy                              48 s',
 ];
 
@@ -88,7 +88,7 @@ describe('up', () => {
       'build    1 image from the release recipes             same recipe and tags as a release',
       'record   .agentage/record.json                        discovery valid',
       'issuer   dev tokens                                   http://localhost:4281',
-      'gateway  http://localhost:4280                        /api/v1/',
+      'gateway  http://localhost:4280                        /api/probe/',
       'ready    1 part healthy                               0 s',
     ]);
   });

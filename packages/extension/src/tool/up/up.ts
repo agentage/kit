@@ -52,7 +52,10 @@ const renderFiles = async (s: Session, recordFile: string, tags: Record<string, 
   const gatewayFile = join(s.dir, LOCAL_DIR, 'gateway.yml');
   const seeds = join(s.dir, 'seeds');
   const seedsDir = (await exists(seeds)) ? seeds : undefined;
-  await jsonFile(gatewayFile, gatewayConfig(imageParts(s.pkg), s.pkg.version));
+  await jsonFile(
+    gatewayFile,
+    gatewayConfig(imageParts(s.pkg), { id: s.pkg.agentage.id, version: s.pkg.version })
+  );
   const { pkg, secretFiles, target } = s;
   const project = target.project;
   await jsonFile(
@@ -87,7 +90,7 @@ const storeStep = async (s: Session) => {
 export const routesOf = (pkg: ExtensionPackage): string[] =>
   (Object.keys(PART_PATHS) as (keyof typeof PART_PATHS)[])
     .filter((part) => imageParts(pkg).includes(part))
-    .map((part) => partPath(part, pkg.version));
+    .map((part) => partPath(part, { id: pkg.agentage.id, version: pkg.version }));
 
 const partsStep = async (s: Session, commit: string) => {
   await compose(s.deps.run, s.target, ['up', '-d', '--remove-orphans'], TIMEOUTS.start);

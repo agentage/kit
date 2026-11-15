@@ -35,7 +35,7 @@ const read = { get: { security: [{ pat: ['probe:read'] }] } };
 const OPENAPI = {
   openapi: '3.1.0',
   info: { title: 'probe', version: '0.1.0' },
-  paths: { '/api/v1/items/{id}': read, '/api/v1/items': { post: { security: [] } } },
+  paths: { '/api/probe/items/{id}': read, '/api/probe/items': { post: { security: [] } } },
 };
 
 const surfaceOf = async (files: Record<string, string>, parts: object = { api: true }) => {
@@ -56,12 +56,12 @@ describe('surface, the api part', () => {
     const stale = {
       ...OPENAPI,
       info: { version: '0.0.9' },
-      paths: { '/api/v1/items/{id}': { get: {} }, '/api/v1/gone': read },
+      paths: { '/api/probe/items/{id}': { get: {} }, '/api/probe/gone': read },
     };
     const extra = API.replace('return router;', 'router.use(Router());\n  return router;');
     expect(await surfaceOf({ 'dist/api/index.js': extra, 'openapi.json': json(stale) })).toEqual([
-      'openapi.json differs from the generated contract (info.version 0.1.0, POST /api/v1/items, router sub-router, info.version 0.0.9, GET /api/v1/gone)',
-      'openapi.json GET /api/v1/items/{id} declares neither a scope nor security: []',
+      'openapi.json differs from the generated contract (info.version 0.1.0, POST /api/probe/items, router sub-router, info.version 0.0.9, GET /api/probe/gone)',
+      'openapi.json GET /api/probe/items/{id} declares neither a scope nor security: []',
     ]);
   });
 
@@ -75,10 +75,10 @@ describe('surface, the api part', () => {
     const doc = {
       ...OPENAPI,
       paths: {
-        '/api/v1/items/{id}': { ...read, ...pathLevel, description: 'd' },
-        '/api/v1/items': { post: { security: [] } },
-        '/api/v1/a': read,
-        '/api/v1/b': read,
+        '/api/probe/items/{id}': { ...read, ...pathLevel, description: 'd' },
+        '/api/probe/items': { post: { security: [] } },
+        '/api/probe/a': read,
+        '/api/probe/b': read,
       },
     };
     const code = `import express, { Router } from 'express';
@@ -103,9 +103,9 @@ export const create = () => {
   return app;
 };
 `;
-    const doc = { ...OPENAPI, paths: { '/api/v1/echo': null } };
+    const doc = { ...OPENAPI, paths: { '/api/probe/echo': null } };
     expect(await surfaceOf({ 'dist/api/index.js': app, 'openapi.json': json(doc) })).toEqual([
-      'openapi.json differs from the generated contract (GET /api/v1/hidden)',
+      'openapi.json differs from the generated contract (GET /api/probe/hidden)',
     ]);
   });
 

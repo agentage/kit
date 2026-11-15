@@ -42,40 +42,40 @@ const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
 describe('request line', () => {
   it('writes one line per request at a level by status class, with the route template', async () => {
     const { get, requests } = await start();
-    await get('/api/v1/items/usr_42?token=secret-query');
-    await get('/api/v1/missing/7');
-    await get('/api/v1/boom');
-    await get('/api/v1/users/9/nope');
+    await get('/api/probe/items/usr_42?token=secret-query');
+    await get('/api/probe/missing/7');
+    await get('/api/probe/boom');
+    await get('/api/probe/users/9/nope');
     await settle();
     const fields = requests().map((line) => [
       ...[line['level'], line['http.route'], line['http.response.status_code']],
       ...[line['http.request.method'], line['error.type']],
     ]);
     expect(fields).toEqual([
-      ['info', '/api/v1/items/:id', 200, 'GET', undefined],
-      ['warn', '/api/v1/missing/:id', 404, 'GET', undefined],
-      ['error', '/api/v1/boom', 500, 'GET', 'Error'],
+      ['info', '/api/probe/items/:id', 200, 'GET', undefined],
+      ['warn', '/api/probe/missing/:id', 404, 'GET', undefined],
+      ['error', '/api/probe/boom', 500, 'GET', 'Error'],
       ['warn', '(unmatched)', 404, 'GET', undefined],
     ]);
     expect(requests()[0]).toMatchObject({
       agcid: '128f1c5b806b5e5f05e49675aa8a9a10',
       extension: 'probe',
-      msg: 'GET /api/v1/items/:id 200',
+      msg: 'GET /api/probe/items/:id 200',
     });
     expect(typeof requests()[0]?.['agentage.duration_ms']).toBe('number');
   });
 
   it('never logs the raw URL, a query string or an id, and carries no err', async () => {
     const { get, requests, lines } = await start();
-    await get('/api/v1/items/usr_42?token=secret-query');
-    await get('/api/v1/boom');
+    await get('/api/probe/items/usr_42?token=secret-query');
+    await get('/api/probe/boom');
     await settle();
     const text = JSON.stringify(requests());
     expect(text).not.toMatch(/secret-query|usr_42|token/);
     expect(requests().every((line) => !('exception.stacktrace' in line))).toBe(true);
     const errors = lines.filter((line) => line['kind'] === 'error');
     expect(errors.map((line) => [line['msg'], line['agentage.where']])).toEqual([
-      ['Error: driver down', '/api/v1/boom'],
+      ['Error: driver down', '/api/probe/boom'],
     ]);
   });
 
@@ -89,7 +89,7 @@ describe('request line', () => {
   it('an absurd agcid, x-client, agsid or traceparent never reaches a line unbounded', async () => {
     const { requests } = await start();
     const send = (headers: Record<string, string>) =>
-      fetch(`${served?.url}/api/v1/items/1`, { headers });
+      fetch(`${served?.url}/api/probe/items/1`, { headers });
     const big = 'a'.repeat(10_000);
     await send({ agcid: big });
     // Other control characters never pass: the HTTP parser answers 400 before the kit.

@@ -32,10 +32,10 @@ describe('pageOf', () => {
       );
     };
     const server = await startTestServer({ create });
-    expect(await (await server.fetch('/api/v1/rows?limit=2')).json()).toEqual(
+    expect(await (await server.fetch('/api/test/rows?limit=2')).json()).toEqual(
       ok([{ id: 3 }, { id: 2 }], { pagination: { limit: 2, nextCursor: 'Mg' } })
     );
-    expect(await (await server.fetch('/api/v1/rows')).json()).toEqual(
+    expect(await (await server.fetch('/api/test/rows')).json()).toEqual(
       ok(ROWS, { pagination: { limit: 50 } })
     );
     await server.close();

@@ -6,7 +6,7 @@ const BROWSER = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 Chrome/142.0
 
 describe('who', () => {
   it('user_type: declared first, then an AI client, a bot, a machine, else a person', () => {
-    const at = (h: Record<string, string>, path = '/api/v1/x') => userTypeOf(headers(h), path);
+    const at = (h: Record<string, string>, path = '/api/probe/x') => userTypeOf(headers(h), path);
     expect(at({ 'x-client-type': 'test', 'user-agent': BROWSER })).toBe('test');
     expect(at({ 'x-client-type': 'service', 'user-agent': 'curl/8.5.0' })).toBe('service');
     expect(at({ 'x-client-type': 'automation' })).toBe('automation');

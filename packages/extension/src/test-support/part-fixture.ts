@@ -20,11 +20,11 @@ const OPENAPI = {
   // Only operations declare scopes: a path-level key never adds this document-wide admin.
   security: [{ pat: ['probe:admin'] }],
   paths: {
-    '/api/v1/echo': { parameters: [], get: { security: [{ pat: ['probe:read'] }] } },
-    '/api/v1/ticks': { get: { security: [] } },
-    '/api/v1/items': { post: { security: [{ pat: ['probe:write'] }] } },
-    '/api/v1/items/{id}': { post: { security: [{ pat: ['probe:write'] }] } },
-    '/api/v1/items/me': { post: { security: [{ pat: ['probe:read'] }] } },
+    '/api/probe/echo': { parameters: [], get: { security: [{ pat: ['probe:read'] }] } },
+    '/api/probe/ticks': { get: { security: [] } },
+    '/api/probe/items': { post: { security: [{ pat: ['probe:write'] }] } },
+    '/api/probe/items/{id}': { post: { security: [{ pat: ['probe:write'] }] } },
+    '/api/probe/items/me': { post: { security: [{ pat: ['probe:read'] }] } },
   },
 };
 const image = (part: string) => ({ image: `ghcr.io/agentage/probe-${part}@${DIGEST}` });

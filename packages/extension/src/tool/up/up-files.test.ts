@@ -40,6 +40,6 @@ describe('up files', () => {
 
 describe('routesOf', () => {
   it('lists the routes of the parts in gateway order', () => {
-    expect(routesOf(API_MANIFEST)).toEqual(['/api/v1/']);
+    expect(routesOf(API_MANIFEST)).toEqual(['/api/probe/']);
   });
 });

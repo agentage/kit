@@ -27,6 +27,8 @@ export interface RunnerInput {
   base: PartAppBase;
   openapi: Record<string, unknown> | null;
   importModule?: ImportModule;
+  // More api prefixes that serve the same router.
+  apiAliases?: string[];
 }
 
 export interface Running {
@@ -43,7 +45,16 @@ const api = async (input: RunnerInput): Promise<Running> => {
   const { router, routes, documents } = await mountApi(ctx, (api) => callCreate(input, 'api', api));
   // Declared routes guard at their own scope, whatever the committed file says.
   const openapi = routes.length > 0 ? generatedOpenapi(input.pkg, routes) : input.openapi;
-  return { app: createApiApp({ ...input.base, router, routes, openapi, wellKnown: documents }) };
+  return {
+    app: createApiApp({
+      ...input.base,
+      router,
+      routes,
+      openapi,
+      wellKnown: documents,
+      aliases: input.apiAliases,
+    }),
+  };
 };
 
 const mcp = async (input: RunnerInput): Promise<Running> => {

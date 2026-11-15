@@ -76,7 +76,7 @@ export type RouteHandler<
   >
 ) => Answer<z.input<O>> | Promise<Answer<z.input<O>>>;
 
-// Registers a route under /api/v1; the kit validates, wraps the envelope and writes openapi.json.
+// Registers a route under /api/{id}; the kit validates, wraps the envelope and writes openapi.json.
 export type RouteRegistrar = <
   P extends string,
   I extends ObjectSchema = z.ZodObject<Record<never, z.ZodType>>,
@@ -112,7 +112,7 @@ const PATH = /^(\/([A-Za-z0-9._~-]+|\{[A-Za-z_][A-Za-z0-9_]*\}))+$/;
 const problemOf = (routes: RouteEntry[], { method, path, spec }: RouteEntry) => {
   if (!ROUTE_METHODS.includes(method))
     return `method ${String(method)}: one of get, post, put, patch, delete`;
-  if (!PATH.test(path)) return 'path: /segments and {param} segments under /api/v1';
+  if (!PATH.test(path)) return 'path: /segments and {param} segments under /api/{id}';
   if (routes.some((r) => r.method === method && r.path === path)) return 'is registered twice';
   if (!spec.summary) return 'needs a summary: it documents the route';
   return badScope(spec.scope);

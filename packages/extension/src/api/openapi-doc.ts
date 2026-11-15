@@ -1,4 +1,5 @@
 import { scopeOf } from '../auth/token-check.js';
+import { apiPrefix } from '../discovery/openapi.js';
 import { type ErrorCode } from '../envelope/codes.js';
 import { ErrorEnvelopeSchema } from '../envelope/envelope.schema.js';
 import { type ExtensionPackage } from '../manifest/manifest.schema.js';
@@ -117,7 +118,7 @@ export const generatedOpenapi = (pkg: ExtensionPackage, routes: RouteEntry[]): J
   const { id } = pkg.agentage;
   const paths: Record<string, Json> = {};
   for (const entry of routes) {
-    const at = `/api/v1${entry.path}`;
+    const at = `${apiPrefix(id)}${entry.path}`;
     paths[at] = { ...paths[at], [entry.method]: operation(id, entry) };
   }
   return {

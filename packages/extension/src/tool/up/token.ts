@@ -10,7 +10,7 @@ export interface TokenOptions {
 
 const AnswerSchema = z.object({ token: z.string().startsWith('aga_') });
 
-// A token from the dev issuer of `up`, for calling /api/v1/ and /mcp by hand or from tests.
+// A token from the dev issuer of `up`, for calling /api/{id}/ and /mcp by hand or from tests.
 export const token = async (options: TokenOptions): Promise<string> => {
   const issuer = options.issuer ?? DEV_ISSUER;
   const res = await (options.fetch ?? fetch)(`${issuer}/token`, {

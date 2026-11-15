@@ -281,7 +281,8 @@ jobs:
 
       - name: agentage extension up
         working-directory: probe
-        run: node_modules/.bin/agentage extension up
+        # The kit's own tool, not the agentage bin: the probe's @agentage/cli bundles the released kit.
+        run: node node_modules/@agentage/extension/dist/tool/cli.js up
 
       - name: e2e gate on local (agentage/e2e, probe gate local)
         if: github.actor != 'dependabot[bot]'
@@ -307,4 +308,4 @@ jobs:
       - name: agentage extension down
         if: always()
         working-directory: probe
-        run: node_modules/.bin/agentage extension down || true
+        run: node node_modules/@agentage/extension/dist/tool/cli.js down || true

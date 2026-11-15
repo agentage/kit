@@ -5,6 +5,7 @@ import { readOpenapi } from '../discovery/openapi.js';
 import { type Log } from '../log/log.js';
 import { type ExtensionPackage } from '../manifest/manifest.schema.js';
 import { portFromEnv, type Env } from '../runtime/build-info.js';
+import { GRACE_MS } from '../server/serve.js';
 import { type HostExtras } from './host-extension.js';
 
 export const HOST_PORT = 8080;
@@ -13,6 +14,9 @@ export const BIND_REFUSED =
   'AGENTAGE_HOST_BIND=all needs a token check (AGENTAGE_ISSUER, AGENTAGE_AUDIENCE, AGENTAGE_ORIGIN) or AGENTAGE_HOST_AUTH=off';
 
 const TOKEN_ENV = ['AGENTAGE_ISSUER', 'AGENTAGE_AUDIENCE', 'AGENTAGE_ORIGIN'];
+
+// The drain limit: a positive integer of ms, else the server default.
+const drainMsOf = (value = ''): number => (/^[1-9][0-9]*$/.test(value) ? Number(value) : GRACE_MS);
 
 // The entry's env with its defaults: port 8080, the current folder, loopback.
 export const hostEnvOf = (env: Env) => {
@@ -25,6 +29,7 @@ export const hostEnvOf = (env: Env) => {
     settings: env['AGENTAGE_SETTINGS'] ? parseObject(env['AGENTAGE_SETTINGS']) : {},
     secretsDir: env['AGENTAGE_SECRETS_DIR'] || SECRETS_DIR,
     origin: env['AGENTAGE_ORIGIN'] || `http://127.0.0.1${port ? `:${port}` : ''}`,
+    drainMs: drainMsOf(env['AGENTAGE_DRAIN_MS']),
   };
 };
 

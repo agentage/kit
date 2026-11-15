@@ -89,6 +89,8 @@ describe('build record', () => {
   it('takes the one image {id}@sha256 in place of part images, never both, never none', () => {
     const one = { ...recordOf(API_MANIFEST, BUILD, {}), image: `ghcr.io/agentage/probe@${DIGEST}` };
     expect(validateRecord(one).image).toBe(one.image);
+    const nested = { ...one, image: `ghcr.io/agentage/team/probe@${DIGEST}` };
+    expect(validateRecord(nested).image).toBe(nested.image);
     const doc = discoveryDocument(validateRecord(one), 'https://probe.next.agentage.io');
     expect(DiscoveryDocumentSchema.safeParse(doc).success).toBe(true);
     const both = { ...one, parts: { api: { image: API_IMAGE } } };

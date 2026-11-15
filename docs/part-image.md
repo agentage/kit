@@ -35,12 +35,23 @@ package in `dir` at `/api/{id}/*`. The daemon child and the one container run th
 | `AGENTAGE_SETTINGS`      | JSON of setting values over the manifest defaults                                                                                       |
 | `AGENTAGE_SECRETS_DIR`   | one file per declared secret, `/run/secrets` by default                                                                                 |
 | `AGENTAGE_ORIGIN`        | `ctx.extension.origin`, `http://127.0.0.1:<PORT>` by default                                                                            |
+| `AGENTAGE_DRAIN_MS`      | how long SIGTERM may drain before exit 1, `10000` by default                                                                            |
 | `AGENTAGE_HOST_BIND=all` | listen on every address. It needs a token check (`AGENTAGE_ISSUER`, `AGENTAGE_AUDIENCE`, `AGENTAGE_ORIGIN`) or `AGENTAGE_HOST_AUTH=off` |
 
-The one container (`build --container`) sets `AGENTAGE_HOST_BIND=all`, `PORT=8080` and, with a
-postgres store, `AGENTAGE_DATA_DIR=/data/store` on the volume `/data`. So it needs the token
-values, or `-e AGENTAGE_HOST_AUTH=off` for a local run. `/health` answers on loopback only: use
-`docker exec` or the `HEALTHCHECK` state.
+The one container (`build --container`) sets `AGENTAGE_HOST_BIND=all`, `PORT=8080` and
+`AGENTAGE_DRAIN_MS=8000`. With a postgres store it also sets `AGENTAGE_DATA_DIR=/data/store` on the
+volume `/data`. So it needs the token values, or `-e AGENTAGE_HOST_AUTH=off` for a local run.
+`/health` answers on loopback only: use `docker exec` or the `HEALTHCHECK` state.
+
+```bash
+docker run -p 8080:8080 -e AGENTAGE_HOST_AUTH=off -v probe-data:/data ghcr.io/agentage/probe:0.7.0
+```
+
+- Any `AGENTAGE_HOST_BIND` other than `all` binds loopback with no token check. With
+  `--network host` that is the loopback of the machine.
+- The drain ends within 8 s, under the 10 s of `docker stop`. A longer drain needs both a higher
+  `AGENTAGE_DRAIN_MS` and `docker run --stop-timeout <s>`.
+- `--read-only` works: only `/data` is written, and `/tmp` needs no tmpfs.
 
 On loopback there is no token check. SIGTERM drains the open requests, closes the store and
 exits 0. `ctx.exit()` does the same. The host brings `@electric-sql/pglite`; the package does not

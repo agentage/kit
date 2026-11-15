@@ -37,7 +37,12 @@ describe('container recipe', () => {
     const runner = runnerOf(plain);
     for (const line of ['ARG COMMIT_SHA', 'ARG BUILD_TIME', 'USER node', 'EXPOSE 8080'])
       expect(runner).toContain(line);
-    for (const env of ['PORT=8080', 'AGENTAGE_HOST_BIND=all', 'COMMIT_SHA=$COMMIT_SHA'])
+    for (const env of [
+      'PORT=8080',
+      'AGENTAGE_HOST_BIND=all',
+      'AGENTAGE_DRAIN_MS=8000',
+      'COMMIT_SHA=$COMMIT_SHA',
+    ])
       expect(runner).toContain(env);
     expect(runner).toContain('BUILD_TIME=$BUILD_TIME');
     expect(runner).not.toContain('AGENTAGE_HOST_AUTH');

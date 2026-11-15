@@ -45,7 +45,7 @@ const exitHook = () => {
 };
 
 // SIGTERM, ctx.exit() and a gone parent drain the server, then stop the host and exit.
-const drainOn = (server: Server, host: HostedExtension, deps: ServeHostDeps) => {
+const drainOn = (server: Server, host: HostedExtension, deps: ServeHostDeps, graceMs: number) => {
   const log = createLog({ extension: host.id, part: 'api', version: host.version });
   const exit = deps.exit ?? ((code: number) => process.exit(code));
   const done = (code: number) => void host.stop().finally(() => exit(code));
@@ -55,6 +55,7 @@ const drainOn = (server: Server, host: HostedExtension, deps: ServeHostDeps) => 
     log,
     exit: done,
     signals: deps.signals,
+    graceMs,
   });
   return { log, stop };
 };
@@ -68,7 +69,7 @@ export const serveHost = async (env: Env, deps: ServeHostDeps = {}): Promise<Ser
   const opts = { dataDir, settings, origin, onExit: hook.onExit };
   const host = await hostWith(at.dir, opts, { secretsDir, guard, build: buildInfoFromEnv(env) });
   const server = await listen(host.app, at.port, at.bind);
-  const { log, stop } = drainOn(server, host, deps);
+  const { log, stop } = drainOn(server, host, deps, at.drainMs);
   const { port } = server.address() as AddressInfo;
   log.info('listening', { port, bind: at.bind });
   (deps.ready ?? announce)(port, stop);

@@ -31,9 +31,9 @@ const runner = (store: boolean) => [
   'ARG COMMIT_SHA',
   'ARG BUILD_TIME',
   'ENV NODE_ENV=production \\',
-  '    NODE_OPTIONS=--enable-source-maps \\',
   `    PORT=${CONTAINER_PORT} \\`,
   '    AGENTAGE_HOST_BIND=all \\',
+  '    AGENTAGE_DRAIN_MS=8000 \\',
   ...(store ? [`    AGENTAGE_DATA_DIR=${STORE_DIR} \\`] : []),
   '    COMMIT_SHA=$COMMIT_SHA \\',
   '    BUILD_TIME=$BUILD_TIME',
@@ -55,6 +55,6 @@ const runner = (store: boolean) => [
   '',
 ];
 
-// The one image of an extension: every part in one host process; pglite is set for a postgres store.
+// The one image of an extension: the kit host in one process; pglite is set for a postgres store.
 export const containerRecipe = ({ pglite }: { pglite?: string }): string =>
   [...DEPS, ...(pglite ? pgliteStage(pglite) : []), ...runner(pglite !== undefined)].join('\n');

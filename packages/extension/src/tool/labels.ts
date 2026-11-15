@@ -10,7 +10,7 @@ const repositoryUrl = (pkg: ExtensionPackage): string | undefined => {
 };
 
 // OCI labels: revision is the full sha, created the build time; source links the GHCR package.
-// No part: the one image of every part, titled {id} with no io.agentage.part.
+// No part: the one image, titled {id} with no io.agentage.part.
 export const labelsOf = (
   pkg: ExtensionPackage,
   part: ImagePartKind | undefined,

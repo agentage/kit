@@ -21,12 +21,12 @@ const ImageDigestRefSchema = z
 
 const PartImageSchema = z.strictObject({ image: ImageDigestRefSchema });
 
-// The one image of every part: registry host[:port]/owner/{id}@sha256.
+// The one image: registry host[:port]/owner[/team...]/{id}@sha256.
 const OneImageRefSchema = z
   .string()
   .max(256)
   .regex(
-    /^[a-z0-9][a-z0-9.-]*(:[0-9]{1,5})?\/[a-z0-9][a-z0-9-]*\/[a-z][a-z0-9-]*@sha256:[0-9a-f]{64}$/
+    /^[a-z0-9][a-z0-9.-]*(:[0-9]{1,5})?(\/[a-z0-9][a-z0-9_.-]*)+\/[a-z][a-z0-9-]*@sha256:[0-9a-f]{64}$/
   );
 
 const PartsRecordSchema = z.strictObject({
@@ -64,7 +64,9 @@ const recordShape = {
   commit: CommitSchema,
   buildTime: z.iso.datetime(),
   parts: PartsRecordSchema,
-  image: OneImageRefSchema.optional(),
+  image: OneImageRefSchema.optional().describe(
+    'The one image (build --container). A record has part images or this image: never both, never none.'
+  ),
   // /api/v{N}: an extension still on a kit before 0.13, read by a newer one; it goes in phase 4.
   openapi: z
     .string()

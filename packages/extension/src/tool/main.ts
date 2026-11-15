@@ -20,8 +20,9 @@ const USAGE = `usage: agentage-extension <build|up|down|token> [options]
 
   build      one image per part from the kit recipe
     --push     push the images and write dist/agentage-extension.json with their digests
-    --container one image for all parts, ghcr.io/agentage/<id>:<version>; with --push the
-               record is dist/agentage-container.json
+    --container one image, ghcr.io/agentage/<id>:<version>, that runs the api part; it
+               lists the parts it does not run yet; with --push the record is
+               dist/agentage-container.json
     --registry image registry and owner (default: ghcr.io/agentage)
   up         the release images on Docker: store, dev issuer, gateway on localhost:4280
   down       remove what up started; --keep-data keeps the store volume

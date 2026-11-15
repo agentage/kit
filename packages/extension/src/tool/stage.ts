@@ -37,7 +37,7 @@ export const exists = (path: string): Promise<boolean> =>
     () => false
   );
 
-export const copyInto = async (from: string, to: string): Promise<void> => {
+const copyInto = async (from: string, to: string): Promise<void> => {
   await mkdir(dirname(to), { recursive: true });
   await cp(from, to, { recursive: true });
 };

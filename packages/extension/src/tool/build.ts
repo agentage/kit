@@ -9,6 +9,7 @@ import { readManifest } from '../manifest/read-manifest.js';
 import { type Env } from '../runtime/build-info.js';
 import { resolveBuildInfo } from './build-info.js';
 import { assertConforms } from './check.js';
+import { runnableParts } from './container-parts.js';
 import { buildContainer, type BuiltContainer } from './container.js';
 import { createDocker, type Docker } from './docker.js';
 import { mustRun, runCommand, type Run } from './exec.js';
@@ -23,7 +24,7 @@ export interface BuildOptions {
   dir?: string;
   push?: boolean;
   registry?: string;
-  // One image for every part (`ghcr.io/agentage/{id}:{version}`) in place of one per part.
+  // One image (`ghcr.io/agentage/{id}:{version}`) that runs the api part, in place of one per part.
   container?: boolean;
   env?: Env;
 }
@@ -135,13 +136,14 @@ const containerOf = (
   return buildContainer(job, deps.docker ?? createDocker(deps.run));
 };
 
-// Validate, compile, check, one image per part (or one for all with --container); --push pushes, writes the record.
+// Validate, compile, check, one image per part (or the one image); --push pushes, writes the record.
 export const build = async (
   options: BuildOptions = {},
   deps: BuildDeps = { run: runCommand }
 ): Promise<BuildResult> => {
   const dir = resolve(options.dir ?? '.');
   const pkg = await readManifest(dir);
+  if (options.container) runnableParts(pkg);
   const info = await resolveBuildInfo(dir, options.env ?? process.env, deps.run);
   await compile(dir, pkg, deps.run);
   await assertConforms(dir, { run: deps.run });

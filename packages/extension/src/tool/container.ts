@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { recordOf, validateRecord, type BuildInfo } from '../discovery/discovery.js';
 import { type ExtensionRecord } from '../discovery/discovery.schema.js';
 import { type ExtensionPackage } from '../manifest/manifest.schema.js';
+import { runnableParts, type ContainerParts } from './container-parts.js';
 import { stageContainer } from './container-stage.js';
 import { type Docker } from './docker.js';
 import { labelsOf } from './labels.js';
@@ -11,7 +12,8 @@ import { recordExtras } from './record-extras.js';
 // Beside the release record, so a container push never replaces what `extension release` reads.
 export const CONTAINER_RECORD_FILE = 'agentage-container.json';
 
-export interface BuiltContainer {
+// runs: the parts the image serves; skipped: parts it carries but does not run yet.
+export interface BuiltContainer extends ContainerParts {
   tag: string;
   digest?: string;
   image?: string;
@@ -38,13 +40,14 @@ export const containerRecord = async (
 ): Promise<ExtensionRecord> =>
   validateRecord({ ...recordOf(pkg, info, {}, await recordExtras(dir, pkg)), image });
 
-const pushed = async (tag: string, docker: Docker): Promise<BuiltContainer> => {
-  const digest = await docker.push(tag);
-  return { tag, digest, image: `${tag.slice(0, tag.lastIndexOf(':'))}@${digest}` };
+const pushed = async (built: BuiltContainer, docker: Docker): Promise<BuiltContainer> => {
+  const digest = await docker.push(built.tag);
+  return { ...built, digest, image: `${built.tag.slice(0, built.tag.lastIndexOf(':'))}@${digest}` };
 };
 
 export const buildOneImage = async (job: ContainerJob, docker: Docker): Promise<BuiltContainer> => {
   const tag = containerTag(job.registry, job.pkg);
+  const parts = runnableParts(job.pkg);
   const context = await stageContainer(job.dir, job.pkg, job.tmpRoot);
   try {
     const buildArgs = { COMMIT_SHA: job.info.commit, BUILD_TIME: job.info.buildTime };
@@ -53,7 +56,8 @@ export const buildOneImage = async (job: ContainerJob, docker: Docker): Promise<
   } finally {
     await rm(context, { recursive: true, force: true });
   }
-  return job.push ? pushed(tag, docker) : { tag };
+  const built = { tag, ...parts };
+  return job.push ? pushed(built, docker) : built;
 };
 
 // --container: one image; with --push also dist/agentage-container.json.

@@ -131,7 +131,8 @@ describe('discovery document', () => {
     expect(valid('/api/probe/openapi.json')).toEqual([true, true]);
     expect(valid('/api/v1/openapi.json')).toEqual([true, true]);
     expect(valid('/api/v12/openapi.json')).toEqual([true, true]);
-    for (const wrong of ['/api/memory/openapi.json', '/api/openapi.json', '/v1/openapi.json'])
+    const wrongs = ['/api/memory/openapi.json', '/api/openapi.json', '/v1/openapi.json'];
+    for (const wrong of [...wrongs, '/api/v0/openapi.json', '/api/v01/openapi.json'])
       expect([wrong, ...valid(wrong)]).toEqual([wrong, false, false]);
   });
 });

@@ -121,7 +121,7 @@ describe('discovery document', () => {
     expect(valid('https://probe.next.agentage.io/')).toBe(false);
   });
 
-  it('openapi: the new /api/{id} form and the old /api/v{N} of a kit before 0.13; nothing else', () => {
+  it('openapi: the new /api/{id} form and the old /api/v{N} of a kit before 0.13 (as 0.13.0); nothing else', () => {
     const record = validateRecord(recordOf(API_MANIFEST, BUILD, { api: API_IMAGE }));
     const doc = discoveryDocument(record, 'https://probe.next.agentage.io');
     const valid = (openapi: string) => [
@@ -131,9 +131,11 @@ describe('discovery document', () => {
     expect(valid('/api/probe/openapi.json')).toEqual([true, true]);
     expect(valid('/api/v1/openapi.json')).toEqual([true, true]);
     expect(valid('/api/v12/openapi.json')).toEqual([true, true]);
+    // What 0.13.0 accepted stays accepted in a minor: the stricter v[1-9] is a 1.0 change.
+    expect(valid('/api/v0/openapi.json')).toEqual([true, true]);
+    expect(valid('/api/v01/openapi.json')).toEqual([true, true]);
     const wrongs = ['/api/memory/openapi.json', '/api/openapi.json', '/v1/openapi.json'];
-    for (const wrong of [...wrongs, '/api/v0/openapi.json', '/api/v01/openapi.json'])
-      expect([wrong, ...valid(wrong)]).toEqual([wrong, false, false]);
+    for (const wrong of wrongs) expect([wrong, ...valid(wrong)]).toEqual([wrong, false, false]);
   });
 });
 

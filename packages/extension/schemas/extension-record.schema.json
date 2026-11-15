@@ -129,7 +129,7 @@
     },
     "openapi": {
       "type": "string",
-      "pattern": "^\\/api\\/(?:v[1-9][0-9]*|[a-z][a-z0-9-]*)\\/openapi\\.json$",
+      "pattern": "^\\/api\\/(?:v[0-9]+|[a-z][a-z0-9-]*)\\/openapi\\.json$",
       "description": "/api/{id}/openapi.json, or the old /api/v{N}; only the kit checks that {id} is the id"
     },
     "tools": {

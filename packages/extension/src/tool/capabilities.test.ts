@@ -1,9 +1,11 @@
 import { describe, expect, it } from 'vitest';
-import { CAPABILITIES } from './index.js';
+import * as host from '../host/index.js';
+import * as tool from './index.js';
 
-describe('CAPABILITIES', () => {
-  it('names container and local-guard, and cannot change', () => {
-    expect(CAPABILITIES).toEqual(['container', 'local-guard']);
-    expect(Object.isFrozen(CAPABILITIES)).toBe(true);
+describe('capabilities', () => {
+  it('names container and localOnly, frozen, the same list from tool and host', () => {
+    expect(tool.capabilities).toEqual(['container', 'localOnly']);
+    expect(Object.isFrozen(tool.capabilities)).toBe(true);
+    expect(host.capabilities).toBe(tool.capabilities);
   });
 });

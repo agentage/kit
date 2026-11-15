@@ -32,7 +32,6 @@ describe('public surface', () => {
 
   it('the tool exports what the cli and the build call', () => {
     expect(Object.keys(tool).sort()).toEqual([
-      'CAPABILITIES',
       'KIT_VERSION',
       'PROTOCOL_VERSIONS',
       'PackageSchema',
@@ -41,6 +40,7 @@ describe('public surface', () => {
       'build',
       'buildLines',
       'canonical',
+      'capabilities',
       'check',
       'checkCli',
       'checkLines',
@@ -70,7 +70,13 @@ describe('public surface', () => {
   });
 
   it('the host subpath exports what the daemon and the cli call', () => {
-    expect(Object.keys(host).sort()).toEqual(['DAEMON_PORT', 'createDaemon', 'hostExtension']);
+    expect(Object.keys(host).sort()).toEqual([
+      'DAEMON_PORT',
+      'capabilities',
+      'createDaemon',
+      'hostExtension',
+      'localOnly',
+    ]);
   });
 
   it('the logs subpath exports the event line', () => {

@@ -23,7 +23,7 @@ export {
   type BuiltImage,
 } from './build.js';
 export { type BuiltContainer } from './container.js';
-export { CAPABILITIES } from './capabilities.js';
+export { capabilities } from './capabilities.js';
 export { check, type CheckProblem, type CheckReport } from './check.js';
 export { writeContracts } from './contracts.js';
 export { buildLines, checkLines } from './format.js';

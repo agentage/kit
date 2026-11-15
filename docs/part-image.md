@@ -53,10 +53,11 @@ docker run -p 8080:8080 -e AGENTAGE_HOST_AUTH=off -v probe-data:/data ghcr.io/ag
   `AGENTAGE_DRAIN_MS` and `docker run --stop-timeout <s>`.
 - `--read-only` works: only `/data` is written, and `/tmp` needs no tmpfs.
 
-`hostExtension(dir, { localOnly: true })` mounts the guard of the daemon before every route. A
-request needs the Host `127.0.0.1:<port>` or `localhost:<port>`, no other Origin, and no cross-site
-`Sec-Fetch-Site`, or it gets 403. A client checks support with `CAPABILITIES` from
-`@agentage/extension/tool` (`container`, `local-guard`).
+`localOnly(port)` from `@agentage/extension/host` is the guard of the daemon, as Express middleware.
+A request needs the Host `127.0.0.1`, `localhost` or `[::1]` at that port, no other Origin, and no
+cross-site `Sec-Fetch-Site`, or it throws a 403 `FORBIDDEN` for the error handler.
+`hostExtension(dir, { localOnly: true })` mounts it before every route, at the port of the socket.
+A client checks support with `capabilities` from `/tool` or `/host` (`container`, `localOnly`).
 
 On loopback there is no token check. SIGTERM drains the open requests, closes the store and
 exits 0. `ctx.exit()` does the same. The host brings `@electric-sql/pglite`; the package does not

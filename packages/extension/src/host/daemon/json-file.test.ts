@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { tempDir } from '../../test-support/packages.js';
 import { deadPid } from '../../test-support/processes.js';
-import { readJsonFile, withFileLock, writeJsonFile } from './json-file.js';
+import { LOCK_WAIT_MS, readJsonFile, withFileLock, writeJsonFile } from './json-file.js';
 
 describe('json files of the daemon', () => {
   it('writes whole files with their mode; a missing file is the fallback, a folder throws', async () => {
@@ -42,5 +42,15 @@ describe('json files of the daemon', () => {
     });
     expect(Date.now() - started).toBeLessThan(1_000);
     expect(fn).not.toHaveBeenCalled();
+  });
+
+  it('with no waitMs it gives up after LOCK_WAIT_MS (5 s)', async () => {
+    const file = join(await tempDir(), 'settings.json');
+    await writeFile(`${file}.lock`, String(process.ppid));
+    const started = Date.now();
+    await expect(withFileLock(file, async () => undefined)).rejects.toMatchObject({
+      message: `settings.json is locked by process ${process.ppid}: waited ${LOCK_WAIT_MS} ms`,
+    });
+    expect(Date.now() - started).toBeGreaterThanOrEqual(LOCK_WAIT_MS);
   });
 });

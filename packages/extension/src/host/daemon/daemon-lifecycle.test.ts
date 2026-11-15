@@ -5,7 +5,7 @@ import { startHarness, tempConfigDir, type Harness } from '../../test-support/da
 import { HOSTED_MANIFEST, hostedPackage } from '../../test-support/hosted-fixture.js';
 import { json } from '../../test-support/packages.js';
 import { readJsonFile } from './json-file.js';
-import { NO_INSTALLER } from './supervisor.js';
+import { NO_INSTALLER } from './installer-call.js';
 
 let h: Harness | undefined;
 beforeEach(() => void vi.spyOn(process.stderr, 'write').mockImplementation(() => true));

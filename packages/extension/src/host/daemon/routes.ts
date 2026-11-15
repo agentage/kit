@@ -15,32 +15,28 @@ import {
 import { proxyTo } from './proxy.js';
 import { type SupervisorDeps } from './supervisor.js';
 
-// One change at a time: two installs never race on installation.json or on one extension.
-const serial = () => {
-  let chain: Promise<unknown> = Promise.resolve();
-  return <T>(fn: () => Promise<T>): Promise<T> => {
-    const run = chain.then(fn, fn);
-    chain = run.catch(() => undefined);
-    return run;
-  };
-};
+// What /health says of the daemon itself: the values of daemon.json, so a client can prove it.
+export const DAEMON_SERVICE = 'agentage-daemon';
 
 export interface DaemonInfo {
   version: string;
+  pid: number;
+  protocol: number;
   // installation.json had rows (or a shape) C3 refuses: they are left out, the file kept as .bad.
   invalid: boolean;
 }
 
-const healthOf = (entries: Entries, { version, invalid }: DaemonInfo) => {
+const healthOf = (entries: Entries, { version, pid, protocol, invalid }: DaemonInfo) => {
   const all = [...entries.values()];
   const settled = !invalid && all.every((e) => e.state === 'running' || e.state === 'disabled');
   const extensions = all.map(summary);
   const status = settled ? 'ok' : 'degraded';
-  return { status, version, extensions, ...(invalid && { installation: 'invalid' }) };
+  const self = { service: DAEMON_SERVICE, pid, protocol };
+  return { status, version, ...self, extensions, ...(invalid && { installation: 'invalid' }) };
 };
 
 const changes = (deps: SupervisorDeps, entries: Entries) => {
-  const run = serial();
+  const run = deps.queue;
   const id = (params: Record<string, string | string[]>) => String(params['id']);
   const add: RequestHandler = async (req, res) =>
     void res.status(201).json(ok(await run(() => addExtension(deps, entries, req.body))));

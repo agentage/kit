@@ -5,7 +5,7 @@ export const HOSTED_MANIFEST = {
   name: '@agentage/extension-hosted',
   version: '1.0.0',
   type: 'module',
-  engines: { agentage: '^0.13' },
+  engines: { agentage: '^0.14' },
   agentage: {
     id: 'hosted',
     parts: { api: true, store: 'postgres' },

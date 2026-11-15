@@ -9,7 +9,7 @@ const SERVICES = ['pages', 'ui', 'api', 'mcp', 'worker', 'gateway', 'issuer', 's
 export const PROBE = {
   ...SPEC_MANIFEST,
   version: '0.2.0',
-  engines: { agentage: '^0.13' },
+  engines: { agentage: '^0.14' },
   scripts: { build: 'tsc' },
   agentage: {
     ...SPEC_MANIFEST.agentage,

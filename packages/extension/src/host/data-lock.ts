@@ -1,4 +1,5 @@
 import { randomBytes } from 'node:crypto';
+import { rmSync } from 'node:fs';
 import { link, readFile, rename, unlink, writeFile } from 'node:fs/promises';
 
 export const DATA_DIR_LOCKED = 'DATA_DIR_LOCKED';
@@ -69,8 +70,9 @@ export const lockDataDir = async (dataDir: string): Promise<() => Promise<void>>
     await clearStale(lock, pid);
     if (!(await take(lock))) throw locked(lock, await holder(lock));
   }
+  // Sync, so no other taker in this process sees the file without its entry in held.
   return async () => {
+    rmSync(lock, { force: true });
     held.delete(lock);
-    await unlink(lock).catch(() => undefined);
   };
 };

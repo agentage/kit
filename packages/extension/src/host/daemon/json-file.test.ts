@@ -22,11 +22,11 @@ describe('json files of the daemon', () => {
     await writeJsonFile(file, 0);
     const bump = () =>
       withFileLock(file, async () => writeJsonFile(file, (await readJsonFile(file, 0)) + 1));
-    await Promise.all(Array.from({ length: 10 }, bump));
-    expect(await readJsonFile(file, 0)).toBe(10);
+    await Promise.all(Array.from({ length: 50 }, bump));
+    expect(await readJsonFile(file, 0)).toBe(50);
     await writeFile(`${file}.lock`, String(spawnSync(process.execPath, ['-e', '']).pid));
     await bump();
-    expect(JSON.parse(await readFile(file, 'utf8'))).toBe(11);
+    expect(JSON.parse(await readFile(file, 'utf8'))).toBe(51);
     expect(await readdir(dir)).toEqual(['n.json']);
   });
 });

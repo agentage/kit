@@ -55,6 +55,7 @@ describe('daemon refusals', () => {
     const at = `127.0.0.1:${h.daemon.port}`;
     expect((await raw({ host: 'evil.example:4243' })).status).toBe(403);
     expect((await raw({ host: `localhost:${h.daemon.port}` })).status).toBe(200);
+    expect((await raw({ host: `[::1]:${h.daemon.port}` })).status).toBe(403);
     expect((await raw({ host: at, origin: 'https://evil.example' })).status).toBe(403);
     expect((await raw({ host: at, origin: `http://${at}` })).status).toBe(200);
     expect(JSON.parse((await raw({ host: 'x' })).body)).toMatchObject({
@@ -77,9 +78,12 @@ describe('daemon refusals', () => {
     });
     const dir = await hostedPackage();
     await h.call('POST', '/host/extensions', { source: dir });
-    expect(await h.call('POST', '/host/extensions', { source: dir })).toMatchObject(
-      code(409, 'CONFLICT')
-    );
+    expect(await h.call('POST', '/host/extensions', { source: dir })).toMatchObject({
+      status: 409,
+      body: {
+        error: { code: 'CONFLICT', details: { id: 'hosted', version: '1.0.0', source: dir } },
+      },
+    });
     expect(await h.call('POST', '/host/extensions', { source: '/nonexistent/x' })).toMatchObject(
       code(400, 'VALIDATION_ERROR')
     );
@@ -92,9 +96,30 @@ describe('daemon refusals', () => {
       body: { success: false, error: { code: 'UNAVAILABLE' } },
     });
     await h.call('POST', '/host/extensions', { source: await hostedPackage() });
-    expect(await h.call('PATCH', '/host/extensions/hosted', { version: '2.0.0' })).toMatchObject(
-      code(400, 'VALIDATION_ERROR')
-    );
+    expect(await h.call('PATCH', '/host/extensions/hosted', { version: '2.0.0' })).toMatchObject({
+      status: 400,
+      body: { error: { message: 'hosted runs a folder: it has no version' } },
+    });
+    const secret = await h.call('PATCH', '/host/extensions/hosted', { secrets: { nope: 'x' } });
+    expect(secret).toMatchObject({
+      status: 400,
+      body: { error: { code: 'VALIDATION_ERROR', message: 'hosted declares no secret nope' } },
+    });
+  });
+
+  it('a body that is not JSON is 400, a body over the limit 413, both in the envelope', async () => {
+    const at = { host: `127.0.0.1:${h.daemon.port}`, 'content-type': 'application/json' };
+    const bad = await rawRequest(h.daemon.port, at, '/host/extensions', 'POST', '{"source":');
+    expect([bad.status, JSON.parse(bad.body)]).toMatchObject([
+      400,
+      { error: { code: 'VALIDATION_ERROR', message: 'Invalid JSON body' } },
+    ]);
+    const big = JSON.stringify({ source: 'x'.repeat(2 * 1024 * 1024) });
+    const over = await rawRequest(h.daemon.port, at, '/host/extensions', 'POST', big);
+    expect([over.status, JSON.parse(over.body)]).toMatchObject([
+      413,
+      { error: { code: 'PAYLOAD_TOO_LARGE' } },
+    ]);
   });
 
   it('404 in the envelope for an id not installed, on each route and under /api/', async () => {

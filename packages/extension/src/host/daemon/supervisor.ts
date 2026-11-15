@@ -5,17 +5,23 @@ import { type Exit, type Launch } from './child.js';
 import { dataDirOf, readValues } from './daemon-files.js';
 import { type InstallEntry } from './installation.js';
 import { laneOf, retire, type Lane } from './lane.js';
+import { type Limits } from './limits.js';
 import { runInstaller } from './installer-call.js';
 
+import { type PendingChanges } from './pending.js';
 import { type Queue } from './queue.js';
 
-export const GATE_MS = 30_000;
-
 // Called on every boot for each entry with a version: idempotent (docs/part-image.md).
-export type Installer = (spec: {
+// signal: aborted when the daemon stops waiting (installMs); an installer may ignore it.
+export interface InstallSpec {
   id: string;
   version?: string;
-}) => Promise<{ id: string; version: string; dir: string }>;
+  signal?: AbortSignal;
+}
+
+export type Installer = (
+  spec: InstallSpec
+) => Promise<{ id: string; version: string; dir: string }>;
 
 // C6: what list and /health print.
 export type State = 'starting' | 'running' | 'failed' | 'disabled';
@@ -44,21 +50,16 @@ export interface Next {
   dir?: string;
 }
 
-export interface SupervisorDeps {
+export interface SupervisorDeps extends Limits {
   configDir: string;
   launch: Launch;
   // The daemon's own origin: ctx.extension.origin of each child.
   origin: () => string;
   install?: Installer;
   log: Log;
-  // The open requests of an old child get drainMs; a new child answers /health within healthMs.
-  drainMs: number;
-  healthMs: number;
   queue: Queue;
+  pending: PendingChanges;
 }
-
-export const DRAIN_MS = 10_000;
-export const HEALTH_MS = 60_000;
 
 export const valuesOf = async (configDir: string, id: string): Promise<Values> => ({
   settings: await readValues(configDir, 'settings', id),
@@ -76,8 +77,10 @@ const dirOf = async (deps: SupervisorDeps, entry: Entry, install: InstallEntry, 
 // Healthy before it gets the route: the child's own /health answers 200.
 const healthy = async (port: number, ms: number): Promise<void> => {
   const signal = AbortSignal.timeout(ms);
-  const res = await fetch(`http://127.0.0.1:${port}/health`, { signal }).catch(() => {
-    throw new Error(`health did not answer in ${ms} ms`);
+  const res = await fetch(`http://127.0.0.1:${port}/health`, { signal }).catch((err: Error) => {
+    if (err.name === 'TimeoutError') throw new Error(`health did not answer in ${ms} ms`);
+    const cause = (err.cause as { code?: string } | undefined)?.code ?? err.message;
+    throw new Error(`health could not be reached (${cause})`);
   });
   if (res.status !== 200) throw new Error(`health answered ${res.status}`);
 };
@@ -129,8 +132,8 @@ export const startEntry = async (deps: SupervisorDeps, entry: Entry): Promise<vo
   }
 };
 
-// New requests of the extension wait here (the proxy gives up after GATE_MS) until release.
-const hold = (entry: Entry): (() => void) => {
+// New requests of the extension wait here (the proxy gives up after gateMs) until release.
+export const hold = (entry: Entry): (() => void) => {
   let release = () => undefined as void;
   entry.gate = new Promise<void>((resolve) => (release = resolve));
   return () => {
@@ -154,18 +157,21 @@ const startFailed = (entry: Entry, err: unknown) =>
     }
   );
 
-// One writer per data folder: hold, stop the old child, start the new one; a refusal restores it.
-export const swap = async (deps: SupervisorDeps, entry: Entry, to: Next) => {
-  const release = hold(entry);
+// One writer per data folder (the caller holds the gate): stop the old child, start the new one.
+export const swap = async (
+  deps: SupervisorDeps,
+  entry: Entry,
+  to: Next,
+  undo: () => Promise<unknown> = async () => undefined
+) => {
   try {
     await halt(entry, deps.drainMs);
     entry.lane = await launchFor(deps, entry, to.install, to.values, to.dir);
     Object.assign(entry, { state: 'running', error: undefined });
   } catch (err) {
+    await undo();
     await restore(deps, entry);
     throw startFailed(entry, err);
-  } finally {
-    release();
   }
 };
 

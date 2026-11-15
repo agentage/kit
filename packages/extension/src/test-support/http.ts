@@ -25,7 +25,8 @@ export const rawRequest = (
   port: number,
   headers: Record<string, string>,
   path = '/',
-  method = 'GET'
+  method = 'GET',
+  body?: string
 ) =>
   new Promise<{ status?: number; body: string }>((resolve, reject) => {
     const req = request({ host: '127.0.0.1', port, path, method, headers }, (res) => {
@@ -33,7 +34,7 @@ export const rawRequest = (
       res.on('data', (chunk: Buffer) => (body += chunk.toString()));
       res.on('end', () => resolve({ status: res.statusCode, body }));
     });
-    req.on('error', reject).end();
+    req.on('error', reject).end(body);
   });
 
 export interface RecordedLog {

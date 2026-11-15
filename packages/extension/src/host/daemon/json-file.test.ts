@@ -1,6 +1,6 @@
 import { readFile, readdir, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import { tempDir } from '../../test-support/packages.js';
 import { deadPid } from '../../test-support/processes.js';
 import { readJsonFile, withFileLock, writeJsonFile } from './json-file.js';
@@ -28,5 +28,19 @@ describe('json files of the daemon', () => {
     await bump();
     expect(JSON.parse(await readFile(file, 'utf8'))).toBe(51);
     expect(await readdir(dir)).toEqual(['n.json']);
+  });
+
+  it('a live holder is waited for at most waitMs, then 503 naming its pid; fn never runs', async () => {
+    const file = join(await tempDir(), 'installation.json');
+    await writeFile(`${file}.lock`, String(process.ppid));
+    const fn = vi.fn(async () => undefined);
+    const started = Date.now();
+    await expect(withFileLock(file, fn, 120)).rejects.toMatchObject({
+      status: 503,
+      code: 'UNAVAILABLE',
+      message: `installation.json is locked by process ${process.ppid}: waited 120 ms`,
+    });
+    expect(Date.now() - started).toBeLessThan(1_000);
+    expect(fn).not.toHaveBeenCalled();
   });
 });

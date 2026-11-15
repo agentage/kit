@@ -1,7 +1,9 @@
 import { copyFile } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
 import { z } from 'zod';
+import { fail } from '../../envelope/envelope.js';
 import { ExtensionIdSchema } from '../../manifest/primitives.schema.js';
+import { assertNoOtherDaemon } from './daemon-owner.js';
 import { readJsonFile, withFileLock, writeJsonFile } from './json-file.js';
 
 // One extension in installation.json (C3): a version, or a source folder; other keys round-trip.
@@ -19,13 +21,13 @@ const InstallationSchema = z.looseObject({
 
 export type InstallEntry = z.infer<typeof InstallEntrySchema>;
 
-interface Installation {
+export interface Installation {
   host: string;
   extensions: InstallEntry[];
   [key: string]: unknown;
 }
 
-// The rows that pass the C3 schema; invalid: the file had other rows, or was not C3 at all.
+// The rows that pass the C3 schema, the first of each id; invalid: the file had others, or was not C3.
 interface CheckedInstallation {
   doc: Installation;
   invalid: boolean;
@@ -39,28 +41,85 @@ const checked = (raw: unknown): CheckedInstallation => {
   const top = InstallationSchema.safeParse(raw);
   if (!top.success) return { doc: EMPTY, invalid: true };
   const rows = top.data.extensions.map((row) => InstallEntrySchema.safeParse(row));
-  const extensions = rows.flatMap((row) => (row.success ? [row.data] : []));
+  const valid = rows.flatMap((row) => (row.success ? [row.data] : []));
+  const extensions = valid.filter((row, at) => valid.findIndex((e) => e.id === row.id) === at);
   return { doc: { ...top.data, extensions }, invalid: extensions.length < rows.length };
 };
 
+// At boot the daemon has no rows from it, so a fix needs a restart; later a fix is enough.
+const unreadable = (why: string, atBoot = false) =>
+  fail(
+    'CONFLICT',
+    `${INSTALLATION_FILE} cannot be read (${why}): fix it${atBoot ? ', then restart the daemon' : ''}; no change is written`,
+    { code: 'INSTALLATION_UNREADABLE' }
+  );
+
+const reasonOf = (err: unknown) =>
+  String((err as NodeJS.ErrnoException).code ?? (err as Error).message);
+
+// Not JSON: null (invalid, kept aside). Not readable (EACCES, EISDIR): thrown.
+const rawOf = (configDir: string) =>
+  readJsonFile(join(configDir, INSTALLATION_FILE), EMPTY).catch((err: unknown) => {
+    if (err instanceof SyntaxError) return null;
+    throw err;
+  });
+
 export const readInstallation = async (configDir: string): Promise<CheckedInstallation> =>
-  checked(await readJsonFile(join(configDir, INSTALLATION_FILE), EMPTY).catch(() => null));
+  checked(
+    await rawOf(configDir).catch((err: unknown) => {
+      throw unreadable(reasonOf(err));
+    })
+  );
+
+// At boot an unreadable file gives no rows and its reason; the daemon then refuses every change.
+export const bootInstallation = (configDir: string) =>
+  rawOf(configDir).then(
+    (raw): CheckedInstallation & { unreadable?: string } => checked(raw),
+    (err: unknown) => ({ doc: EMPTY, invalid: false, unreadable: reasonOf(err) })
+  );
+
+// A change is refused when the file was unreadable at boot (why) or is unreadable now.
+export const assertReadable = async (configDir: string, why?: string): Promise<void> => {
+  if (why) throw unreadable(why, true);
+  await readInstallation(configDir);
+};
 
 // A bad file is kept as installation.json.bad before the daemon writes the valid rows over it.
 export const keepBadCopy = (configDir: string): Promise<void> =>
   copyFile(join(configDir, INSTALLATION_FILE), join(configDir, `${INSTALLATION_FILE}.bad`));
 
-// Read, change and write under the lock: the daemon is the only writer.
-export const updateInstallation = (
+// Only rows C3 accepts are written, and each id once.
+const checkedDoc = (next: Installation): Installation => {
+  const ids = next.extensions.map((row) => row.id);
+  const bad = next.extensions.find((row) => !InstallEntrySchema.safeParse(row).success);
+  if (bad || new Set(ids).size < ids.length || !InstallationSchema.safeParse(next).success)
+    throw fail('VALIDATION_ERROR', `${INSTALLATION_FILE}: a row C3 refuses, or an id twice`);
+  return next;
+};
+
+/**
+ * Read, change and write installation.json under the kit's lock, the path the daemon uses.
+ * Only while no daemon runs on configDir (it reads the file at its start and owns it after):
+ * a live daemon named by daemon.json is refused, unless this is that daemon's process.
+ */
+export const updateInstallation = async (
   configDir: string,
-  change: (doc: Installation) => Installation
+  change: (doc: Installation) => Installation,
+  waitMs?: number
 ): Promise<Installation> => {
+  await assertNoOtherDaemon(configDir);
   const file = join(configDir, INSTALLATION_FILE);
-  return withFileLock(file, async () => {
-    const next = change((await readInstallation(configDir)).doc);
-    await writeJsonFile(file, next);
-    return next;
-  });
+  return withFileLock(
+    file,
+    async () => {
+      const read = await readInstallation(configDir);
+      if (read.invalid) await keepBadCopy(configDir);
+      const next = checkedDoc(change(read.doc));
+      await writeJsonFile(file, next);
+      return next;
+    },
+    waitMs
+  );
 };
 
 // The entry of id replaced (or added), the order kept; undefined removes it.

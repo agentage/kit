@@ -1,5 +1,6 @@
 import { type Server } from 'node:http';
 import { type AddressInfo } from 'node:net';
+import { setTimeout as sleep } from 'node:timers/promises';
 import { createLog } from '../log/log.js';
 import { buildInfoFromEnv, type Env } from '../runtime/build-info.js';
 import { listen, shutdownOn } from '../server/serve.js';
@@ -47,7 +48,9 @@ const exitHook = () => {
 const drainOn = (server: Server, host: HostedExtension, deps: ServeHostDeps, graceMs: number) => {
   const log = createLog({ extension: host.id, part: 'api', version: host.version });
   const exit = deps.exit ?? ((code: number) => process.exit(code));
-  const done = (code: number) => void host.stop().finally(() => exit(code));
+  // A store close that hangs gets graceMs too, so the process always exits.
+  const closed = () => Promise.race([host.stop(), sleep(graceMs, undefined, { ref: false })]);
+  const done = (code: number) => void closed().finally(() => exit(code));
   const stop = shutdownOn(server, {
     app: host.app,
     port: 0,

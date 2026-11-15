@@ -155,6 +155,6 @@ describe('daemon routes (C5)', () => {
       status: 200,
       body: { data: { msg: 'hi' } },
     });
-    expect(await read('settings.json')).toEqual({ hosted: {} });
+    expect(await read('settings.json')).toEqual({});
   });
 });

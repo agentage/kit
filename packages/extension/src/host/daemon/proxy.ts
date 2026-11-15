@@ -1,20 +1,29 @@
-import { request, type IncomingHttpHeaders, type IncomingMessage } from 'node:http';
+import {
+  request,
+  type ClientRequest,
+  type IncomingHttpHeaders,
+  type IncomingMessage,
+} from 'node:http';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { type NextFunction, type Request, type RequestHandler, type Response } from 'express';
 import { fail } from '../../envelope/envelope.js';
 import { enter, type Lane } from './lane.js';
-import { type Entries } from './ops.js';
-import { GATE_MS } from './supervisor.js';
+import { type Entries } from './entries.js';
+import { type Limits } from './limits.js';
 
 // 404 not installed or disabled (chosen, not to retry); 503 starting, failed, or held past gateMs.
-const laneFor = async (entries: Entries, id: string, gateMs: number): Promise<Lane> => {
+const laneFor = async (entries: Entries, id: string, gateMs: number) => {
   const entry = entries.get(id);
   if (!entry) throw fail('NOT_FOUND', `${id} is not installed`);
   if (entry.state === 'disabled') throw fail('NOT_FOUND', `${id} is disabled`);
   if (entry.gate) await Promise.race([entry.gate, sleep(gateMs, undefined, { ref: false })]);
-  if (!entry.lane) throw fail('UNAVAILABLE', `${id} is ${entry.state}`, { retryAfter: 5 });
-  return entry.lane;
+  const lane = entry.lane;
+  if (!lane) throw fail('UNAVAILABLE', `${id} is ${entry.state}`, { retryAfter: 5 });
+  // Counted in the same tick it is read: a swap cannot stop this child before the request is open.
+  return { lane, leave: enter(lane) };
 };
+
+type Taken = Awaited<ReturnType<typeof laneFor>>;
 
 const HOP = [
   'connection',
@@ -36,34 +45,57 @@ export const endToEnd = (headers: IncomingHttpHeaders): IncomingHttpHeaders => {
   return Object.fromEntries(Object.entries(headers).filter(([key]) => !drop.has(key)));
 };
 
-const answer = (res: Response) => (up: IncomingMessage) => {
-  res.writeHead(up.statusCode ?? 502, endToEnd(up.headers));
-  up.pipe(res);
-};
+// No answer headers in answerMs: 504 TIMEOUT; the child may still apply the call.
+const noAnswer = (ms: number) =>
+  Object.assign(fail('UNAVAILABLE', `The extension did not answer in ${ms} ms`), {
+    code: 'TIMEOUT',
+    status: 504,
+    retryAfter: undefined,
+  });
 
-// Streams the request to the child as it came (path and query kept), no pooled connection.
-const forward = (req: Request, res: Response, next: NextFunction, lane: Lane): void => {
-  const leave = enter(lane);
+const requestTo = (req: Request, lane: Lane) => {
   const { method, originalUrl: path } = req;
   const headers = endToEnd(req.headers);
   const options = { host: '127.0.0.1', port: lane.child.port, method, path, headers, agent: false };
-  const upstream = request(options, answer(res));
-  // A client that went away aborts the request to the child too.
-  res.on('close', () => {
-    if (!res.writableFinished) upstream.destroy();
-    leave();
+  return request(options);
+};
+
+// The child's answer as it streams; an error before its headers is the envelope (504 when late).
+const relay = (upstream: ClientRequest, res: Response, next: NextFunction, ms: number) => {
+  let late = false;
+  const timer = setTimeout(() => ((late = true), upstream.destroy()), ms);
+  upstream.on('response', (up: IncomingMessage) => {
+    clearTimeout(timer);
+    res.writeHead(up.statusCode ?? 502, endToEnd(up.headers));
+    up.pipe(res);
   });
   upstream.on('error', () => {
-    leave();
     if (res.headersSent) return void res.destroy();
-    next(fail('UNAVAILABLE', 'The extension did not answer', { retryAfter: 5 }));
+    next(
+      late ? noAnswer(ms) : fail('UNAVAILABLE', 'The extension did not answer', { retryAfter: 5 })
+    );
+  });
+  return () => clearTimeout(timer);
+};
+
+// Streams the request to the child as it came (path and query kept), no pooled connection.
+const forward = (req: Request, res: Response, next: NextFunction, to: Taken, ms: number) => {
+  const { lane, leave } = to;
+  const upstream = requestTo(req, lane);
+  const stop = relay(upstream, res, next, ms);
+  upstream.on('error', leave);
+  // A client that went away aborts the request to the child too.
+  res.on('close', () => {
+    stop();
+    if (!res.writableFinished) upstream.destroy();
+    leave();
   });
   req.pipe(upstream);
 };
 
 export const proxyTo =
-  (entries: Entries, gateMs = GATE_MS): RequestHandler =>
+  (entries: Entries, limits: Pick<Limits, 'gateMs' | 'answerMs'>): RequestHandler =>
   async (req, res, next) => {
-    const lane = await laneFor(entries, String(req.params['id']), gateMs);
-    forward(req, res, next, lane);
+    const taken = await laneFor(entries, String(req.params['id']), limits.gateMs);
+    forward(req, res, next, taken, limits.answerMs);
   };

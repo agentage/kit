@@ -5,28 +5,21 @@ import { createLog } from '../../log/log.js';
 import { closeNow, listen } from '../../server/serve.js';
 import { forkLaunch, type Launch } from './child.js';
 import { removeDaemonFile, writeDaemonFile, DAEMON_PROTOCOL } from './daemon-files.js';
-import { keepBadCopy, readInstallation } from './installation.js';
-import { type Entries } from './ops.js';
+import { bootInstallation, keepBadCopy } from './installation.js';
+import { type Entries } from './entries.js';
+import { limitsOf, type Limits } from './limits.js';
+import { pendingChanges } from './pending.js';
 import { serialQueue } from './queue.js';
 import { daemonApp } from './routes.js';
-import {
-  DRAIN_MS,
-  HEALTH_MS,
-  halt,
-  startEntry,
-  type Installer,
-  type SupervisorDeps,
-} from './supervisor.js';
+import { runInstaller } from './installer-call.js';
+import { halt, startEntry, type Entry, type Installer, type SupervisorDeps } from './supervisor.js';
 
-export interface DaemonOptions {
+export interface DaemonOptions extends Partial<Limits> {
   configDir: string;
   port?: number;
   install?: Installer;
   version: string;
   startedBy: string;
-  // How long an old child's open requests may take (10 s), and a new child's /health (60 s).
-  drainMs?: number;
-  healthMs?: number;
 }
 
 export interface Daemon {
@@ -37,21 +30,33 @@ export interface Daemon {
 export const DAEMON_PORT = 4243;
 
 // The valid rows of installation.json; a bad file is kept aside and reported in /health.
-const loadEntries = async (configDir: string): Promise<{ entries: Entries; invalid: boolean }> => {
-  const { doc, invalid } = await readInstallation(configDir);
+const loadEntries = async (configDir: string) => {
+  const { doc, invalid, unreadable } = await bootInstallation(configDir);
   if (invalid) await keepBadCopy(configDir).catch(() => undefined);
   const entries: Entries = new Map();
   for (const install of doc.extensions) {
     const state = install.enabled === false ? 'disabled' : 'starting';
     entries.set(install.id, { id: install.id, install, state, version: install.version ?? '' });
   }
-  return { entries, invalid };
+  return { entries, invalid, unreadable };
 };
 
-// One at a time, so the installer is never called twice at once; a failed one stops no other.
+// A disabled entry gets its folder (configure and enable work); a failure is kept as its error.
+const resolveDir = async (deps: SupervisorDeps, entry: Entry): Promise<void> => {
+  const { id, install } = entry;
+  if (install.source) return void (entry.dir = install.source);
+  await runInstaller(deps, { id, version: install.version }).then(
+    (got) => void Object.assign(entry, { dir: got.dir, version: got.version, error: undefined }),
+    (err: Error) => void (entry.error = err.message)
+  );
+};
+
+// Folders first (no installer), then one at a time, each call bounded by installMs.
 const boot = async (deps: SupervisorDeps, entries: Entries): Promise<void> => {
-  for (const entry of entries.values())
-    if (entry.state === 'starting') await startEntry(deps, entry);
+  const all = [...entries.values()];
+  const ordered = [...all.filter((e) => e.install.source), ...all.filter((e) => !e.install.source)];
+  for (const entry of ordered)
+    await (entry.state === 'disabled' ? resolveDir(deps, entry) : startEntry(deps, entry));
 };
 
 const stopper = (server: Server, entries: Entries, deps: SupervisorDeps) => {
@@ -80,9 +85,9 @@ const depsOf = (opts: DaemonOptions, launch: Launch, origin: () => string): Supe
   install: opts.install,
   log: createLog({ extension: 'host', part: 'api', version: opts.version }),
   origin,
-  drainMs: opts.drainMs ?? DRAIN_MS,
-  healthMs: opts.healthMs ?? HEALTH_MS,
+  ...limitsOf(opts),
   queue: serialQueue(),
+  pending: pendingChanges(),
 });
 
 // Read and check the file, listen, write daemon.json, start the children; a failed boot undoes it.
@@ -90,8 +95,8 @@ export const startDaemon = async (opts: DaemonOptions, launch: Launch): Promise<
   await mkdir(opts.configDir, { recursive: true });
   let port = opts.port ?? DAEMON_PORT;
   const deps = depsOf(opts, launch, () => `http://127.0.0.1:${port}`);
-  const { entries, invalid } = await loadEntries(opts.configDir);
-  const info = { version: opts.version, pid: process.pid, protocol: DAEMON_PROTOCOL, invalid };
+  const { entries, ...file } = await loadEntries(opts.configDir);
+  const info = { version: opts.version, pid: process.pid, protocol: DAEMON_PROTOCOL, ...file };
   const app = daemonApp(deps, entries, () => port, info);
   const server = await listen(app, port, '127.0.0.1');
   port = (server.address() as AddressInfo).port;
@@ -108,4 +113,4 @@ export const startDaemon = async (opts: DaemonOptions, launch: Launch): Promise<
 
 // One daemon on 127.0.0.1, one child process for each extension (D1).
 export const createDaemon = (opts: DaemonOptions): Promise<Daemon> =>
-  startDaemon(opts, forkLaunch());
+  startDaemon(opts, forkLaunch(undefined, opts.startMs));

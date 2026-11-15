@@ -35,7 +35,7 @@ describe('hostExtension', () => {
     try {
       expect(await statusOf(served.url, { host: at })).toBe(200);
       expect(await statusOf(served.url, { host: at.replace('127.0.0.1', 'localhost') })).toBe(200);
-      expect(await statusOf(served.url, { host: at.replace('127.0.0.1', '[::1]') })).toBe(200);
+      expect(await statusOf(served.url, { host: at.replace('127.0.0.1', '[::1]') })).toBe(403);
       expect(await statusOf(served.url, { host: 'evil.example' })).toBe(403);
       expect(await statusOf(served.url, { host: at, origin: 'https://evil.example' })).toBe(403);
       expect(await statusOf(served.url, { host: at, 'sec-fetch-site': 'cross-site' })).toBe(403);

@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SecretNameSchema } from '../../manifest/primitives.schema.js';
+import { LIMITS } from './limits.js';
 
 interface LaunchSpec {
   id: string;
@@ -30,7 +31,6 @@ export interface Child {
 export type Launch = (spec: LaunchSpec) => Promise<Child>;
 
 const HOST_MAIN = fileURLToPath(new URL('../main.js', import.meta.url));
-const START_MS = 60_000;
 const STOP_MS = 5_000;
 const PASSED = ['PATH', 'HOME', 'TMPDIR', 'LANG', 'NODE_EXTRA_CA_CERTS'];
 
@@ -56,7 +56,7 @@ const passedEnv = () =>
   Object.fromEntries(PASSED.flatMap((k) => (process.env[k] ? [[k, process.env[k]]] : [])));
 
 // The child's last stderr line, its msg when it is a log row: why it did not start.
-const lastWords = (tail: string, code: number | null): string => {
+const lastWords = (tail: string, how: Exit): string => {
   const lines = tail
     .trim()
     .split('\n')
@@ -66,7 +66,7 @@ const lastWords = (tail: string, code: number | null): string => {
     const msg = String((JSON.parse(line) as { msg?: unknown }).msg ?? line);
     return msg.replace(/^[A-Za-z]*Error: /, '');
   } catch {
-    return line || `exited with code ${code}`;
+    return line || `exited with ${how.signal ? `signal ${how.signal}` : `code ${how.code}`}`;
   }
 };
 
@@ -85,10 +85,11 @@ const portOf = (msg: unknown): number | undefined => {
   return type === 'ready' && typeof port === 'number' ? port : undefined;
 };
 
-// The port the child bound, or why it exited first; a child silent for START_MS is killed.
-const readyOf = (child: ChildProcess, tail: () => string): Promise<number> =>
+// The port the child bound, or why it exited first; a child silent for startMs is killed.
+const readyOf = (child: ChildProcess, tail: () => string, startMs: number): Promise<number> =>
   new Promise((resolve, reject) => {
-    const timer = setTimeout(() => child.kill('SIGKILL'), START_MS);
+    let killed = false;
+    const timer = setTimeout(() => ((killed = true), child.kill('SIGKILL')), startMs);
     const settle = (fn: () => void) => {
       clearTimeout(timer);
       fn();
@@ -97,7 +98,12 @@ const readyOf = (child: ChildProcess, tail: () => string): Promise<number> =>
       const port = portOf(msg);
       if (port) settle(() => resolve(port));
     });
-    child.once('exit', (code) => settle(() => reject(new Error(lastWords(tail(), code)))));
+    child.once('exit', (code, signal) => {
+      const why = killed
+        ? `reported no port in ${startMs} ms: killed`
+        : lastWords(tail(), { code, signal });
+      settle(() => reject(new Error(why)));
+    });
   });
 
 // SIGTERM drains; a child still there after STOP_MS (a request that never ends) gets SIGKILL.
@@ -110,7 +116,7 @@ const stopOf = (child: ChildProcess, exited: Promise<Exit>) => async () => {
 
 // One child process per extension: node dist/host/main.js on a port the OS picks.
 export const forkLaunch =
-  (main = HOST_MAIN): Launch =>
+  (main = HOST_MAIN, startMs = LIMITS.startMs): Launch =>
   async (spec) => {
     const secretsDir = await secretFiles(spec);
     const stdio = ['ignore', 'pipe', 'pipe', 'ipc'] as const;
@@ -121,7 +127,7 @@ export const forkLaunch =
       child.once('exit', (code, signal) => resolve({ code, signal }))
     );
     try {
-      const port = await readyOf(child, captured(child));
+      const port = await readyOf(child, captured(child), startMs);
       return { port, pid: child.pid ?? 0, exited, stop: stopOf(child, exited) };
     } finally {
       await rm(secretsDir, { recursive: true, force: true });

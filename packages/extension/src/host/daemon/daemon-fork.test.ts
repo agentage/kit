@@ -28,7 +28,8 @@ beforeAll(async () => {
   if (!existsSync(MAIN)) throw new Error(`${MAIN} is missing: npm run build first`);
   vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
   vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
-  h = await startHarness({ launch: forkLaunch(MAIN), drainMs: 300 });
+  // A request counted on the old child before the swap is answered there: drainMs covers a busy CI.
+  h = await startHarness({ launch: forkLaunch(MAIN), drainMs: 2_000 });
   await writeSecrets(h.configDir, ['hosted', 'other']);
   await h.call('POST', '/host/extensions', { source: await hostedPackage() });
   await h.call('POST', '/host/extensions', { source: await hostedPackage(OTHER) });
@@ -88,7 +89,8 @@ describe('daemon with child processes', () => {
     });
     expect(change.status).toBe(200);
     expect(await hung).toBe(503);
-    expect(Date.now() - started).toBeLessThan(9_000);
+    // drainMs (2 s), the SIGKILL after 5 s, and the start of the new child.
+    expect(Date.now() - started).toBeLessThan(10_000);
     const next = await h.call('PATCH', '/host/extensions/other', {
       settings: { 'echo.prefix': 'b' },
     });
@@ -118,6 +120,25 @@ describe('daemon with child processes', () => {
     });
     expect((await echo('other')).status).toBe(200);
     expect((await echo('hosted')).status).toBe(503);
+  });
+
+  it('a child that exits with a code is failed with "(code N)" in the list and /health', async () => {
+    const crash = { ...OTHER, agentage: { ...OTHER.agentage, id: 'crash' } };
+    await writeSecrets(h.configDir, ['hosted', 'other', 'crash']);
+    await h.call('POST', '/host/extensions', { source: await hostedPackage(crash) });
+    expect((await echo('crash')).status).toBe(200);
+    await fetch(`http://127.0.0.1:${h.daemon.port}/api/crash/crash`);
+    const error = 'the process exited (code 3)';
+    await vi.waitFor(async () => {
+      const health = (await h.call('GET', '/health')).body;
+      expect(health).toMatchObject({
+        extensions: [{}, {}, { id: 'crash', state: 'failed', error }],
+      });
+    });
+    expect((await h.call('GET', '/host/extensions')).body).toMatchObject({
+      data: [{}, {}, { id: 'crash', state: 'failed', error }],
+    });
+    await h.call('DELETE', '/host/extensions/crash');
   });
 
   it('stop ends every child, also one with a request that never ends', async () => {

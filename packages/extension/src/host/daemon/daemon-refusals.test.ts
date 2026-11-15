@@ -98,6 +98,21 @@ describe('daemon refusals', () => {
     );
   });
 
+  it('a body that is not JSON is 400, a body over the limit 413, both in the envelope', async () => {
+    const at = { host: `127.0.0.1:${h.daemon.port}`, 'content-type': 'application/json' };
+    const bad = await rawRequest(h.daemon.port, at, '/host/extensions', 'POST', '{"source":');
+    expect([bad.status, JSON.parse(bad.body)]).toMatchObject([
+      400,
+      { error: { code: 'VALIDATION_ERROR', message: 'Invalid JSON body' } },
+    ]);
+    const big = JSON.stringify({ source: 'x'.repeat(2 * 1024 * 1024) });
+    const over = await rawRequest(h.daemon.port, at, '/host/extensions', 'POST', big);
+    expect([over.status, JSON.parse(over.body)]).toMatchObject([
+      413,
+      { error: { code: 'PAYLOAD_TOO_LARGE' } },
+    ]);
+  });
+
   it('404 in the envelope for an id not installed, on each route and under /api/', async () => {
     expect(await h.call('PATCH', '/host/extensions/ghost', {})).toMatchObject(
       code(404, 'NOT_FOUND')

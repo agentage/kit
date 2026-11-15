@@ -1,8 +1,8 @@
 export const CONTAINER_PORT = 8080;
 
 // The volume holds the store folder, so its <dir>.lock sibling persists with it.
-export const DATA_VOLUME = '/data';
-export const STORE_DIR = `${DATA_VOLUME}/store`;
+const DATA_VOLUME = '/data';
+const STORE_DIR = `${DATA_VOLUME}/store`;
 
 const HEALTH_PROBE =
   `fetch('http://127.0.0.1:'+(process.env.PORT||${CONTAINER_PORT})+'/health')` +
@@ -26,7 +26,7 @@ const pgliteStage = (version: string) => [
   '',
 ];
 
-const runner = (store: boolean) => [
+const runnerEnv = (store: boolean) => [
   'FROM node:26-alpine AS runner',
   'ARG COMMIT_SHA',
   'ARG BUILD_TIME',
@@ -37,6 +37,10 @@ const runner = (store: boolean) => [
   ...(store ? [`    AGENTAGE_DATA_DIR=${STORE_DIR} \\`] : []),
   '    COMMIT_SHA=$COMMIT_SHA \\',
   '    BUILD_TIME=$BUILD_TIME',
+];
+
+const runner = (store: boolean) => [
+  ...runnerEnv(store),
   'WORKDIR /app',
   'COPY --from=deps /app/node_modules ./node_modules',
   ...(store

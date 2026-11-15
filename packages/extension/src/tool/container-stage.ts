@@ -27,7 +27,7 @@ export const pgliteVersion = async (dir: string, kitCopy = kitPgliteVersion): Pr
 };
 
 // Compiled tests, source maps and earlier build records (dist/agentage-*.json) never ship.
-export const shippedFrom =
+const shippedFrom =
   (dir: string) =>
   (path: string): boolean => {
     const name = basename(path);
@@ -36,7 +36,7 @@ export const shippedFrom =
   };
 
 // The one image carries all of dist/, the OpenAPI file and the migrations; seeds never ship.
-export const containerPaths = async (dir: string, pkg: ExtensionPackage): Promise<string[]> => {
+const containerPaths = async (dir: string, pkg: ExtensionPackage): Promise<string[]> => {
   const paths = ['package.json', 'dist'];
   if (await exists(join(dir, OPENAPI_FILE))) paths.push(OPENAPI_FILE);
   if (migratesStore(pkg) && (await exists(join(dir, 'migrations')))) paths.push('migrations');

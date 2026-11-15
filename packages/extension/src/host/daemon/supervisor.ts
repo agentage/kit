@@ -11,10 +11,16 @@ import { runInstaller } from './installer-call.js';
 import { type Queue } from './queue.js';
 
 // Called on every boot for each entry with a version: idempotent (docs/part-image.md).
-export type Installer = (spec: {
+// signal: aborted when the daemon stops waiting (installMs); an installer may ignore it.
+export interface InstallSpec {
   id: string;
   version?: string;
-}) => Promise<{ id: string; version: string; dir: string }>;
+  signal?: AbortSignal;
+}
+
+export type Installer = (
+  spec: InstallSpec
+) => Promise<{ id: string; version: string; dir: string }>;
 
 // C6: what list and /health print.
 export type State = 'starting' | 'running' | 'failed' | 'disabled';

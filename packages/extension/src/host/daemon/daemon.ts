@@ -39,10 +39,11 @@ const loadEntries = async (configDir: string) => {
   return { entries, invalid, unreadable };
 };
 
-// One at a time, so the installer is never called twice at once; a failed one stops no other.
+// Folders first (no installer), then one at a time, each call bounded by installMs.
 const boot = async (deps: SupervisorDeps, entries: Entries): Promise<void> => {
-  for (const entry of entries.values())
-    if (entry.state === 'starting') await startEntry(deps, entry);
+  const all = [...entries.values()].filter((entry) => entry.state === 'starting');
+  const ordered = [...all.filter((e) => e.install.source), ...all.filter((e) => !e.install.source)];
+  for (const entry of ordered) await startEntry(deps, entry);
 };
 
 const stopper = (server: Server, entries: Entries, deps: SupervisorDeps) => {

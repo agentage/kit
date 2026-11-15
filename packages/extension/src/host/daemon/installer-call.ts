@@ -1,5 +1,6 @@
+import { setTimeout as sleep } from 'node:timers/promises';
 import { fail } from '../../envelope/envelope.js';
-import { type Installer, type SupervisorDeps } from './supervisor.js';
+import { type InstallSpec, type SupervisorDeps } from './supervisor.js';
 
 export const NO_INSTALLER = 'this daemon has no installer: install a folder with { source }';
 
@@ -8,9 +9,10 @@ const BASE = {
   404: 'NOT_FOUND',
   501: 'UNAVAILABLE',
   502: 'UNAVAILABLE',
+  504: 'UNAVAILABLE',
 } as const;
 
-// The envelope with a status or a code the closed set has not (501, the installer's own code).
+// The envelope with a status or a code the closed set has not (501, 504, the installer's own code).
 const answer = (status: keyof typeof BASE, message: string, code: string = BASE[status]) =>
   Object.assign(fail(BASE[status], message), { code, status, retryAfter: undefined });
 
@@ -22,9 +24,16 @@ const answerOf = (err: unknown): unknown => {
   return answer(at, typeof message === 'string' && message ? message : code, code);
 };
 
-export const runInstaller = async (deps: SupervisorDeps, spec: Parameters<Installer>[0]) => {
+// At most installMs, then 504; the signal then asks an installer that honours it to stop.
+export const runInstaller = async (deps: SupervisorDeps, spec: Omit<InstallSpec, 'signal'>) => {
   if (!deps.install) throw answer(501, NO_INSTALLER);
-  return deps.install(spec).catch((err: unknown) => {
+  const stop = new AbortController();
+  const late = sleep(deps.installMs, undefined, { ref: false, signal: stop.signal }).then(() => {
+    throw answer(504, `the installer did not answer in ${deps.installMs} ms`);
+  });
+  const call = deps.install({ ...spec, signal: stop.signal }).catch((err: unknown) => {
     throw answerOf(err);
   });
+  late.catch(() => undefined);
+  return Promise.race([call, late]).finally(() => stop.abort());
 };

@@ -71,7 +71,11 @@ describe('daemon lifecycle', () => {
     });
     const moved = await h.call('PATCH', '/host/extensions/hosted', { version: '1.1.0' });
     expect(moved.body).toMatchObject({ data: { version: '1.1.0', state: 'running' } });
-    expect(install).toHaveBeenLastCalledWith({ id: 'hosted', version: '1.1.0' });
+    expect(install).toHaveBeenLastCalledWith({
+      id: 'hosted',
+      version: '1.1.0',
+      signal: expect.any(AbortSignal),
+    });
     const doc = await readJsonFile(join(h.configDir, 'installation.json'), {});
     expect(doc).toEqual({ host: 'local', extensions: [{ id: 'hosted', version: '1.1.0' }] });
   });

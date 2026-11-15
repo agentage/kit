@@ -21,6 +21,13 @@ export const listen = (app: Express, port: number, host?: string): Promise<Serve
     const server = host === undefined ? app.listen(port, done) : app.listen(port, host, done);
   });
 
+// At once: open and idle connections end now; a drain is shutdownOn.
+export const closeNow = (server: Server): Promise<void> =>
+  new Promise((resolve) => {
+    server.close(() => resolve());
+    server.closeAllConnections();
+  });
+
 // Open requests are answered; a keep-alive connection is closed once idle, not at its timeout.
 const drain = (server: Server, exit: (code: number) => void, graceMs: number): void => {
   const idle = setInterval(() => server.closeIdleConnections(), 100).unref();

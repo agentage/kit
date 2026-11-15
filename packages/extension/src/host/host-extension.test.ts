@@ -1,10 +1,9 @@
 import { readFile } from 'node:fs/promises';
-import { request } from 'node:http';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { startOn } from '../testing/test-server.js';
 import { HOSTED_MANIFEST, hostedPackage } from '../test-support/hosted-fixture.js';
-import { serveApp } from '../test-support/http.js';
+import { rawRequest, serveApp } from '../test-support/http.js';
 import { json, tempDir, tempPackage } from '../test-support/packages.js';
 import { DATA_DIR_LOCKED } from './data-lock.js';
 import { hostExtension, type HostedExtension } from './host-extension.js';
@@ -24,15 +23,8 @@ afterEach(async () => {
   vi.restoreAllMocks();
 });
 
-// fetch cannot set Host: a raw request, as a page under another name would send it.
-const statusOf = (url: string, headers: Record<string, string>) =>
-  new Promise<number | undefined>((resolve, reject) => {
-    const req = request(`${url}/api/hosted/echo`, { headers }, (res) => {
-      res.resume();
-      resolve(res.statusCode);
-    });
-    req.on('error', reject).end();
-  });
+const statusOf = async (url: string, headers: Record<string, string>, path = '/api/hosted/echo') =>
+  (await rawRequest(Number(new URL(url).port), headers, path)).status;
 
 describe('hostExtension', () => {
   it('localOnly mounts the guard of the daemon: Host, Origin and Sec-Fetch-Site', async () => {
@@ -47,6 +39,9 @@ describe('hostExtension', () => {
       expect(await statusOf(served.url, { host: 'evil.example' })).toBe(403);
       expect(await statusOf(served.url, { host: at, origin: 'https://evil.example' })).toBe(403);
       expect(await statusOf(served.url, { host: at, 'sec-fetch-site': 'cross-site' })).toBe(403);
+      expect(await statusOf(served.url, { host: at, origin: 'null' })).toBe(403);
+      expect(await statusOf(served.url, { host: 'evil.example' }, '/health')).toBe(403);
+      expect(await statusOf(served.url, { host: at }, '/health')).toBe(200);
       const open = await serveApp(
         (await host(await hostedPackage(), { ...opts, localOnly: false })).app
       );

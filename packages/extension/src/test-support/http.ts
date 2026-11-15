@@ -1,10 +1,11 @@
 import { symlink } from 'node:fs/promises';
+import { request } from 'node:http';
 import { type AddressInfo } from 'node:net';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { type Express } from 'express';
 import { createLog, type Log } from '../log/log.js';
-import { listen } from '../server/serve.js';
+import { closeNow, listen } from '../server/serve.js';
 
 export interface Served {
   url: string;
@@ -16,10 +17,24 @@ export const serveApp = async (app: Express): Promise<Served> => {
   const server = await listen(app, 0, '127.0.0.1');
   const url = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
   // An idle keep-alive socket left by an aborted fetch would hold close() for 4 s.
-  const close = () =>
-    new Promise<void>((resolve) => (server.close(() => resolve()), server.closeAllConnections()));
-  return { url, close };
+  return { url, close: () => closeNow(server) };
 };
+
+// fetch cannot set Host: a raw request, as a page under another name would send it.
+export const rawRequest = (
+  port: number,
+  headers: Record<string, string>,
+  path = '/',
+  method = 'GET'
+) =>
+  new Promise<{ status?: number; body: string }>((resolve, reject) => {
+    const req = request({ host: '127.0.0.1', port, path, method, headers }, (res) => {
+      let body = '';
+      res.on('data', (chunk: Buffer) => (body += chunk.toString()));
+      res.on('end', () => resolve({ status: res.statusCode, body }));
+    });
+    req.on('error', reject).end();
+  });
 
 export interface RecordedLog {
   log: Log;

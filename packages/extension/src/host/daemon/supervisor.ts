@@ -11,9 +11,7 @@ import { type Queue } from './queue.js';
 
 export const GATE_MS = 30_000;
 
-// Called again on every boot for each entry with a version, one entry at a time: it must be
-// idempotent and fast for a version that is installed. An error with a string code (and status
-// 400, 404 or 502) reaches the client as the envelope with that code and message; others are a 500.
+// Called on every boot for each entry with a version: idempotent (docs/part-image.md).
 export type Installer = (spec: {
   id: string;
   version?: string;
@@ -85,7 +83,7 @@ const healthy = async (port: number, ms: number): Promise<void> => {
 };
 
 // A new child for install with values, healthy; the entry learns the version the package has.
-export const launchFor = async (
+const launchFor = async (
   deps: SupervisorDeps,
   entry: Entry,
   install: InstallEntry,
@@ -101,7 +99,7 @@ export const launchFor = async (
     throw err;
   });
   Object.assign(entry, { dir, version: pkg.version });
-  const lane = laneOf(child, pkg.version);
+  const lane = laneOf(child);
   void child.exited.then((how) => exitedEarly(deps, entry, lane, how));
   return lane;
 };
@@ -147,7 +145,7 @@ const restore = async (deps: SupervisorDeps, entry: Entry): Promise<void> => {
   else await startEntry(deps, entry);
 };
 
-export const startFailed = (entry: Entry, err: unknown) =>
+const startFailed = (entry: Entry, err: unknown) =>
   fail(
     'VALIDATION_ERROR',
     `${entry.id} failed to start with this change: ${(err as Error).message}`,
@@ -156,8 +154,7 @@ export const startFailed = (entry: Entry, err: unknown) =>
     }
   );
 
-// One writer per data folder, so one sequence for every extension, running or not: hold, drain
-// and stop the old child, start the new one, release. A refusal restores the old one and is a 400.
+// One writer per data folder: hold, stop the old child, start the new one; a refusal restores it.
 export const swap = async (deps: SupervisorDeps, entry: Entry, to: Next) => {
   const release = hold(entry);
   try {

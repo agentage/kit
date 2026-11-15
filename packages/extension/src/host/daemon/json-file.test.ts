@@ -1,8 +1,8 @@
-import { spawnSync } from 'node:child_process';
 import { readFile, readdir, stat, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { tempDir } from '../../test-support/packages.js';
+import { deadPid } from '../../test-support/processes.js';
 import { readJsonFile, withFileLock, writeJsonFile } from './json-file.js';
 
 describe('json files of the daemon', () => {
@@ -24,7 +24,7 @@ describe('json files of the daemon', () => {
       withFileLock(file, async () => writeJsonFile(file, (await readJsonFile(file, 0)) + 1));
     await Promise.all(Array.from({ length: 50 }, bump));
     expect(await readJsonFile(file, 0)).toBe(50);
-    await writeFile(`${file}.lock`, String(spawnSync(process.execPath, ['-e', '']).pid));
+    await writeFile(`${file}.lock`, String(deadPid()));
     await bump();
     expect(JSON.parse(await readFile(file, 'utf8'))).toBe(51);
     expect(await readdir(dir)).toEqual(['n.json']);

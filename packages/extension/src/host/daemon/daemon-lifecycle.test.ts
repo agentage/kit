@@ -1,8 +1,17 @@
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { startHarness, tempConfigDir, type Harness } from '../../test-support/daemon-harness.js';
-import { HOSTED_MANIFEST, hostedPackage } from '../../test-support/hosted-fixture.js';
+import {
+  startHarness,
+  tempConfigDir,
+  writeSecrets,
+  type Harness,
+} from '../../test-support/daemon-harness.js';
+import {
+  HOSTED_MANIFEST,
+  hostedPackage,
+  NO_STORE_MANIFEST as NO_STORE,
+} from '../../test-support/hosted-fixture.js';
 import { json } from '../../test-support/packages.js';
 import { readJsonFile } from './json-file.js';
 import { NO_INSTALLER } from './installer-call.js';
@@ -15,12 +24,7 @@ afterEach(async () => {
   vi.restoreAllMocks();
 });
 
-const SECRETS = json({ hosted: { 'api-token': 't' }, other: { 'api-token': 't' } });
 const withVersion = (version: string) => ({ ...HOSTED_MANIFEST, version });
-const NO_STORE = {
-  ...HOSTED_MANIFEST,
-  agentage: { ...HOSTED_MANIFEST.agentage, parts: { api: true } },
-};
 const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // 5 slow requests open on the old child, then 60 more, 5 ms apart, while the PATCH swaps it.
@@ -56,7 +60,7 @@ describe('daemon lifecycle', () => {
       dir: dirs[version]!,
     }));
     h = await startHarness({ install });
-    await writeFile(join(h.configDir, 'secrets.json'), SECRETS, { mode: 0o600 });
+    await writeSecrets(h.configDir, ['hosted', 'other']);
     const added = await h.call('POST', '/host/extensions', { id: 'hosted', version: '1.0.0' });
     expect(added).toMatchObject({
       status: 201,
@@ -91,7 +95,7 @@ describe('daemon lifecycle', () => {
         })
       );
       h = await startHarness({ install });
-      await writeFile(join(h.configDir, 'secrets.json'), SECRETS, { mode: 0o600 });
+      await writeSecrets(h.configDir, ['hosted', 'other']);
       await h.call('POST', '/host/extensions', { id: 'hosted' });
       const refused = await h.call('PATCH', '/host/extensions/hosted', { version: '2.0.0' });
       expect(refused).toMatchObject({
@@ -121,7 +125,7 @@ describe('daemon lifecycle', () => {
       { id: 'probe', version: '0.6.2' },
     ];
     await writeFile(join(configDir, 'installation.json'), json({ host: 'local', extensions }));
-    await writeFile(join(configDir, 'secrets.json'), SECRETS, { mode: 0o600 });
+    await writeSecrets(configDir, ['hosted', 'other']);
     h = await startHarness({ configDir });
     const states = (
       (await h.call('GET', '/host/extensions')).body as {
@@ -152,7 +156,7 @@ describe('daemon lifecycle', () => {
 
   it('a store PATCH the new child refuses starts the old one again', async () => {
     h = await startHarness();
-    await writeFile(join(h.configDir, 'secrets.json'), SECRETS, { mode: 0o600 });
+    await writeSecrets(h.configDir, ['hosted', 'other']);
     await h.call('POST', '/host/extensions', { source: await hostedPackage() });
     const refused = await h.call('PATCH', '/host/extensions/hosted', {
       settings: { 'echo.prefix': 3 },
@@ -171,7 +175,7 @@ describe('daemon lifecycle', () => {
     '60 requests during a PATCH (5 open on the old child) wait, then all answer 200, %s',
     async (_name, manifest) => {
       h = await startHarness();
-      await writeFile(join(h.configDir, 'secrets.json'), SECRETS, { mode: 0o600 });
+      await writeSecrets(h.configDir, ['hosted', 'other']);
       await h.call('POST', '/host/extensions', { source: await hostedPackage(manifest) });
       const { change, answers } = await duringPatch({ settings: { 'echo.prefix': 'hey' } });
       expect(change.status).toBe(200);

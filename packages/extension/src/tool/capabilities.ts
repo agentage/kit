@@ -1,3 +1,2 @@
-// What this kit can do, for a client that checks support without probing files.
-// container: `build --container`; localOnly: the guard and the hostExtension option.
-export const capabilities: readonly string[] = Object.freeze(['container', 'localOnly']);
+// What this kit can do (`build --container`, the localOnly guard), checked without probing files.
+export const capabilities = Object.freeze(['container', 'localOnly'] as const);

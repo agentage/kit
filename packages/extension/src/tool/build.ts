@@ -1,4 +1,4 @@
-import { rm, writeFile } from 'node:fs/promises';
+import { writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import { recordOf, validateRecord, type BuildInfo } from '../discovery/discovery.js';
 import { type ExtensionRecord } from '../discovery/discovery.schema.js';
@@ -9,9 +9,9 @@ import { readManifest } from '../manifest/read-manifest.js';
 import { type Env } from '../runtime/build-info.js';
 import { resolveBuildInfo } from './build-info.js';
 import { assertConforms } from './check.js';
-import { runnableParts } from './container-parts.js';
-import { buildContainer, type BuiltContainer } from './container.js';
-import { createDocker, type Docker } from './docker.js';
+import { containerParts, type ContainerParts } from './container-parts.js';
+import { buildContainer, CONTAINER_RECORD_FILE, type BuiltContainer } from './container.js';
+import { buildStaged, createDocker, pushByDigest, type Docker } from './docker.js';
 import { mustRun, runCommand, type Run } from './exec.js';
 import { labelsOf } from './labels.js';
 import { recordExtras } from './record-extras.js';
@@ -71,24 +71,17 @@ const compile = async (dir: string, pkg: ExtensionPackage, run: Run): Promise<vo
 
 const buildImage = async (job: PartJob, docker: Docker, tmpRoot?: string): Promise<void> => {
   const context = await stageContext(job.dir, job.pkg, job.part, tmpRoot);
-  try {
-    const buildArgs = {
-      COMMIT_SHA: job.info.commit,
-      BUILD_TIME: job.info.buildTime,
-      IMAGE: job.tag,
-    };
-    const labels = labelsOf(job.pkg, job.part, job.info);
-    await docker.build({ context, tag: job.tag, buildArgs, labels });
-  } finally {
-    await rm(context, { recursive: true, force: true });
-  }
+  const { commit, buildTime } = job.info;
+  const buildArgs = { COMMIT_SHA: commit, BUILD_TIME: buildTime, IMAGE: job.tag };
+  const labels = labelsOf(job.pkg, job.part, job.info);
+  await buildStaged(docker, { context, tag: job.tag, buildArgs, labels });
 };
 
-const pushImage = async (job: PartJob, docker: Docker): Promise<BuiltImage> => {
-  const digest = await docker.push(job.tag);
-  const repository = job.tag.slice(0, job.tag.lastIndexOf(':'));
-  return { part: job.part, tag: job.tag, digest, image: `${repository}@${digest}` };
-};
+const pushImage = async (job: PartJob, docker: Docker): Promise<BuiltImage> => ({
+  part: job.part,
+  tag: job.tag,
+  ...(await pushByDigest(docker, job.tag)),
+});
 
 // The record from the code and the images by digest; `up` writes the same shape from local digests.
 export const recordFor = async (
@@ -110,13 +103,15 @@ const writeRecord = async (
   return file;
 };
 
-const buildParts = async (
-  base: Omit<PartJob, 'part' | 'tag'>,
-  options: BuildOptions,
-  deps: BuildDeps
-): Promise<BuiltImage[]> => {
-  const docker = deps.docker ?? createDocker(deps.run);
-  const registry = options.registry ?? DEFAULT_REGISTRY;
+type Base = Omit<PartJob, 'part' | 'tag'>;
+
+const targetOf = (options: BuildOptions, deps: BuildDeps) => ({
+  docker: deps.docker ?? createDocker(deps.run),
+  registry: options.registry ?? DEFAULT_REGISTRY,
+});
+
+const buildParts = async (base: Base, options: BuildOptions, deps: BuildDeps) => {
+  const { docker, registry } = targetOf(options, deps);
   const images: BuiltImage[] = [];
   for (const part of imageParts(base.pkg)) {
     const job = { ...base, part, tag: imageTag(registry, base.pkg, part) };
@@ -126,14 +121,26 @@ const buildParts = async (
   return images;
 };
 
-const containerOf = (
-  base: Omit<PartJob, 'part' | 'tag'>,
-  options: BuildOptions,
+// --container: one image; with --push also dist/agentage-container.json.
+const containerOf = async (
+  base: Base,
+  parts: ContainerParts,
+  opts: BuildOptions,
   deps: BuildDeps
 ) => {
-  const registry = options.registry ?? DEFAULT_REGISTRY;
-  const job = { ...base, registry, push: options.push, tmpRoot: deps.tmpRoot };
-  return buildContainer(job, deps.docker ?? createDocker(deps.run));
+  const { docker, registry } = targetOf(opts, deps);
+  const job = { ...base, parts, registry, push: opts.push, tmpRoot: deps.tmpRoot };
+  const { container, record } = await buildContainer(job, docker);
+  if (!record) return { images: [], container };
+  const file = join(base.dir, 'dist', CONTAINER_RECORD_FILE);
+  return { images: [], container, recordFile: await writeRecord(base.dir, record, file) };
+};
+
+const partImages = async (base: Base, options: BuildOptions, deps: BuildDeps) => {
+  const images = await buildParts(base, options, deps);
+  if (!options.push) return { images };
+  const record = await recordFor(base.dir, base.pkg, base.info, images);
+  return { images, recordFile: await writeRecord(base.dir, record) };
 };
 
 // Validate, compile, check, one image per part (or the one image); --push pushes, writes the record.
@@ -143,15 +150,13 @@ export const build = async (
 ): Promise<BuildResult> => {
   const dir = resolve(options.dir ?? '.');
   const pkg = await readManifest(dir);
-  if (options.container) runnableParts(pkg);
+  const parts = options.container ? containerParts(pkg) : undefined;
   const info = await resolveBuildInfo(dir, options.env ?? process.env, deps.run);
   await compile(dir, pkg, deps.run);
   await assertConforms(dir, { run: deps.run });
-  const head = { id: pkg.agentage.id, version: pkg.version, ...info };
-  if (options.container)
-    return { ...head, images: [], ...(await containerOf({ dir, pkg, info }, options, deps)) };
-  const images = await buildParts({ dir, pkg, info }, options, deps);
-  const result: BuildResult = { ...head, images };
-  if (!options.push) return result;
-  return { ...result, recordFile: await writeRecord(dir, await recordFor(dir, pkg, info, images)) };
+  const base = { dir, pkg, info };
+  const built = parts
+    ? await containerOf(base, parts, options, deps)
+    : await partImages(base, options, deps);
+  return { id: pkg.agentage.id, version: pkg.version, ...info, ...built };
 };

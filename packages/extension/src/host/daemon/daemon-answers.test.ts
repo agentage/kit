@@ -1,11 +1,16 @@
-import { writeFile } from 'node:fs/promises';
-import { createServer } from 'node:net';
+import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { startHarness, tempConfigDir, type Harness } from '../../test-support/daemon-harness.js';
+import {
+  startHarness,
+  tempConfigDir,
+  writeSecrets,
+  type Harness,
+} from '../../test-support/daemon-harness.js';
 import { inProcessLaunch } from '../../test-support/in-process-launch.js';
 import { HOSTED_MANIFEST, hostedPackage } from '../../test-support/hosted-fixture.js';
 import { json } from '../../test-support/packages.js';
+import { freePort } from '../../test-support/processes.js';
 import { startDaemon, type Daemon } from './daemon.js';
 import { type Installer } from './supervisor.js';
 
@@ -26,11 +31,10 @@ const SETTINGS = {
   verbose: { type: 'boolean', default: false },
 };
 const typed = { ...HOSTED_MANIFEST, agentage: { ...HOSTED_MANIFEST.agentage, settings: SETTINGS } };
-const SECRETS = json({ hosted: { 'api-token': 't' } });
 
 const withTyped = async () => {
   h = await startHarness();
-  await writeFile(join(h.configDir, 'secrets.json'), SECRETS, { mode: 0o600 });
+  await writeSecrets(h.configDir);
   await h.call('POST', '/host/extensions', { source: await hostedPackage(typed) });
   return h;
 };
@@ -45,9 +49,7 @@ describe('daemon answers', () => {
     const changed = await patch({ limit: '5', ratio: '2.5', verbose: 'true', 'echo.prefix': '7' });
     expect(changed.status).toBe(200);
     expect(await patch({ limit: 6, verbose: false })).toMatchObject({ status: 200 });
-    const file = await import('node:fs/promises').then((fs) =>
-      fs.readFile(join(h!.configDir, 'settings.json'), 'utf8')
-    );
+    const file = await readFile(join(h!.configDir, 'settings.json'), 'utf8');
     expect(JSON.parse(file)).toEqual({
       hosted: { limit: 6, ratio: 2.5, verbose: false, 'echo.prefix': '7' },
     });
@@ -117,7 +119,7 @@ describe('daemon answers', () => {
     const configDir = await tempConfigDir();
     const extensions = [{ id: 'hosted', version: '1.0.0' }];
     await writeFile(join(configDir, 'installation.json'), json({ host: 'local', extensions }));
-    await writeFile(join(configDir, 'secrets.json'), SECRETS, { mode: 0o600 });
+    await writeSecrets(configDir);
     const dir = await hostedPackage();
     let release = (): void => undefined;
     const held = new Promise<void>((resolve) => (release = resolve));
@@ -148,11 +150,3 @@ describe('daemon answers', () => {
     expect(order.at(-1)).toBe('patch 200');
   });
 });
-
-const freePort = () =>
-  new Promise<number>((resolve) => {
-    const server = createServer().listen(0, '127.0.0.1', () => {
-      const { port } = server.address() as { port: number };
-      server.close(() => resolve(port));
-    });
-  });

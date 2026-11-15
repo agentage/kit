@@ -19,19 +19,19 @@ const InstallationSchema = z.looseObject({
 
 export type InstallEntry = z.infer<typeof InstallEntrySchema>;
 
-export interface Installation {
+interface Installation {
   host: string;
   extensions: InstallEntry[];
   [key: string]: unknown;
 }
 
 // The rows that pass the C3 schema; invalid: the file had other rows, or was not C3 at all.
-export interface CheckedInstallation {
+interface CheckedInstallation {
   doc: Installation;
   invalid: boolean;
 }
 
-export const INSTALLATION_FILE = 'installation.json';
+const INSTALLATION_FILE = 'installation.json';
 
 const EMPTY: Installation = { host: 'local', extensions: [] };
 

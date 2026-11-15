@@ -79,7 +79,7 @@ describe('build --container', () => {
 });
 
 describe('the parts of the one image', () => {
-  it('runs the api part and lists every other part as not run yet', async () => {
+  it('runs the api part and lists every other image part (not cli) as not run yet', async () => {
     const pkg = validateManifest({
       ...API_MANIFEST,
       agentage: {
@@ -91,7 +91,7 @@ describe('the parts of the one image', () => {
     const files = {
       'dist/worker/index.js': 'export const create = () => null;',
     };
-    expect(containerParts(pkg)).toEqual({ runs: ['api'], skipped: ['mcp', 'worker', 'cli'] });
+    expect(containerParts(pkg)).toEqual({ runs: ['api'], skipped: ['mcp', 'worker'] });
     const apiWorker = {
       ...pkg,
       agentage: {

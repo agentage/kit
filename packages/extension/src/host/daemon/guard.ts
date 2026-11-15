@@ -4,8 +4,7 @@ import { fail } from '../../envelope/envelope.js';
 // What a browser says of a request another site started (an <img>, a link, a form).
 const FOREIGN = ['cross-site', 'same-site'];
 
-// Only this machine, by name (127.0.0.1, localhost, [::1] at the port): a page elsewhere (DNS rebinding, a cross-site form or GET) gets 403.
-// No port given: the port the request came in on.
+// Only this machine by name (DNS rebinding, a cross-site form): no port given, the socket's own.
 export const localOnly =
   (port?: () => number): RequestHandler =>
   (req, _res, next) => {

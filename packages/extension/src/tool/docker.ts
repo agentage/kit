@@ -1,3 +1,4 @@
+import { rm } from 'node:fs/promises';
 import { mustRun, type Run } from './exec.js';
 import { TIMEOUTS } from './timeouts.js';
 
@@ -44,3 +45,18 @@ export const createDocker = (run: Run): Docker => ({
   push: async (tag) =>
     digestOf(await mustRun(run, 'docker', ['push', tag], { echo: true, timeoutMs: TIMEOUTS.push })),
 });
+
+// Builds a staged context, then removes it, also after a failed build.
+export const buildStaged = async (docker: Docker, options: DockerBuild): Promise<void> => {
+  try {
+    await docker.build(options);
+  } finally {
+    await rm(options.context, { recursive: true, force: true });
+  }
+};
+
+// The pushed tag by digest: `{repository}@sha256:...`, as the record names an image.
+export const pushByDigest = async (docker: Docker, tag: string) => {
+  const digest = await docker.push(tag);
+  return { digest, image: `${tag.slice(0, tag.lastIndexOf(':'))}@${digest}` };
+};

@@ -1,18 +1,17 @@
 import { request, type IncomingHttpHeaders, type IncomingMessage } from 'node:http';
+import { setTimeout as sleep } from 'node:timers/promises';
 import { type NextFunction, type Request, type RequestHandler, type Response } from 'express';
 import { fail } from '../../envelope/envelope.js';
 import { enter, type Lane } from './lane.js';
 import { type Entries } from './ops.js';
 import { GATE_MS } from './supervisor.js';
 
-const waited = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms).unref());
-
 // 404 not installed or disabled (chosen, not to retry); 503 starting, failed, or held past gateMs.
 const laneFor = async (entries: Entries, id: string, gateMs: number): Promise<Lane> => {
   const entry = entries.get(id);
   if (!entry) throw fail('NOT_FOUND', `${id} is not installed`);
   if (entry.state === 'disabled') throw fail('NOT_FOUND', `${id} is disabled`);
-  if (entry.gate) await Promise.race([entry.gate, waited(gateMs)]);
+  if (entry.gate) await Promise.race([entry.gate, sleep(gateMs, undefined, { ref: false })]);
   if (!entry.lane) throw fail('UNAVAILABLE', `${id} is ${entry.state}`, { retryAfter: 5 });
   return entry.lane;
 };

@@ -1,11 +1,11 @@
-import { mkdir, rm, unlink } from 'node:fs/promises';
+import { rm, unlink } from 'node:fs/promises';
 import { join } from 'node:path';
 import { readJsonFile, withFileLock, writeJsonFile } from './json-file.js';
 
-export const DAEMON_FILE = 'daemon.json';
+const DAEMON_FILE = 'daemon.json';
 export const DAEMON_PROTOCOL = 1;
 
-export interface DaemonFile {
+interface DaemonFile {
   pid: number;
   port: number;
   version: string;
@@ -25,7 +25,7 @@ export const purgeData = (configDir: string, id: string): Promise<void> =>
   rm(dataDirOf(configDir, id), { recursive: true, force: true });
 
 // Settings and secrets by extension id; secrets.json is 0600 and no route ever returns it.
-export type ValueKind = 'settings' | 'secrets';
+type ValueKind = 'settings' | 'secrets';
 type Values = Record<string, unknown>;
 
 const fileOf = (configDir: string, kind: ValueKind) => join(configDir, `${kind}.json`);
@@ -42,5 +42,3 @@ export const writeValues = (configDir: string, kind: ValueKind, id: string, valu
     await writeJsonFile(file, all, kind === 'secrets' ? 0o600 : 0o644);
   });
 };
-
-export const ensureConfigDir = (configDir: string) => mkdir(configDir, { recursive: true });

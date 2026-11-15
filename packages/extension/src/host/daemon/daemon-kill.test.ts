@@ -4,22 +4,15 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
-import { tempConfigDir } from '../../test-support/daemon-harness.js';
+import { tempConfigDir, writeSecrets } from '../../test-support/daemon-harness.js';
 import { hostedPackage } from '../../test-support/hosted-fixture.js';
 import { json } from '../../test-support/packages.js';
+import { alive } from '../../test-support/processes.js';
 
 // The built export: verify builds it (tsc -b) before the tests run.
 const HOST = fileURLToPath(new URL('../../../dist/host/index.js', import.meta.url));
 const RUN = `const { createDaemon } = await import(process.argv[1]);
 await createDaemon({ configDir: process.argv[2], port: 0, version: 't', startedBy: 'test' });`;
-
-const alive = (pid: number) => {
-  try {
-    return process.kill(pid, 0);
-  } catch {
-    return false;
-  }
-};
 
 describe('a daemon killed with SIGKILL', () => {
   it('leaves no child, also one with a request that never ends: it sees its IPC channel close', async () => {
@@ -27,7 +20,7 @@ describe('a daemon killed with SIGKILL', () => {
     const configDir = await tempConfigDir();
     const extensions = [{ id: 'hosted', source: await hostedPackage() }];
     await writeFile(join(configDir, 'installation.json'), json({ host: 'local', extensions }));
-    await writeFile(join(configDir, 'secrets.json'), json({ hosted: { 'api-token': 't' } }));
+    await writeSecrets(configDir);
     const args = ['--input-type=module', '-e', RUN, HOST, configDir];
     const daemon = spawn(process.execPath, args, { stdio: 'ignore' });
     let child = 0;

@@ -1,14 +1,10 @@
+import { mkdir } from 'node:fs/promises';
 import { type Server } from 'node:http';
 import { type AddressInfo } from 'node:net';
 import { createLog } from '../../log/log.js';
-import { listen } from '../../server/serve.js';
+import { closeNow, listen } from '../../server/serve.js';
 import { forkLaunch, type Launch } from './child.js';
-import {
-  ensureConfigDir,
-  removeDaemonFile,
-  writeDaemonFile,
-  DAEMON_PROTOCOL,
-} from './daemon-files.js';
+import { removeDaemonFile, writeDaemonFile, DAEMON_PROTOCOL } from './daemon-files.js';
 import { keepBadCopy, readInstallation } from './installation.js';
 import { type Entries } from './ops.js';
 import { serialQueue } from './queue.js';
@@ -58,17 +54,11 @@ const boot = async (deps: SupervisorDeps, entries: Entries): Promise<void> => {
     if (entry.state === 'starting') await startEntry(deps, entry);
 };
 
-const close = (server: Server): Promise<void> =>
-  new Promise((resolve) => {
-    server.close(() => resolve());
-    server.closeAllConnections();
-  });
-
 const stopper = (server: Server, entries: Entries, deps: SupervisorDeps) => {
   let stopped: Promise<void> | undefined;
   const stop = async () => {
     await Promise.all([...entries.values()].map((entry) => halt(entry, deps.drainMs)));
-    await close(server);
+    await closeNow(server);
     await removeDaemonFile(deps.configDir);
   };
   return () => (stopped ??= stop());
@@ -97,7 +87,7 @@ const depsOf = (opts: DaemonOptions, launch: Launch, origin: () => string): Supe
 
 // Read and check the file, listen, write daemon.json, start the children; a failed boot undoes it.
 export const startDaemon = async (opts: DaemonOptions, launch: Launch): Promise<Daemon> => {
-  await ensureConfigDir(opts.configDir);
+  await mkdir(opts.configDir, { recursive: true });
   let port = opts.port ?? DAEMON_PORT;
   const deps = depsOf(opts, launch, () => `http://127.0.0.1:${port}`);
   const { entries, invalid } = await loadEntries(opts.configDir);

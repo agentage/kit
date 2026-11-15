@@ -54,6 +54,7 @@ interface Hosting {
   extras: HostExtras;
   store: PgliteStore | undefined;
   onExit: () => void;
+  build: BuildInfo;
 }
 
 const once = (fn: () => void): (() => void) => {
@@ -76,7 +77,7 @@ const contextOf = async (h: Hosting, checks: Record<string, HealthCheck>): Promi
     pkg: h.pkg,
     part: 'api',
     origin: h.opts.origin ?? 'http://127.0.0.1',
-    commit: (h.extras.build ?? buildInfoFromEnv({})).commit,
+    commit: h.build.commit,
     log: h.log,
     settings: settingsOf(h.pkg, h.opts.settings ?? {}, h.log),
     store: h.store,
@@ -99,9 +100,9 @@ const baseOf = async (h: Hosting): Promise<PartAppBase> => {
   const guard = (await h.extras.guard?.(h.pkg, h.log)) ?? {};
   const checks = { ...(h.store && { store: storeCheck(h.store) }), ...guard.checks };
   const resolved = { instance: randomBytes(4).toString('hex'), startedAt: Date.now() };
-  const build = h.extras.build ?? buildInfoFromEnv({});
   const guards = h.opts.localOnly ? [localOnly()] : undefined;
-  return { pkg: h.pkg, log: h.log, build, onExit: h.onExit, guards, ...guard, checks, ...resolved };
+  const { pkg, log, build, onExit } = h;
+  return { pkg, log, build, onExit, guards, ...guard, checks, ...resolved };
 };
 
 const hostedOf = (h: Hosting, app: Express, base: PartAppBase): HostedExtension => {
@@ -121,7 +122,8 @@ export const hostWith = async (dir: string, opts: HostOptions, extras: HostExtra
   const log = createLog({ extension: pkg.agentage.id, part: 'api', version: pkg.version });
   const store = await openHostStore(dir, pkg, opts.dataDir, log);
   const onExit = once(opts.onExit ?? (() => undefined));
-  const h: Hosting = { dir, pkg, log, opts, extras, store, onExit };
+  const build = extras.build ?? buildInfoFromEnv({});
+  const h: Hosting = { dir, pkg, log, opts, extras, store, onExit, build };
   try {
     const base = await baseOf(h);
     return hostedOf(h, await appOf(h, base), base);

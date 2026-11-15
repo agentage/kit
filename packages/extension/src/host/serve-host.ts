@@ -6,7 +6,7 @@ import { listen, shutdownOn } from '../server/serve.js';
 import { guardOf, hostEnvOf } from './host-env.js';
 import { hostWith, type HostedExtension } from './host-extension.js';
 
-export interface ServeHostDeps {
+interface ServeHostDeps {
   exit?: (code: number) => void;
   signals?: NodeJS.Signals[];
   // Tells the parent (the daemon) the bound port: an IPC message when there is a channel.
@@ -21,8 +21,7 @@ export interface ServedHost {
 
 export const ORPHAN_MS = 10_000;
 
-// The port to the daemon; the daemon gone (its IPC channel closed): drain and exit, no orphan,
-// within ORPHAN_MS even with a request that never ends.
+// The port to the daemon; its IPC channel closed: drain, and exit within ORPHAN_MS in any case.
 export const announce = (port: number, stop: () => void, exit = process.exit): void => {
   if (!process.send) return;
   process.send({ type: 'ready', port });

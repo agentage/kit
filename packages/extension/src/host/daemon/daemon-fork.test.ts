@@ -76,12 +76,13 @@ describe('daemon with child processes', () => {
 
   it('a request sent during the swap is held, then served by the new child with the new settings', async () => {
     const old = (await echo('other')).body.data!.pid;
+    // /slow ends at 300 ms, then the new child starts: an echo at ~230 ms finds the gate held.
     const slow = fetch(`http://127.0.0.1:${h.daemon.port}/api/other/slow`);
     await pause(30);
     const change = h.call('PATCH', '/host/extensions/other', {
       settings: { 'echo.prefix': 'new' },
     });
-    await pause(60);
+    await pause(200);
     const held = await echo('other');
     expect((await slow).status).toBe(200);
     expect((await change).status).toBe(200);

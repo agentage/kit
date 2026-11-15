@@ -1,8 +1,7 @@
-import { mkdtemp, stat } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
+import { stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { API_MANIFEST, json, tempPackage } from '../test-support/packages.js';
+import { API_MANIFEST, json, tempDir, tempPackage } from '../test-support/packages.js';
 import { type CliClient } from './command.types.js';
 import { runCommand, type RunCommandOptions } from './run-command.js';
 
@@ -49,7 +48,7 @@ const run = async (command: string, extra: Partial<RunCommandOptions> = {}) => {
 
 describe('cli ctx', () => {
   it('logs JSON tagged with the command and one agcid per run; dir, user and client from the host', async () => {
-    const dataDir = await mkdtemp(join(tmpdir(), 'agentage-data-'));
+    const dataDir = await tempDir('agentage-data-');
     const client: CliClient = { api: async () => ({ id: '1' }), tool: async () => null };
     const user = { sub: 'usr_1', scopes: ['probe:read'] };
     const { code, stdout, stderr } = await run('whoami', { dataDir, client, user });

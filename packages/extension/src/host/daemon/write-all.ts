@@ -31,6 +31,14 @@ const stepsOf = (deps: SupervisorDeps, id: string, to: Written, was: Written): S
   ];
 };
 
+// An undo that failed leaves the files of id unlike the list: one warn line, and /health names it.
+export const unsynced = (deps: SupervisorDeps, id: string): void => {
+  deps.unsynced.add(id);
+  deps.log.warn('a failed write could not be undone: the daemon files may not match the list', {
+    id,
+  });
+};
+
 // installation.json, settings.json, secrets.json in turn; a failed one undoes those written before it.
 export const writeAll = async (
   deps: SupervisorDeps,
@@ -45,7 +53,10 @@ export const writeAll = async (
       done.unshift(undo);
     }
   } catch (err) {
-    for (const undo of done) await undo().catch(() => undefined);
+    let lost = false;
+    for (const undo of done) await undo().catch(() => (lost = true));
+    if (lost) unsynced(deps, id);
     throw err;
   }
+  deps.unsynced.delete(id);
 };

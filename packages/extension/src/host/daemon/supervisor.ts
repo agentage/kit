@@ -61,6 +61,8 @@ export interface SupervisorDeps extends Limits {
   queue: Queue;
   pending: PendingChanges;
   stopping: Stopping;
+  // The ids whose files a failed undo left unlike the list.
+  unsynced: Set<string>;
 }
 
 export const valuesOf = async (configDir: string, id: string): Promise<Values> => ({

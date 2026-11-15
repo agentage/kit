@@ -5,7 +5,7 @@ import { parse } from '../../envelope/parse.js';
 import { SecretNameSchema } from '../../manifest/primitives.schema.js';
 import { purgeData } from './daemon-files.js';
 import { entryOf, summary, type Entries } from './entries.js';
-import { writeAll } from './write-all.js';
+import { unsynced, writeAll } from './write-all.js';
 import { runInstaller } from './installer-call.js';
 import { checkedSettings } from './patch-values.js';
 import { type InstallEntry } from './installation.js';
@@ -57,7 +57,7 @@ const nextOf = async (deps: SupervisorDeps, entry: Entry, patch: Patch) => {
 const apply = async (deps: SupervisorDeps, entry: Entry, to: Next, was: Values) => {
   const back = { install: entry.install, values: was };
   await writeAll(deps, entry.id, to, back);
-  const undo = () => writeAll(deps, entry.id, back, to).catch(() => undefined);
+  const undo = () => writeAll(deps, entry.id, back, to).catch(() => unsynced(deps, entry.id));
   if (to.install.enabled !== false) await swap(deps, entry, to, undo);
   else await halt(entry, deps.drainMs);
   Object.assign(entry, { install: to.install }, to.dir && { dir: to.dir });

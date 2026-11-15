@@ -95,6 +95,7 @@ const depsOf = (opts: DaemonOptions, launch: Launch, origin: () => string, stopp
     ...limitsOf(opts),
     queue: serialQueue(),
     pending: pendingChanges(),
+    unsynced: new Set<string>(),
   }) satisfies SupervisorDeps;
 
 // Read and check the file, listen, write daemon.json, start the children; a failed boot undoes it.

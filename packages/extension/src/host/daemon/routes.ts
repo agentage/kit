@@ -32,15 +32,21 @@ const installationOf = ({ invalid, unreadable }: DaemonInfo) => {
   return invalid ? { installation: 'invalid' } : {};
 };
 
-const healthOf = (entries: Entries, info: DaemonInfo, pending: PendingChanges) => {
+const healthOf = (deps: SupervisorDeps, entries: Entries, info: DaemonInfo) => {
   const all = [...entries.values()];
   const settled = all.every((e) => e.state === 'running' || e.state === 'disabled');
-  const status = settled && !info.invalid && !info.unreadable ? 'ok' : 'degraded';
+  const synced = !deps.unsynced.size;
+  const status = settled && synced && !info.invalid && !info.unreadable ? 'ok' : 'degraded';
   const self = { service: DAEMON_SERVICE, pid: info.pid, protocol: info.protocol };
   const extensions = all.map(summary);
-  const changing = pending.list();
+  const changing = deps.pending.list();
   const busy = changing.length ? { pending: changing } : {};
-  return { status, version: info.version, ...self, extensions, ...busy, ...installationOf(info) };
+  const marks = {
+    ...busy,
+    ...(!synced && { unsynced: [...deps.unsynced] }),
+    ...installationOf(info),
+  };
+  return { status, version: info.version, ...self, extensions, ...marks };
 };
 
 // What a POST body names, for /health: the id, or the folder.
@@ -110,7 +116,7 @@ export const daemonApp = (
   app.use('/api/:id', proxyTo(entries, deps));
   app.get(
     '/health',
-    (_req, res) => void res.set('Cache-Control', 'no-store').json(healthOf(entries, info, pending))
+    (_req, res) => void res.set('Cache-Control', 'no-store').json(healthOf(deps, entries, info))
   );
   hostRoutes(app, deps, entries, info, pending);
   app.use(notFound);

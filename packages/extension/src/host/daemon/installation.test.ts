@@ -28,6 +28,14 @@ describe('updateInstallation (the /host export the cli move uses)', () => {
     await expect(readFile(fileIn(dir))).rejects.toThrow('ENOENT');
   });
 
+  it('a file that is not JSON is kept as installation.json.bad, then replaced', async () => {
+    const dir = await tempDir();
+    await writeFile(fileIn(dir), '{ not json');
+    await updateInstallation(dir, (doc) => doc);
+    expect(await readFile(`${fileIn(dir)}.bad`, 'utf8')).toBe('{ not json');
+    expect(JSON.parse(await readFile(fileIn(dir), 'utf8'))).toMatchObject({ extensions: [] });
+  });
+
   it('refuses an unreadable file (EISDIR) with 409 INSTALLATION_UNREADABLE', async () => {
     const dir = await tempDir();
     await mkdir(fileIn(dir));

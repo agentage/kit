@@ -78,7 +78,7 @@ describe('a slow installer at boot', () => {
       return new Promise(() => undefined);
     });
     const port = await freePort();
-    const opts = { configDir, port, version: 't', startedBy: 'test', install, installMs: 300 };
+    const opts = { configDir, port, version: 't', startedBy: 'test', install, installMs: 1_500 };
     const starting = startDaemon(opts, inProcessLaunch);
     await vi.waitFor(() => expect(install).toHaveBeenCalledTimes(1), { timeout: 15_000 });
     const during = await (await fetch(`http://127.0.0.1:${port}/health`)).json();
@@ -94,11 +94,33 @@ describe('a slow installer at boot', () => {
       data: object[];
     };
     expect(list.data).toMatchObject([
-      { id: 'slow', state: 'failed', error: 'the installer did not answer in 300 ms' },
+      { id: 'slow', state: 'failed', error: 'the installer did not answer in 1500 ms' },
       { id: 'hosted', state: 'running' },
       { id: 'other', state: 'running' },
     ]);
     expect(signals[0]?.aborted).toBe(true);
+    const values = await fetch(`http://127.0.0.1:${port}/host/extensions/slow`, {
+      method: 'PATCH',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ settings: { a: 1 } }),
+    });
+    expect([values.status, await values.json()]).toMatchObject([
+      400,
+      { error: { message: 'slow has no package yet: install it first' } },
+    ]);
+  });
+
+  it('an installer that answers in time sees no abort', async () => {
+    let seen: AbortSignal | undefined;
+    const dir = await hostedPackage(NO_STORE_MANIFEST);
+    const install = vi.fn<Installer>(async ({ signal }) => {
+      seen = signal;
+      return { id: 'hosted', version: '1.0.0', dir };
+    });
+    h = await startHarness({ install, installMs: 5_000 });
+    await writeSecrets(h.configDir, ['hosted']);
+    await h.call('POST', '/host/extensions', { id: 'hosted' });
+    expect(seen?.aborted).toBe(false);
   });
 
   it('POST { id } with an installer that never answers is 504 after installMs and records nothing', async () => {

@@ -24,16 +24,18 @@ const answerOf = (err: unknown): unknown => {
   return answer(at, typeof message === 'string' && message ? message : code, code);
 };
 
-// At most installMs, then 504; the signal then asks an installer that honours it to stop.
+// At most installMs, then 504; only then the signal asks an installer that honours it to stop.
 export const runInstaller = async (deps: SupervisorDeps, spec: Omit<InstallSpec, 'signal'>) => {
   if (!deps.install) throw answer(501, NO_INSTALLER);
   const stop = new AbortController();
-  const late = sleep(deps.installMs, undefined, { ref: false, signal: stop.signal }).then(() => {
+  const timer = new AbortController();
+  const late = sleep(deps.installMs, undefined, { ref: false, signal: timer.signal }).then(() => {
+    stop.abort();
     throw answer(504, `the installer did not answer in ${deps.installMs} ms`);
   });
+  late.catch(() => undefined);
   const call = deps.install({ ...spec, signal: stop.signal }).catch((err: unknown) => {
     throw answerOf(err);
   });
-  late.catch(() => undefined);
-  return Promise.race([call, late]).finally(() => stop.abort());
+  return Promise.race([call, late]).finally(() => timer.abort());
 };

@@ -104,7 +104,9 @@ export const updateInstallation = (
   return withFileLock(
     file,
     async () => {
-      const next = checkedDoc(change((await readInstallation(configDir)).doc));
+      const read = await readInstallation(configDir);
+      if (read.invalid) await keepBadCopy(configDir);
+      const next = checkedDoc(change(read.doc));
       await writeJsonFile(file, next);
       return next;
     },

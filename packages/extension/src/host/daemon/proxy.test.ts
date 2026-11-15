@@ -12,10 +12,10 @@ import { endToEnd, proxyTo } from './proxy.js';
 import { laneOf } from './lane.js';
 import { type Entry } from './supervisor.js';
 
-// A child that takes each request and never answers; seen holds them as they come.
-const silentChild = async () => {
+// A child that takes each request and never answers (or does what onRequest says); seen holds them.
+const silentChild = async (onRequest = (_req: IncomingMessage) => undefined) => {
   const seen: IncomingMessage[] = [];
-  const server = createServer((req) => void seen.push(req));
+  const server = createServer((req) => void (seen.push(req), onRequest(req)));
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   const port = (server.address() as AddressInfo).port;
   const child = {
@@ -52,6 +52,21 @@ describe('proxyTo', () => {
     const res = await server.fetch('/api/slow/echo');
     expect([res.status, await res.json()]).toMatchObject([503, { error: { code: 'UNAVAILABLE' } }]);
     await server.close();
+  });
+});
+
+describe('proxyTo, a child that drops the socket', () => {
+  it('before its headers: 503 "The extension did not answer" with Retry-After', async () => {
+    const child = await silentChild((req) => void req.socket.destroy());
+    const daemon = await daemonOn(child.entries, 1_000);
+    const res = await daemon.fetch('/api/mute/x');
+    expect([res.status, res.headers.get('retry-after'), await res.json()]).toMatchObject([
+      503,
+      '5',
+      { error: { code: 'UNAVAILABLE', message: 'The extension did not answer' } },
+    ]);
+    await daemon.close();
+    child.close();
   });
 });
 

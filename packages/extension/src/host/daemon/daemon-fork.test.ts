@@ -7,8 +7,10 @@ import {
   hostedPackage,
   NO_STORE_MANIFEST,
 } from '../../test-support/hosted-fixture.js';
+import { seedStore } from '../../test-support/pglite-seed.js';
 import { alive } from '../../test-support/processes.js';
 import { forkLaunch } from './child.js';
+import { dataDirOf } from './daemon-files.js';
 
 // The built entry: verify builds it (tsc -b) before the tests run.
 const MAIN = fileURLToPath(new URL('../../../dist/host/main.js', import.meta.url));
@@ -31,6 +33,7 @@ beforeAll(async () => {
   // A request counted on the old child before the swap is answered there: drainMs covers a busy CI.
   h = await startHarness({ launch: forkLaunch(MAIN), drainMs: 2_000 });
   await writeSecrets(h.configDir, ['hosted', 'other']);
+  await seedStore(dataDirOf(h.configDir, 'hosted'));
   await h.call('POST', '/host/extensions', { source: await hostedPackage() });
   await h.call('POST', '/host/extensions', { source: await hostedPackage(OTHER) });
 });

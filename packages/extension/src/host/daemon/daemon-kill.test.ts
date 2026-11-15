@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it, vi } from 'vitest';
 import { tempConfigDir, writeSecrets } from '../../test-support/daemon-harness.js';
 import { hostedPackage } from '../../test-support/hosted-fixture.js';
+import { seedStore } from '../../test-support/pglite-seed.js';
 import { json } from '../../test-support/packages.js';
 import { alive } from '../../test-support/processes.js';
 
@@ -21,6 +22,7 @@ describe('a daemon killed with SIGKILL', () => {
     const extensions = [{ id: 'hosted', source: await hostedPackage() }];
     await writeFile(join(configDir, 'installation.json'), json({ host: 'local', extensions }));
     await writeSecrets(configDir);
+    await seedStore(join(configDir, 'data', 'hosted'));
     const args = ['--input-type=module', '-e', RUN, HOST, configDir];
     const daemon = spawn(process.execPath, args, { stdio: 'ignore' });
     let child = 0;

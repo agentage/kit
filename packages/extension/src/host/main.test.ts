@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { hostedPackage } from '../test-support/hosted-fixture.js';
 import { tempDir } from '../test-support/packages.js';
+import { seedStore } from '../test-support/pglite-seed.js';
 
 // The built entry: verify builds it (tsc -b) before the tests run.
 const MAIN = fileURLToPath(new URL('../../dist/host/main.js', import.meta.url));
@@ -20,6 +21,7 @@ describe('dist/host/main.js', () => {
       PORT: '0',
       AGENTAGE_EXTENSION_DIR: await hostedPackage(),
       AGENTAGE_SECRETS_DIR: secrets,
+      AGENTAGE_DATA_DIR: await seedStore(join(await tempDir(), 'store')),
     };
     const child = fork(MAIN, [], { env, stdio: ['ignore', 'ignore', 'ignore', 'ipc'] });
     const port = await new Promise<number>((resolve) =>

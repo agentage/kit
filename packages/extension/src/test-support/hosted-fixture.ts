@@ -17,19 +17,24 @@ export const HOSTED_MANIFEST = {
 // No imports, so it loads from a temp folder: a plain middleware is a router to Express.
 const API = `export const create = (ctx) => async (req, res, next) => {
   if (req.path === '/echo') {
-    const { rows } = await ctx.store.query('update hits set n = n + 1 returning n');
+    const counted = ctx.extension.store && (await ctx.store.query('update hits set n = n + 1 returning n'));
+    const rows = counted ? counted.rows : [{ n: 0 }];
     const msg = [ctx.settings['echo.prefix'], req.query.msg].filter(Boolean).join(' ');
     const secret = ctx.secrets.apiToken.length;
-    return res.json({ success: true, data: { msg, hits: rows[0].n, secret, pid: process.pid } });
+    return res.json({ success: true, data: { msg, hits: rows[0].n, secret, pid: process.pid, origin: ctx.extension.origin } });
   }
   if (req.path === '/slow') return setTimeout(() => res.json({ success: true, data: process.pid }), 300);
   if (req.path === '/exit') {
     ctx.exit();
+    globalThis.afterExit = true;
     return res.json({ success: true, data: 'bye' });
   }
   next();
 };
 `;
+
+// A create that asks to exit before the server listens.
+export const EXIT_IN_CREATE = `export const create = (ctx) => { ctx.exit(); return (_req, _res, next) => next(); };\n`;
 
 export const hostedPackage = (manifest: object = HOSTED_MANIFEST, api = API) =>
   tempPackage({

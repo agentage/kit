@@ -38,6 +38,13 @@ export const DIGEST = `sha256:${'b'.repeat(64)}`;
 
 const made: string[] = [];
 
+// A throwaway folder, removed after its test file like a temp package.
+export const tempDir = async (prefix = 'agentage-kit-test-'): Promise<string> => {
+  const dir = await mkdtemp(join(tmpdir(), prefix));
+  made.push(dir);
+  return dir;
+};
+
 // A throwaway package folder: files maps relative paths to contents; removed after its test file.
 export const tempPackage = async (files: Record<string, string>): Promise<string> => {
   const dir = await mkdtemp(join(tmpdir(), 'agentage-kit-test-'));

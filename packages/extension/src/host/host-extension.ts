@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { type Express } from 'express';
 import { createContext, type PartContext } from '../context/context.js';
-import { secretsFrom } from '../context/secrets.js';
+import { readSecrets, secretsFrom } from '../context/secrets.js';
 import { settingsOf } from '../context/settings.js';
 import { readOpenapi } from '../discovery/openapi.js';
 import { healthBody, type HealthCheck } from '../health/health.js';
@@ -14,7 +14,7 @@ import { buildInfoFromEnv } from '../runtime/build-info.js';
 import { RUNNERS } from '../runtime/part-runners.js';
 import { createPartApp, type PartAppBase } from '../server/app.js';
 import { storeCheck } from '../store/store.js';
-import { type TestStore } from '../store/test-store.js';
+import { type PgliteStore } from '../store/pglite-store.js';
 import { openHostStore } from './host-store.js';
 
 export interface HostOptions {
@@ -22,6 +22,8 @@ export interface HostOptions {
   settings?: Record<string, unknown>;
   secrets?: Record<string, string>;
   onExit?: () => void;
+  // ctx.extension.origin; http://127.0.0.1 when left out.
+  origin?: string;
 }
 
 export interface HostedExtension {
@@ -32,12 +34,19 @@ export interface HostedExtension {
   health(): Promise<HealthBody>;
 }
 
+// What the entry adds: secrets from a folder (as /run/secrets), and a token check off loopback.
+export interface HostExtras {
+  secretsDir?: string;
+  guard?: (pkg: ExtensionPackage, log: Log) => Promise<Partial<PartAppBase>>;
+}
+
 interface Hosting {
   dir: string;
   pkg: ExtensionPackage;
   log: Log;
   opts: HostOptions;
-  store: TestStore | undefined;
+  extras: HostExtras;
+  store: PgliteStore | undefined;
   onExit: () => void;
 }
 
@@ -50,60 +59,71 @@ const once = (fn: () => void): (() => void) => {
   };
 };
 
+const secretsOf = ({ pkg, opts, extras }: Hosting) =>
+  extras.secretsDir
+    ? readSecrets(pkg, 'api', extras.secretsDir)
+    : secretsFrom(pkg, 'api', async (name) => opts.secrets?.[name] ?? '');
+
+// createContext with the host's values: settings and secrets as given, no platform.
 const contextOf = async (h: Hosting, checks: Record<string, HealthCheck>): Promise<PartContext> =>
   createContext({
     pkg: h.pkg,
     part: 'api',
-    origin: 'http://127.0.0.1',
+    origin: h.opts.origin ?? 'http://127.0.0.1',
     commit: buildInfoFromEnv({}).commit,
     log: h.log,
     settings: settingsOf(h.pkg, h.opts.settings ?? {}, h.log),
     store: h.store,
-    secrets: await secretsFrom(h.pkg, 'api', async (name) => h.opts.secrets?.[name] ?? ''),
+    secrets: await secretsOf(h),
     checks,
     onExit: h.onExit,
   });
 
-// The api part of the package with no token check; a package without one serves /health only.
-const appOf = async (h: Hosting, base: PartAppBase, checks: Record<string, HealthCheck>) => {
+// The api part of the package; a package without one serves /health only.
+const appOf = async (h: Hosting, base: PartAppBase) => {
   if (!normalizeParts(h.pkg.agentage.parts).code.api)
     return createPartApp({ ...base, part: 'api', mount: () => undefined });
-  const ctx = await contextOf(h, checks);
-  const input = { dir: h.dir, pkg: h.pkg, env: {}, ctx: () => ctx, base, openapi: null };
-  const { app } = await RUNNERS.api({ ...input, openapi: await readOpenapi(h.dir) });
-  return app;
+  const ctx = await contextOf(h, base.checks ?? {});
+  const openapi = await readOpenapi(h.dir);
+  return (await RUNNERS.api({ dir: h.dir, pkg: h.pkg, env: {}, ctx: () => ctx, base, openapi }))
+    .app;
+};
+
+const baseOf = async (h: Hosting): Promise<PartAppBase> => {
+  const guard = (await h.extras.guard?.(h.pkg, h.log)) ?? {};
+  const checks = { ...(h.store && { store: storeCheck(h.store) }), ...guard.checks };
+  const resolved = { instance: randomBytes(4).toString('hex'), startedAt: Date.now() };
+  const build = buildInfoFromEnv({});
+  return { pkg: h.pkg, log: h.log, build, onExit: h.onExit, ...guard, checks, ...resolved };
 };
 
 const hostedOf = (h: Hosting, app: Express, base: PartAppBase): HostedExtension => {
-  const resolved = { instance: randomBytes(4).toString('hex'), startedAt: Date.now() };
   const { id } = h.pkg.agentage;
   const { version } = h.pkg;
+  const { instance = '', startedAt = 0, build, checks } = base;
   const health = () =>
-    healthBody({
-      ...resolved,
-      extension: id,
-      part: 'api',
-      version,
-      build: base.build,
-      checks: base.checks,
-    });
+    healthBody({ extension: id, part: 'api', version, build, checks, instance, startedAt });
   let stopped: Promise<void> | undefined;
   const stop = () => (stopped ??= h.store ? h.store.close() : Promise.resolve());
   return { id, version, app, health, stop };
 };
 
-// One extension in this process: its api at /api/{id}/*, its own settings, secrets, store and log.
-export const hostExtension = async (dir: string, opts: HostOptions): Promise<HostedExtension> => {
+// hostExtension with the extras of the entry (dist/host/main.js).
+export const hostWith = async (dir: string, opts: HostOptions, extras: HostExtras) => {
   const pkg = await readManifest(dir);
   const log = createLog({ extension: pkg.agentage.id, part: 'api', version: pkg.version });
   const store = await openHostStore(dir, pkg, opts.dataDir, log);
-  const h: Hosting = { dir, pkg, log, opts, store, onExit: once(opts.onExit ?? (() => undefined)) };
-  const checks: Record<string, HealthCheck> = store ? { store: storeCheck(store) } : {};
-  const base = { pkg, log, build: buildInfoFromEnv({}), checks, onExit: h.onExit };
+  const onExit = once(opts.onExit ?? (() => undefined));
+  const h: Hosting = { dir, pkg, log, opts, extras, store, onExit };
   try {
-    return hostedOf(h, await appOf(h, base, checks), base);
+    const base = await baseOf(h);
+    return hostedOf(h, await appOf(h, base), base);
   } catch (err) {
     await store?.close();
     throw err;
   }
 };
+
+// One extension in this process: its api at /api/{id}/*, no token check, its own settings, secrets, store and log.
+export const hostExtension = (dir: string, opts: HostOptions): Promise<HostedExtension> =>
+  hostWith(dir, opts, {});

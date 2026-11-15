@@ -35,6 +35,9 @@ export interface PartAppBase {
   resource?: Record<string, unknown>;
   // A ctx.exit() asked for in a request: SIGTERM by default (server/request-line.ts).
   onExit?: () => void;
+  // Given by a host that also reads its health directly, so both answers name one instance.
+  instance?: string;
+  startedAt?: number;
 }
 
 export interface PartAppOptions extends PartAppBase {
@@ -94,6 +97,8 @@ const healthHandler = (options: PartAppOptions): RequestHandler =>
     build: options.build,
     checks: options.checks,
     log: options.log,
+    instance: options.instance,
+    startedAt: options.startedAt,
   });
 
 // The kit app every part image runs: agcid, headers, /health, discovery, the part, the envelope.

@@ -20,3 +20,23 @@ when it runs the image. The audience (`AGENTAGE_AUDIENCE`) is the host a token i
 JSON Schemas for the manifest, the build record, the discovery document, `/health` and the
 envelope are in [`packages/extension/schemas`](../packages/extension/schemas). Regenerate them with
 `npm run build && npm run schemas`.
+
+## Host one extension
+
+`@agentage/extension/host` exports `hostExtension(dir, opts)`. It serves the api part of the
+package in `dir` at `/api/{id}/*`. The daemon child and the one container run the entry
+`node node_modules/@agentage/extension/dist/host/main.js`.
+
+| Env                      | Meaning                                                                                                                                 |
+| ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------- |
+| `PORT`                   | the port, `8080` by default; `0` lets the OS pick, and the port goes to the parent over IPC                                             |
+| `AGENTAGE_EXTENSION_DIR` | the package folder, the current folder by default                                                                                       |
+| `AGENTAGE_DATA_DIR`      | the PGlite folder of a postgres store; `<dir>.lock` holds the pid. Unset: in memory, a warn line                                        |
+| `AGENTAGE_SETTINGS`      | JSON of setting values over the manifest defaults                                                                                       |
+| `AGENTAGE_SECRETS_DIR`   | one file per declared secret, `/run/secrets` by default                                                                                 |
+| `AGENTAGE_ORIGIN`        | `ctx.extension.origin`, `http://127.0.0.1:<PORT>` by default                                                                            |
+| `AGENTAGE_HOST_BIND=all` | listen on every address. It needs a token check (`AGENTAGE_ISSUER`, `AGENTAGE_AUDIENCE`, `AGENTAGE_ORIGIN`) or `AGENTAGE_HOST_AUTH=off` |
+
+On loopback there is no token check. SIGTERM drains the open requests, closes the store and
+exits 0. `ctx.exit()` does the same. The host brings `@electric-sql/pglite`; the package does not
+need it.

@@ -69,3 +69,15 @@ describe('daemon boot with a bad installation.json', () => {
     await expect(fetch(`http://127.0.0.1:${port}/health`)).rejects.toThrow();
   });
 });
+
+describe('daemon boot with a file that has no host', () => {
+  it('reads host as local and keeps the rows', async () => {
+    const configDir = await tempConfigDir();
+    const extensions = [{ id: 'hosted', source: await hostedPackage() }];
+    await writeFile(join(configDir, 'installation.json'), json({ extensions }));
+    h = await startHarness({ configDir });
+    const health = (await h.call('GET', '/health')).body as Record<string, unknown>;
+    expect(health['installation']).toBeUndefined();
+    expect(health).toMatchObject({ extensions: [{ id: 'hosted' }] });
+  });
+});

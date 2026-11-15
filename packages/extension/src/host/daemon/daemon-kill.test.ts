@@ -22,7 +22,7 @@ const alive = (pid: number) => {
 };
 
 describe('a daemon killed with SIGKILL', () => {
-  it('leaves no child: each child sees its IPC channel close and exits', async () => {
+  it('leaves no child, also one with a request that never ends: it sees its IPC channel close', async () => {
     if (!existsSync(HOST)) throw new Error(`${HOST} is missing: npm run build first`);
     const configDir = await tempConfigDir();
     const extensions = [{ id: 'hosted', source: await hostedPackage() }];
@@ -40,7 +40,10 @@ describe('a daemon killed with SIGKILL', () => {
       },
       { timeout: 45_000, interval: 100 }
     );
+    const { port } = JSON.parse(await readFile(join(configDir, 'daemon.json'), 'utf8'));
+    void fetch(`http://127.0.0.1:${port}/api/hosted/hang`).catch(() => undefined);
+    await new Promise((resolve) => setTimeout(resolve, 200));
     daemon.kill('SIGKILL');
-    await vi.waitFor(() => expect(alive(child)).toBe(false), { timeout: 10_000, interval: 100 });
+    await vi.waitFor(() => expect(alive(child)).toBe(false), { timeout: 20_000, interval: 100 });
   }, 60_000);
 });

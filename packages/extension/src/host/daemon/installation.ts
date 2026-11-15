@@ -12,7 +12,10 @@ const InstallEntrySchema = z.looseObject({
   enabled: z.boolean().optional(),
 });
 
-const InstallationSchema = z.looseObject({ host: z.string(), extensions: z.array(z.unknown()) });
+const InstallationSchema = z.looseObject({
+  host: z.string().default('local'),
+  extensions: z.array(z.unknown()),
+});
 
 export type InstallEntry = z.infer<typeof InstallEntrySchema>;
 

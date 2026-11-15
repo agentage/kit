@@ -3,7 +3,7 @@ import { setTimeout as sleep } from 'node:timers/promises';
 import { type NextFunction, type Request, type RequestHandler, type Response } from 'express';
 import { fail } from '../../envelope/envelope.js';
 import { enter, type Lane } from './lane.js';
-import { type Entries } from './ops.js';
+import { type Entries } from './entries.js';
 import { GATE_MS } from './supervisor.js';
 
 // 404 not installed or disabled (chosen, not to retry); 503 starting, failed, or held past gateMs.

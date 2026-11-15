@@ -5,8 +5,8 @@ import { createLog } from '../../log/log.js';
 import { closeNow, listen } from '../../server/serve.js';
 import { forkLaunch, type Launch } from './child.js';
 import { removeDaemonFile, writeDaemonFile, DAEMON_PROTOCOL } from './daemon-files.js';
-import { keepBadCopy, readInstallation } from './installation.js';
-import { type Entries } from './ops.js';
+import { bootInstallation, keepBadCopy } from './installation.js';
+import { type Entries } from './entries.js';
 import { serialQueue } from './queue.js';
 import { daemonApp } from './routes.js';
 import {
@@ -37,15 +37,15 @@ export interface Daemon {
 export const DAEMON_PORT = 4243;
 
 // The valid rows of installation.json; a bad file is kept aside and reported in /health.
-const loadEntries = async (configDir: string): Promise<{ entries: Entries; invalid: boolean }> => {
-  const { doc, invalid } = await readInstallation(configDir);
+const loadEntries = async (configDir: string) => {
+  const { doc, invalid, unreadable } = await bootInstallation(configDir);
   if (invalid) await keepBadCopy(configDir).catch(() => undefined);
   const entries: Entries = new Map();
   for (const install of doc.extensions) {
     const state = install.enabled === false ? 'disabled' : 'starting';
     entries.set(install.id, { id: install.id, install, state, version: install.version ?? '' });
   }
-  return { entries, invalid };
+  return { entries, invalid, unreadable };
 };
 
 // One at a time, so the installer is never called twice at once; a failed one stops no other.
@@ -90,8 +90,14 @@ export const startDaemon = async (opts: DaemonOptions, launch: Launch): Promise<
   await mkdir(opts.configDir, { recursive: true });
   let port = opts.port ?? DAEMON_PORT;
   const deps = depsOf(opts, launch, () => `http://127.0.0.1:${port}`);
-  const { entries, invalid } = await loadEntries(opts.configDir);
-  const info = { version: opts.version, pid: process.pid, protocol: DAEMON_PROTOCOL, invalid };
+  const { entries, invalid, unreadable } = await loadEntries(opts.configDir);
+  const info = {
+    version: opts.version,
+    pid: process.pid,
+    protocol: DAEMON_PROTOCOL,
+    invalid,
+    unreadable,
+  };
   const app = daemonApp(deps, entries, () => port, info);
   const server = await listen(app, port, '127.0.0.1');
   port = (server.address() as AddressInfo).port;

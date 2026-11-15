@@ -1,6 +1,7 @@
 import { copyFile } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
 import { z } from 'zod';
+import { fail } from '../../envelope/envelope.js';
 import { ExtensionIdSchema } from '../../manifest/primitives.schema.js';
 import { readJsonFile, withFileLock, writeJsonFile } from './json-file.js';
 
@@ -19,7 +20,7 @@ const InstallationSchema = z.looseObject({
 
 export type InstallEntry = z.infer<typeof InstallEntrySchema>;
 
-interface Installation {
+export interface Installation {
   host: string;
   extensions: InstallEntry[];
   [key: string]: unknown;
@@ -43,8 +44,42 @@ const checked = (raw: unknown): CheckedInstallation => {
   return { doc: { ...top.data, extensions }, invalid: extensions.length < rows.length };
 };
 
+const unreadable = (why: string) =>
+  fail(
+    'CONFLICT',
+    `${INSTALLATION_FILE} cannot be read (${why}): fix it, then restart the daemon; no change is written`,
+    { code: 'INSTALLATION_UNREADABLE' }
+  );
+
+const reasonOf = (err: unknown) =>
+  String((err as NodeJS.ErrnoException).code ?? (err as Error).message);
+
+// Not JSON: null (invalid, kept aside). Not readable (EACCES, EISDIR): thrown.
+const rawOf = (configDir: string) =>
+  readJsonFile(join(configDir, INSTALLATION_FILE), EMPTY).catch((err: unknown) => {
+    if (err instanceof SyntaxError) return null;
+    throw err;
+  });
+
 export const readInstallation = async (configDir: string): Promise<CheckedInstallation> =>
-  checked(await readJsonFile(join(configDir, INSTALLATION_FILE), EMPTY).catch(() => null));
+  checked(
+    await rawOf(configDir).catch((err: unknown) => {
+      throw unreadable(reasonOf(err));
+    })
+  );
+
+// At boot an unreadable file gives no rows and its reason; the daemon then refuses every change.
+export const bootInstallation = (configDir: string) =>
+  rawOf(configDir).then(
+    (raw): CheckedInstallation & { unreadable?: string } => checked(raw),
+    (err: unknown) => ({ doc: EMPTY, invalid: false, unreadable: reasonOf(err) })
+  );
+
+// A change is refused when the file was unreadable at boot (why) or is unreadable now.
+export const assertReadable = async (configDir: string, why?: string): Promise<void> => {
+  if (why) throw unreadable(why);
+  await readInstallation(configDir);
+};
 
 // A bad file is kept as installation.json.bad before the daemon writes the valid rows over it.
 export const keepBadCopy = (configDir: string): Promise<void> =>

@@ -5,7 +5,7 @@ import { hostedPackage, NO_STORE_MANIFEST } from '../../test-support/hosted-fixt
 import { errorHandler } from '../../server/errors.js';
 import { startOn } from '../../testing/test-server.js';
 import { createLog } from '../../log/log.js';
-import { type Entries } from './ops.js';
+import { type Entries } from './entries.js';
 import { endToEnd, proxyTo } from './proxy.js';
 import { type Entry } from './supervisor.js';
 

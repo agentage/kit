@@ -60,22 +60,24 @@ const bound = (db: PGliteLike): Store => ({
   },
 });
 
+const opened = async (prepare: (store: Store) => Promise<unknown>, at: StoreAt) => {
+  const { PGlite } = await loadPglite(at.from);
+  const db = new PGlite(at.dataDir);
+  const store = bound(db);
+  await prepare(store).catch(async (err: unknown) => {
+    await db.close();
+    throw err;
+  });
+  return { ...store, db };
+};
+
 // In-process Postgres (WASM), prepared once on first use; a failed prepare leaves no open database.
 export const createPgliteStore = (
   prepare: (store: Store) => Promise<unknown>,
   at: StoreAt = {}
 ): PgliteStore => {
   let ready: Promise<Store & { db: PGliteLike }> | undefined;
-  const start = async () => {
-    const { PGlite } = await loadPglite(at.from);
-    const db = new PGlite(at.dataDir);
-    const store = bound(db);
-    await prepare(store).catch(async (err: unknown) => {
-      await db.close();
-      throw err;
-    });
-    return { ...store, db };
-  };
+  const start = () => opened(prepare, at);
   return {
     query: async (text, params) => (await (ready ??= start())).query(text, params),
     close: async () => {

@@ -76,6 +76,7 @@ describe('public surface', () => {
       'createDaemon',
       'hostExtension',
       'localOnly',
+      'updateInstallation',
     ]);
   });
 

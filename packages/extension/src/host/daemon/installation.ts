@@ -85,7 +85,16 @@ export const assertReadable = async (configDir: string, why?: string): Promise<v
 export const keepBadCopy = (configDir: string): Promise<void> =>
   copyFile(join(configDir, INSTALLATION_FILE), join(configDir, `${INSTALLATION_FILE}.bad`));
 
-// Read, change and write under the lock: the daemon is the only writer.
+// Only rows C3 accepts are written, and each id once.
+const checkedDoc = (next: Installation): Installation => {
+  const ids = next.extensions.map((row) => row.id);
+  const bad = next.extensions.find((row) => !InstallEntrySchema.safeParse(row).success);
+  if (bad || new Set(ids).size < ids.length || !InstallationSchema.safeParse(next).success)
+    throw fail('VALIDATION_ERROR', `${INSTALLATION_FILE}: a row C3 refuses, or an id twice`);
+  return next;
+};
+
+// Read, change and write under the lock: the daemon, and the cli's one-time move, use this one path.
 export const updateInstallation = (
   configDir: string,
   change: (doc: Installation) => Installation,
@@ -95,7 +104,7 @@ export const updateInstallation = (
   return withFileLock(
     file,
     async () => {
-      const next = change((await readInstallation(configDir)).doc);
+      const next = checkedDoc(change((await readInstallation(configDir)).doc));
       await writeJsonFile(file, next);
       return next;
     },

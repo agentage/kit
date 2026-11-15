@@ -1,2 +1,7 @@
-// What this kit can do (`build --container`, the localOnly guard), checked without probing files.
-export const capabilities = Object.freeze(['container', 'localOnly'] as const);
+// What this kit can do, checked without probing files (docs/part-image.md lists each).
+export const capabilities = Object.freeze([
+  'container',
+  'localOnly',
+  'installDisabled',
+  'updateInstallation',
+] as const);

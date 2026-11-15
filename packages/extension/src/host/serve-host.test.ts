@@ -115,6 +115,15 @@ describe('serveHost', () => {
     await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(0));
   });
 
+  it('a store close that never ends still exits, after AGENTAGE_DRAIN_MS', async () => {
+    const { s, exit } = await start({ AGENTAGE_DRAIN_MS: '150' });
+    const stop = s.host.stop;
+    s.host.stop = () => new Promise(() => undefined);
+    s.stop();
+    await vi.waitFor(() => expect(exit).toHaveBeenCalledWith(0));
+    s.host.stop = stop;
+  });
+
   it('ctx.exit() in a request drains the host the same way', async () => {
     const { exit, url } = await start();
     expect((await fetch(`${url}/api/hosted/exit`)).status).toBe(200);

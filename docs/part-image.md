@@ -79,11 +79,12 @@ While a change is taken and not yet answered (queued too), `/health` lists it in
 `[{ op: "install" | "update" | "remove", id?, source?, since, timedOut? }]`; the field is left
 out when nothing is pending. An installer call past `installMs` stays listed with `timedOut: true`
 until it ends, and a second installer call for that id meanwhile is 409 `CONFLICT` with that row
-in `error.details`. A `POST` for an id that is installed is 409 `CONFLICT` with `error.details`
+in `error.details`. So an installer that never ends keeps its id at 409 until the daemon restarts.
+A `POST` for an id that is installed is 409 `CONFLICT` with `error.details`
 `{ id, version?, source? }` of the entry that is there. A change that waits `installMs` for the
-changes before it (the boot too) is 503 `UNAVAILABLE` and never runs. Once `stop()` begins, a queued change is
-503 `UNAVAILABLE` ("the daemon stops"), no child starts, and a child still starting is stopped
-before `stop()` resolves.
+changes before it (the boot too) is 503 `UNAVAILABLE` and never runs. Once `stop()` begins, a
+queued change is 503 `UNAVAILABLE` ("the daemon stops"), no child starts, and a child still
+starting is stopped before `stop()` resolves.
 
 `POST /host/extensions` with `enabled: false` records the extension (the installer runs for an
 `{ id }`) and never starts it. At each boot the installer runs for a disabled `{ id }` entry too:
@@ -91,24 +92,26 @@ its folder is found and nothing starts, so `PATCH { settings }` and `PATCH { ena
 work after a restart. A failed installer keeps the entry disabled, with the reason in `error`.
 
 A change writes `installation.json`, `settings.json`, then `secrets.json` (a remove writes them in
-the other order, so a crash half way leaves no secret for a later install of that id); the daemon changes its
-state and children only after all three are written. A failed write puts back the files written
-before it, so the files, the list and the running child stay as they were. When that put-back
-fails too, the daemon writes one warn line and `/health` lists the id in `unsynced` (status
-`degraded`) until a later write of that id passes. At each boot with a clean `installation.json`, the rows of
-`settings.json` and `secrets.json` for an id it does not name are deleted (a failed sweep is a warn
-line). When
-`installation.json` cannot be read (`EACCES`, `EISDIR`), the daemon never writes it: `/health`
-says `installation: "unreadable"` and `installationError`, and each change is 409
-`INSTALLATION_UNREADABLE` until the file is fixed (unreadable at boot: also a restart). A file at boot that
-is not JSON, has rows C3 refuses or an id twice, is kept as `installation.json.bad` and replaced by
-the valid rows (the first of each id) the daemon runs; `/health` says `installation: "invalid"`. A
-file that turns not JSON after boot is never written: each change is 409 `INSTALLATION_UNREADABLE`
-("not JSON") until it is fixed. A write that finds a daemon file locked by another live process waits `lockMs`,
-then is 503 `UNAVAILABLE` naming the pid ("installation.json is locked by process <pid>: waited
-<ms> ms"). The data lock falls back to an exclusive create on a volume with no hard links; an
-empty lock file is taken as being written for 1 s, then as stale. One starter at a time removes a
-stale lock (it holds `<dataDir>.lock.break`), so of many starters at once only one takes it.
+the other order, so a crash half way leaves no secret for a later install of that id). The daemon
+changes its state and children only after all three are written. A failed write puts back the
+files written before it, so the files, the list and the running child stay as they were. When that
+put-back fails too, the daemon writes one warn line and `/health` lists the id in `unsynced`
+(status `degraded`) until a later write of that id passes. At each boot with a clean
+`installation.json`, the `settings.json` and `secrets.json` rows of an id it does not name are
+deleted (a failed sweep is a warn line).
+
+When `installation.json` cannot be read (`EACCES`, `EISDIR`), the daemon never writes it:
+`/health` says `installation: "unreadable"` and `installationError`, and each change is 409
+`INSTALLATION_UNREADABLE` until the file is fixed (unreadable at boot: also a restart). A file at
+boot that is not JSON, has rows C3 refuses or an id twice, is kept as `installation.json.bad` and
+replaced by the valid rows (the first of each id) the daemon runs; `/health` says
+`installation: "invalid"`. A file that turns not JSON after boot is never written: each change is
+409 `INSTALLATION_UNREADABLE` ("not JSON") until it is fixed. A write that finds a daemon file
+locked by another live process waits `lockMs`, then is 503 `UNAVAILABLE` naming the pid
+("installation.json is locked by process <pid>: waited <ms> ms"). The data lock falls back to an
+exclusive create on a volume with no hard links; an empty lock file is taken as being written for
+1 s, then as stale. One starter at a time removes a stale lock (it holds `<dataDir>.lock.break`),
+so of many starters at once only one takes it.
 
 Two exports from `/host` write the daemon files under the kit's lock, for a client that moves
 older files before the daemon starts:
@@ -139,13 +142,14 @@ The 11 min of `installMs` is above the cli's npm bound (10 min) and below its cl
 The daemon (`createDaemon`) answers `/health` with `service: "agentage-daemon"`, `pid`, `version`
 and `protocol`, the values of `daemon.json`, so a client can prove which process it talks to. A
 `PATCH {settings}` string becomes the type the manifest declares (`"5"` to `5`, `"true"`); any
-other value, or an undeclared key, is `400 INVALID_SETTING`. A `PATCH` that changes nothing (the same
-values and version, the entry already running or disabled as asked) is 200 and starts no child; a
-`PATCH` of a failed entry starts it again. An `Installer` error with a string
-`code` (and `status` 400, 404 or 502) is the client's error; any other error is a logged `500`.
-The daemon calls the `Installer` again on every boot, once for each entry with a version (disabled
-ones too, after the enabled ones started), one at a time, after the folder entries. So it must be idempotent and fast for a
-version that is already installed. Its spec carries a `signal`, aborted only when the daemon stops
-waiting (`installMs`); an installer that ignores it keeps running (`pending` shows it).
+other value, or an undeclared key, is `400 INVALID_SETTING`. A `PATCH` that changes nothing (the
+same values and version, the entry already running or disabled as asked) is 200 and starts no
+child; a `PATCH` of a failed entry starts it again. An `Installer` error with a string `code` (and
+`status` 400, 404 or 502) is the client's error; any other error is a logged `500`. The daemon
+calls the `Installer` again on every boot, once for each entry with a version, one at a time:
+first the enabled ones (after the folder entries), then the disabled ones. So it must be idempotent
+and fast for a version that is already installed. Its spec carries a `signal`, aborted only when
+the daemon stops waiting (`installMs`); an installer that ignores it keeps running (`pending`
+shows it).
 Statuses, not codes, tell a retry: 503 `UNAVAILABLE` is worth a retry after `Retry-After`; 504
 `TIMEOUT` means the call may still be applied.

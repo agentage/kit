@@ -12,6 +12,7 @@ import { hostedPackage } from '../../test-support/hosted-fixture.js';
 import { json } from '../../test-support/packages.js';
 import { freePort } from '../../test-support/processes.js';
 import { startDaemon } from './daemon.js';
+import { type Installer } from './supervisor.js';
 
 let h: Harness | undefined;
 beforeEach(() => void vi.spyOn(process.stderr, 'write').mockImplementation(() => true));
@@ -33,6 +34,33 @@ describe('daemon boot with a bad installation.json', () => {
     });
     const bad = await readFile(join(configDir, 'installation.json.bad'), 'utf8');
     expect(bad).toBe('{"host": "local", "exten');
+    const now = JSON.parse(await readFile(join(configDir, 'installation.json'), 'utf8'));
+    expect(now).toEqual({ host: 'local', extensions: [] });
+  });
+
+  it('a file that turns not JSON after boot: each change is 409, its rows stay, then a fix is enough', async () => {
+    h = await startHarness();
+    await writeSecrets(h.configDir);
+    await h.call('POST', '/host/extensions', { source: await hostedPackage() });
+    const file = join(h.configDir, 'installation.json');
+    const kept = await readFile(file, 'utf8');
+    await writeFile(file, kept.slice(0, -5));
+    const patch = { settings: { 'echo.prefix': 'hey' } };
+    expect(await h.call('PATCH', '/host/extensions/hosted', patch)).toMatchObject({
+      status: 409,
+      body: {
+        error: {
+          code: 'INSTALLATION_UNREADABLE',
+          message: 'installation.json cannot be read (not JSON): fix it; no change is written',
+        },
+      },
+    });
+    expect(await h.call('DELETE', '/host/extensions/hosted')).toMatchObject({ status: 409 });
+    expect(await readFile(file, 'utf8')).toBe(kept.slice(0, -5));
+    expect((await h.call('GET', '/api/hosted/echo?msg=hi')).status).toBe(200);
+    await writeFile(file, kept);
+    expect(await h.call('PATCH', '/host/extensions/hosted', patch)).toMatchObject({ status: 200 });
+    expect(await readFile(file, 'utf8')).toBe(kept);
   });
 
   it('invalid rows are left out, the valid ones run; no data folder of a bad id is deleted', async () => {
@@ -64,6 +92,30 @@ describe('daemon boot with a bad installation.json', () => {
     const opts = { configDir, port, version: 't', startedBy: 'test' };
     await expect(startDaemon(opts, inProcessLaunch)).rejects.toThrow();
     await expect(fetch(`http://127.0.0.1:${port}/health`)).rejects.toThrow();
+  });
+});
+
+describe('a file that turns not JSON while a change runs', () => {
+  it('is never written: the change is 409 when it comes to write', async () => {
+    const dir = await hostedPackage();
+    let release = () => undefined as void;
+    const install = vi.fn<Installer>(async ({ id, version = '1.0.0' }) => {
+      if (version !== '1.0.0') await new Promise<void>((resolve) => (release = resolve));
+      return { id, version, dir };
+    });
+    h = await startHarness({ install });
+    await writeSecrets(h.configDir);
+    await h.call('POST', '/host/extensions', { id: 'hosted' });
+    const patched = h.call('PATCH', '/host/extensions/hosted', { version: '1.1.0' });
+    await vi.waitFor(() => expect(install).toHaveBeenCalledTimes(2));
+    const file = join(h.configDir, 'installation.json');
+    await writeFile(file, '{ not json');
+    release();
+    expect(await patched).toMatchObject({
+      status: 409,
+      body: { error: { code: 'INSTALLATION_UNREADABLE' } },
+    });
+    expect(await readFile(file, 'utf8')).toBe('{ not json');
   });
 });
 

@@ -5,7 +5,7 @@ import { createLog } from '../../log/log.js';
 import { closeNow, listen } from '../../server/serve.js';
 import { forkLaunch, type Launch } from './child.js';
 import { pruneValues, removeDaemonFile, writeDaemonFile, DAEMON_PROTOCOL } from './daemon-files.js';
-import { bootInstallation, keepBadCopy } from './installation.js';
+import { bootInstallation, updateInstallation } from './installation.js';
 import { type Entries } from './entries.js';
 import { limitsOf, type Limits } from './limits.js';
 import { pendingChanges } from './pending.js';
@@ -30,10 +30,13 @@ export interface Daemon {
 
 export const DAEMON_PORT = 4243;
 
-// The valid rows of installation.json; a bad file is kept aside and reported in /health.
-const loadEntries = async (configDir: string) => {
-  const { doc, invalid, unreadable } = await bootInstallation(configDir);
-  if (invalid) await keepBadCopy(configDir).catch(() => undefined);
+const warnOf = (deps: SupervisorDeps) => (err: Error) =>
+  deps.log.warn('a daemon file was not cleaned at boot', { reason: err.message });
+
+// The valid rows of installation.json; a bad file is kept aside, replaced by them, and in /health.
+const loadEntries = async (deps: SupervisorDeps) => {
+  const { doc, invalid, unreadable } = await bootInstallation(deps.configDir);
+  if (invalid) await updateInstallation(deps.configDir, () => doc, deps.lockMs).catch(warnOf(deps));
   const entries: Entries = new Map();
   for (const install of doc.extensions) {
     const state = install.enabled === false ? 'disabled' : 'starting';
@@ -64,9 +67,7 @@ const boot = async (deps: SupervisorDeps, entries: Entries): Promise<void> => {
 
 // Only a clean list says which rows are orphans; a failed sweep is a warn line, not a failed boot.
 const prune = (deps: SupervisorDeps, ids: string[]) =>
-  pruneValues(deps.configDir, ids, deps.lockMs).catch((err: Error) =>
-    deps.log.warn('orphan settings and secrets rows were not deleted', { reason: err.message })
-  );
+  pruneValues(deps.configDir, ids, deps.lockMs).catch(warnOf(deps));
 
 const stopper = (server: Server, entries: Entries, deps: SupervisorDeps, life: AbortController) => {
   let stopped: Promise<void> | undefined;
@@ -110,7 +111,7 @@ export const startDaemon = async (opts: DaemonOptions, launch: Launch): Promise<
   let port = opts.port ?? DAEMON_PORT;
   const life = new AbortController();
   const deps = depsOf(opts, launch, () => `http://127.0.0.1:${port}`, stoppingOf(life.signal));
-  const { entries, ...file } = await loadEntries(opts.configDir);
+  const { entries, ...file } = await loadEntries(deps);
   if (!file.invalid && !file.unreadable) await prune(deps, [...entries.keys()]);
   const info = { version: opts.version, pid: process.pid, protocol: DAEMON_PROTOCOL, ...file };
   const app = daemonApp(deps, entries, () => port, info);

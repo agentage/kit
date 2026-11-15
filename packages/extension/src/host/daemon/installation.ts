@@ -55,18 +55,23 @@ const unreadable = (why: string, atBoot = false) =>
   );
 
 const reasonOf = (err: unknown) =>
-  String((err as NodeJS.ErrnoException).code ?? (err as Error).message);
+  err instanceof SyntaxError
+    ? 'not JSON'
+    : String((err as NodeJS.ErrnoException).code ?? (err as Error).message);
 
-// Not JSON: null (invalid, kept aside). Not readable (EACCES, EISDIR): thrown.
-const rawOf = (configDir: string) =>
+// A file that is not JSON: read as empty (kept aside first), or refused like an unreadable one.
+type NotJson = 'empty' | 'refuse';
+
+// Not readable (EACCES, EISDIR): thrown.
+const rawOf = (configDir: string, notJson: NotJson = 'empty') =>
   readJsonFile(join(configDir, INSTALLATION_FILE), EMPTY).catch((err: unknown) => {
-    if (err instanceof SyntaxError) return null;
+    if (err instanceof SyntaxError && notJson === 'empty') return null;
     throw err;
   });
 
-export const readInstallation = async (configDir: string): Promise<CheckedInstallation> =>
+const readInstallation = async (configDir: string, notJson: NotJson) =>
   checked(
-    await rawOf(configDir).catch((err: unknown) => {
+    await rawOf(configDir, notJson).catch((err: unknown) => {
       throw unreadable(reasonOf(err));
     })
   );
@@ -81,7 +86,7 @@ export const bootInstallation = (configDir: string) =>
 // A change is refused when the file was unreadable at boot (why) or is unreadable now.
 export const assertReadable = async (configDir: string, why?: string): Promise<void> => {
   if (why) throw unreadable(why, true);
-  await readInstallation(configDir);
+  await readInstallation(configDir, 'refuse');
 };
 
 // A bad file is kept as installation.json.bad before the daemon writes the valid rows over it.
@@ -97,30 +102,32 @@ const checkedDoc = (next: Installation): Installation => {
   return next;
 };
 
+type Change = (doc: Installation) => Installation;
+
+const changeInstallation =
+  (notJson: NotJson) =>
+  async (configDir: string, change: Change, waitMs?: number): Promise<Installation> => {
+    await assertNoOtherDaemon(configDir);
+    const file = join(configDir, INSTALLATION_FILE);
+    const write = async () => {
+      const read = await readInstallation(configDir, notJson);
+      if (read.invalid) await keepBadCopy(configDir);
+      const next = checkedDoc(change(read.doc));
+      await writeJsonFile(file, next);
+      return next;
+    };
+    return withFileLock(file, write, waitMs);
+  };
+
 /**
  * Read, change and write installation.json under the kit's lock, the path the daemon uses.
  * Only while no daemon runs on configDir (it reads the file at its start and owns it after):
  * a live daemon named by daemon.json is refused, unless this is that daemon's process.
  */
-export const updateInstallation = async (
-  configDir: string,
-  change: (doc: Installation) => Installation,
-  waitMs?: number
-): Promise<Installation> => {
-  await assertNoOtherDaemon(configDir);
-  const file = join(configDir, INSTALLATION_FILE);
-  return withFileLock(
-    file,
-    async () => {
-      const read = await readInstallation(configDir);
-      if (read.invalid) await keepBadCopy(configDir);
-      const next = checkedDoc(change(read.doc));
-      await writeJsonFile(file, next);
-      return next;
-    },
-    waitMs
-  );
-};
+export const updateInstallation = changeInstallation('empty');
+
+// The daemon after its boot: its rows are in the file, so a file that is not JSON is never replaced.
+export const persistInstallation = changeInstallation('refuse');
 
 // The entry of id replaced (or added), the order kept; undefined removes it.
 export const withEntry = (doc: Installation, id: string, entry?: InstallEntry): Installation => {

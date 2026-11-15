@@ -99,10 +99,11 @@ fails too, the daemon writes one warn line and `/health` lists the id in `unsync
 line). When
 `installation.json` cannot be read (`EACCES`, `EISDIR`), the daemon never writes it: `/health`
 says `installation: "unreadable"` and `installationError`, and each change is 409
-`INSTALLATION_UNREADABLE` until the file is fixed (unreadable at boot: also a restart). A file with
-rows C3 refuses, or an id twice, is kept as `installation.json.bad`; the daemon runs the valid
-rows (the first of each id), `/health` says `installation: "invalid"`, and its next write stores
-the clean list. A write that finds a daemon file locked by another live process waits `lockMs`,
+`INSTALLATION_UNREADABLE` until the file is fixed (unreadable at boot: also a restart). A file at boot that
+is not JSON, has rows C3 refuses or an id twice, is kept as `installation.json.bad` and replaced by
+the valid rows (the first of each id) the daemon runs; `/health` says `installation: "invalid"`. A
+file that turns not JSON after boot is never written: each change is 409 `INSTALLATION_UNREADABLE`
+("not JSON") until it is fixed. A write that finds a daemon file locked by another live process waits `lockMs`,
 then is 503 `UNAVAILABLE` naming the pid ("installation.json is locked by process <pid>: waited
 <ms> ms"). The data lock falls back to an exclusive create on a volume with no hard links; an
 empty lock file is taken as being written for 1 s, then as stale. One starter at a time removes a

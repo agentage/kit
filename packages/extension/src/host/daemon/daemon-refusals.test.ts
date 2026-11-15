@@ -55,6 +55,7 @@ describe('daemon refusals', () => {
     const at = `127.0.0.1:${h.daemon.port}`;
     expect((await raw({ host: 'evil.example:4243' })).status).toBe(403);
     expect((await raw({ host: `localhost:${h.daemon.port}` })).status).toBe(200);
+    expect((await raw({ host: `[::1]:${h.daemon.port}` })).status).toBe(403);
     expect((await raw({ host: at, origin: 'https://evil.example' })).status).toBe(403);
     expect((await raw({ host: at, origin: `http://${at}` })).status).toBe(200);
     expect(JSON.parse((await raw({ host: 'x' })).body)).toMatchObject({

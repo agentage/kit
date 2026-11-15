@@ -9,7 +9,7 @@ export const localOnly =
   (port?: () => number): RequestHandler =>
   (req, _res, next) => {
     const at = port?.() ?? req.socket.localPort;
-    const hosts = [`127.0.0.1:${at}`, `localhost:${at}`, `[::1]:${at}`];
+    const hosts = [`127.0.0.1:${at}`, `localhost:${at}`];
     const origin = req.get('origin');
     const hostOk = hosts.includes(req.get('host') ?? '');
     const originOk = origin === undefined || hosts.some((host) => origin === `http://${host}`);

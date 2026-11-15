@@ -54,7 +54,7 @@ docker run -p 8080:8080 -e AGENTAGE_HOST_AUTH=off -v probe-data:/data ghcr.io/ag
 - `--read-only` works: only `/data` is written, and `/tmp` needs no tmpfs.
 
 `localOnly(port)` from `@agentage/extension/host` is the guard of the daemon, as Express middleware.
-A request needs the Host `127.0.0.1`, `localhost` or `[::1]` at that port, no other Origin, and no
+A request needs the Host `127.0.0.1` or `localhost` at that port (`[::1]` is refused: nothing listens there), no other Origin, and no
 cross-site `Sec-Fetch-Site`, or it throws a 403 `FORBIDDEN` for the error handler. With no port
 given, it compares against the port of the socket the request came in on.
 `hostExtension(dir, { localOnly: true })` mounts it before every route, at the port of the socket.

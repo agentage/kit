@@ -3,7 +3,6 @@ import { type Server } from 'node:http';
 import { type AddressInfo } from 'node:net';
 import { createLog } from '../../log/log.js';
 import { closeNow, listen } from '../../server/serve.js';
-import { parseClockRate } from '../../worker/clock.js';
 import { forkLaunch, type Launch } from './child.js';
 import { removeDaemonFile, writeDaemonFile, DAEMON_PROTOCOL } from './daemon-files.js';
 import { assertNoOtherDaemon } from './daemon-owner.js';
@@ -23,7 +22,7 @@ export interface DaemonOptions extends Partial<Limits> {
   install?: Installer;
   version: string;
   startedBy: string;
-  // The test clock for every child (AGENTAGE_CLOCK_RATE); 1 when unset.
+  // The test clock for every child (AGENTAGE_CLOCK_RATE); 1 when unset. createDaemon only.
   clockRate?: number;
 }
 
@@ -114,8 +113,8 @@ export const startDaemon = async (opts: DaemonOptions, launch: Launch): Promise<
   const life = new AbortController();
   const deps = depsOf(opts, launch, () => `http://127.0.0.1:${port}`, stoppingOf(life.signal));
   const { entries, ...file } = await loadEntries(deps);
-  const clockRate = parseClockRate(opts.clockRate);
-  const rate = clockRate === 1 ? {} : { clockRate };
+  // One source: the launch that forks the children.
+  const rate = launch.clockRate && launch.clockRate !== 1 ? { clockRate: launch.clockRate } : {};
   const info = {
     ...rate,
     version: opts.version,
@@ -138,5 +137,6 @@ export const startDaemon = async (opts: DaemonOptions, launch: Launch): Promise<
 };
 
 // One daemon on 127.0.0.1, one child process for each extension (D1).
-export const createDaemon = (opts: DaemonOptions): Promise<Daemon> =>
-  startDaemon(opts, forkLaunch(undefined, opts.startMs, parseClockRate(opts.clockRate)));
+// A bad clockRate rejects the promise, like every other refusal of this function.
+export const createDaemon = async (opts: DaemonOptions): Promise<Daemon> =>
+  startDaemon(opts, forkLaunch(undefined, opts.startMs, opts.clockRate));

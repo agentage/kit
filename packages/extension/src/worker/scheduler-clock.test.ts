@@ -7,22 +7,21 @@ import { createScheduler } from './scheduler.js';
 afterEach(() => void vi.useRealTimers());
 
 describe('test clock', () => {
-  it('runs a every-minute job 3 times in under 4 s of real time at rate 60', async () => {
-    const t0 = Date.now();
+  it('runs an every-minute job 3 times in 3 s of fake real time at rate 60, never twice at once', async () => {
+    vi.useFakeTimers({ now: new Date('2026-11-05T10:00:30Z') });
     const s = createScheduler({ runs: memoryRuns(), log: recordedLog().log, clockRate: 60 });
     let active = 0;
     let overlap = false;
-    const runs: number[] = [];
-    s.schedule('tick', '* * * * *', async () => {
+    const job = vi.fn(async () => {
       overlap ||= ++active > 1;
-      runs.push(Date.now() - t0);
       await new Promise((r) => setTimeout(r, 20));
       active--;
     });
+    s.schedule('tick', '* * * * *', job);
     s.start();
-    await vi.waitFor(() => expect(runs.length).toBeGreaterThanOrEqual(3), { timeout: 3900 });
+    await vi.advanceTimersByTimeAsync(2_600);
     s.stop();
-    expect(Date.now() - t0).toBeLessThan(4000);
+    expect(job).toHaveBeenCalledTimes(3);
     expect(overlap).toBe(false);
   });
 

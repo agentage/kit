@@ -2,7 +2,7 @@ import { uuidv7 } from '../agcid/agcid.js';
 import { requestScope } from '../agcid/current.js';
 import { type HealthCheck } from '../health/health.js';
 import { type Log } from '../log/log.js';
-import { CLOCK_RATE_ENV, parseClockRate, scaledNow } from './clock.js';
+import { hostClockRate, parseClockRate, scaledNow } from './clock.js';
 import { nextRun, parseCron, type Cron } from './cron.js';
 import { JobNameSchema, JobOptionsSchema, toMs, type JobOptions } from './job-options.js';
 import { withRunBuffer, type RunBuffer } from './run-log.js';
@@ -30,7 +30,7 @@ export interface SchedulerDeps {
   runs: RunStore;
   log: Log;
   now?: () => Date;
-  // The test clock; the default is AGENTAGE_CLOCK_RATE, else 1.
+  // The test clock; the default is what the kit host set at boot, else 1. Never read from env here.
   clockRate?: number;
 }
 
@@ -157,7 +157,7 @@ const setStarted = (s: State, started: boolean): void => {
 };
 
 export const createScheduler = (deps: SchedulerDeps): Scheduler => {
-  const rate = parseClockRate(deps.clockRate ?? process.env[CLOCK_RATE_ENV]);
+  const rate = parseClockRate(deps.clockRate ?? hostClockRate());
   const s: State = {
     deps,
     now: deps.now ?? scaledNow(rate),

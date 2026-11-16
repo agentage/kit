@@ -3,7 +3,9 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { startHarness, type Harness } from '../../test-support/daemon-harness.js';
 import { tempDir } from '../../test-support/packages.js';
-import { forkLaunch } from './child.js';
+import { createDaemon } from './daemon.js';
+import { forkLaunch, type Launch } from './child.js';
+import { inProcessLaunch } from '../../test-support/in-process-launch.js';
 
 let h: Harness | undefined;
 beforeEach(() => void vi.spyOn(process.stderr, 'write').mockImplementation(() => true));
@@ -26,16 +28,23 @@ const clockSeenByChild = async (rate?: number) => {
 };
 
 describe('daemon test clock (C5)', () => {
-  it('/health shows clockRate only when it is not 1', async () => {
-    h = await startHarness({ clockRate: 60 });
+  it('/health shows the clockRate of the launch that forks the children, only when not 1', async () => {
+    h = await startHarness({
+      launch: Object.assign((spec: Parameters<Launch>[0]) => inProcessLaunch(spec), {
+        clockRate: 60,
+      }),
+    });
     expect(await h.call('GET', '/health')).toMatchObject({ body: { clockRate: 60 } });
     await h.daemon.stop();
-    h = await startHarness({ clockRate: 1 });
+    h = await startHarness();
     expect((await h.call('GET', '/health')).body).not.toHaveProperty('clockRate');
   });
 
-  it('refuses a bad rate before it listens', async () => {
-    await expect(startHarness({ clockRate: 0 })).rejects.toThrow('AGENTAGE_CLOCK_RATE');
+  it('createDaemon rejects a bad rate, as a rejected promise, before it writes anything', async () => {
+    const configDir = await tempDir('agentage-clock-cfg-');
+    const opts = { configDir, port: 0, version: '0.13.0', startedBy: 'test' };
+    await expect(createDaemon({ ...opts, clockRate: 0 })).rejects.toThrow('AGENTAGE_CLOCK_RATE');
+    await expect(createDaemon({ ...opts, clockRate: 7200 })).rejects.toThrow('AGENTAGE_CLOCK_RATE');
   });
 
   it('each child gets AGENTAGE_CLOCK_RATE only when the rate is not 1', async () => {

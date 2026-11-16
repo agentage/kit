@@ -15,6 +15,7 @@ export const HealthSchema = z.strictObject({
     version: VersionSchema,
     commit: z.string().regex(/^[0-9a-f]{7,40}$/),
     buildTime: z.iso.datetime(),
+    clockRate: z.number().optional(),
     instance: z.string().regex(/^[0-9a-f]{8,32}$/),
     uptimeSeconds: z.int().min(0),
     checkedAt: z.iso.datetime(),

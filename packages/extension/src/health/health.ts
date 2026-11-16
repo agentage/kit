@@ -18,6 +18,8 @@ export interface HealthOptions {
   instance?: string;
   startedAt?: number;
   now?: () => Date;
+  // The test clock, shown only when it is not 1.
+  clockRate?: number;
   // Writes a health.changed event on a transition, never on every probe.
   log?: Log;
 }
@@ -65,7 +67,9 @@ export const healthBody = async (options: ResolvedHealth): Promise<HealthBody> =
   const status = worstOf(Object.values(checks));
   const { extension, part, version, build, instance } = options;
   const uptimeSeconds = Math.max(0, Math.floor((now.getTime() - options.startedAt) / 1000));
-  const data = { status, extension, part, version, ...build, instance };
+  const clock =
+    options.clockRate && options.clockRate !== 1 ? { clockRate: options.clockRate } : {};
+  const data = { status, extension, part, version, ...build, instance, ...clock };
   return {
     success: status !== 'unavailable',
     data: { ...data, uptimeSeconds, checkedAt: isoSeconds(now), checks },

@@ -126,6 +126,7 @@ jobs:
       - name: Dispatch the e2e nightly local gate for this kit
         if: github.ref_type == 'tag'
         continue-on-error: true
+        timeout-minutes: 2
         env:
           GH_TOKEN: ${{ secrets.PAT_TOKEN }}
         run: |

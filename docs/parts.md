@@ -26,7 +26,7 @@ export function create(ctx: McpContext) {
 // The api part may also serve its files as git smart-HTTP at /files/{id}/* (raw body; Basic
 // password = token). Only a clone or fetch reads ({id}:read); all else needs {id}:write. A dot
 // segment is a 400. owner runs on every request (false = 403); a push over maxPushBytes is a 413.
-// ctx.files((req, res) => { /* git http-backend */ }, { owner: (req, caller) => true, maxPushBytes });
+// ctx.files((req, res) => { /* git http-backend */ }, { owner: (req: Request, caller) => true, maxPushBytes });
 // src/worker/index.ts: five-field cron, never twice at once, every run saved with its log
 export function create({ schedule, store, log }: WorkerContext) {
   schedule(

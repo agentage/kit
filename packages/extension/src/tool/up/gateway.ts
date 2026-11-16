@@ -8,7 +8,7 @@ export const TRAEFIK_IMAGE =
 
 // The URL layout of api-standards section 1, as the estate's gateway renders it.
 const RESERVED =
-  'PathPrefix(`/api/`) || Path(`/mcp`) || PathPrefix(`/mcp/`) || PathPrefix(`/ui/`) || PathPrefix(`/.well-known/`) || PathPrefix(`/git/`) || PathPrefix(`/files/`) || Path(`/health`)';
+  'PathPrefix(`/api/`) || Path(`/mcp`) || PathPrefix(`/mcp/`) || PathPrefix(`/ui/`) || PathPrefix(`/.well-known/`) || PathPrefix(`/git/`) || Path(`/health`)';
 
 // Each routed part's path, in the order `up` prints them; /mcp is exact, the rest are prefixes.
 export const PART_PATHS = { pages: '/', ui: '/ui/{version}/', api: '/api/{id}/', mcp: '/mcp' };

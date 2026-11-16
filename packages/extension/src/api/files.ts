@@ -7,11 +7,10 @@ export const filesPathOf = (id: string): string => `/files/${id}`;
 
 const UPLOAD = 'git-upload-pack';
 
-// The raw service params: a second one, an array form or an encoded name is not exactly one read.
+// The raw query is exactly one service=git-upload-pack: no second or encoded key, no other text.
 const onlyUploadService = (req: Request): boolean => {
-  const raw = (req.originalUrl.split('?')[1] ?? '').split('&').filter(Boolean);
-  const services = raw.filter((pair) => /^service(=|\[|%5B)/i.test(pair));
-  return services.length === 1 && services[0] === `service=${UPLOAD}`;
+  const at = req.originalUrl.indexOf('?');
+  return at >= 0 && req.originalUrl.slice(at + 1) === `service=${UPLOAD}`;
 };
 
 // Default deny: only a clone or fetch reads; anything else (a push, any odd form) needs write.

@@ -14,8 +14,10 @@ export function create(ctx: McpContext) {
   ctx.tool(
     'echo',
     { description, input: z.object({ msg: z.string() }), output: z.object({ msg: z.string() }) },
-    async ({ msg }) => ({ msg: `pong ${msg}` })
+    async ({ msg }, caller) => ({ msg: `pong ${msg}` })
   );
+  // Optional: title, annotations (hints) and output; instructions as a text or per caller.
+  ctx.instructions((caller) => `Notes of ${caller?.sub ?? 'nobody'}`);
 }
 // src/worker/index.ts: five-field cron, never twice at once, every run saved with its log
 export function create({ schedule, store, log }: WorkerContext) {

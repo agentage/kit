@@ -3,7 +3,12 @@ import { type WellKnownRegistrar } from '../api/well-known.js';
 import type { HealthCheck } from '../health/health.js';
 import { type Log } from '../log/log.js';
 import { createSpan, type SpanRecord } from '../log/span.js';
-import { createToolRegistry, type ToolEntry, type ToolRegistrar } from '../mcp/tools.js';
+import {
+  createToolRegistry,
+  type McpContext,
+  type ToolEntry,
+  type ToolRegistrar,
+} from '../mcp/tools.js';
 import { migrate } from '../store/migrations.js';
 import { createTestStore, type TestStore } from '../store/test-store.js';
 import { type JobOptions } from '../worker/job-options.js';
@@ -41,6 +46,7 @@ export interface TestContext extends PartContext {
   close(): Promise<void>;
   readonly schedule: Schedule;
   readonly tool: ToolRegistrar;
+  readonly instructions: McpContext['instructions'];
   readonly tools: ToolEntry[];
   readonly route: RouteRegistrar;
   readonly routes: RouteEntry[];

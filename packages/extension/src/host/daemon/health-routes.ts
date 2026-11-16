@@ -1,0 +1,94 @@
+import { type Express } from 'express';
+import { hostParts, type HostPartKind } from '../../manifest/parts.js';
+import { readManifest } from '../../manifest/read-manifest.js';
+import { summary, type Entries } from './entries.js';
+import { restartsOf } from './restart.js';
+import { type Seal } from './seal.js';
+import { type Entry, type SupervisorDeps } from './supervisor.js';
+
+// What /health says of the daemon itself: the values of daemon.json, so a client can prove it.
+const DAEMON_SERVICE = 'agentage-daemon';
+
+export interface DaemonInfo {
+  version: string;
+  pid: number;
+  protocol: number;
+  // installation.json had rows (or a shape) C3 refuses: they are left out, the file kept as .bad.
+  invalid: boolean;
+  // installation.json could not be read at boot: every change is refused, the file is never written.
+  unreadable?: string;
+  // The last change found installation.json not JSON (after boot); the next one that reads it clears it.
+  notJson?: boolean;
+  // The test clock, set only when it is not 1.
+  clockRate?: number;
+  // C2: off below the Node floor, with its reason; unset for a launch that does not fork (tests).
+  seal?: Seal;
+  sealError?: string;
+}
+
+// Read at each call: a reload can change the package in its folder.
+const partsOf = async ({ dir }: Entry): Promise<HostPartKind[]> =>
+  dir ? readManifest(dir).then(hostParts, () => []) : [];
+
+const reported = async (entry: Entry, info: DaemonInfo) => ({
+  ...summary(entry),
+  parts: await partsOf(entry),
+  seal: info.seal ?? 'off',
+  restarts: restartsOf(entry),
+});
+
+const installationOf = ({ invalid, unreadable, notJson }: DaemonInfo) => {
+  if (unreadable) return { installation: 'unreadable', installationError: unreadable };
+  return invalid || notJson ? { installation: 'invalid' } : {};
+};
+
+const sealMark = ({ seal, sealError }: DaemonInfo) =>
+  seal === 'off' ? { seal, sealError: sealError ?? 'seal off' } : {};
+
+const statusOf = (deps: SupervisorDeps, entries: Entries, info: DaemonInfo) => {
+  const settled = [...entries.values()].every((e) => ['running', 'disabled'].includes(e.state));
+  const clean = !info.invalid && !info.unreadable && !info.notJson && info.seal !== 'off';
+  return settled && !deps.unsynced.size && clean ? 'ok' : 'degraded';
+};
+
+const healthOf = async (deps: SupervisorDeps, entries: Entries, info: DaemonInfo) => {
+  const self = { service: DAEMON_SERVICE, pid: info.pid, protocol: info.protocol };
+  const extensions = await Promise.all([...entries.values()].map((e) => reported(e, info)));
+  const changing = deps.pending.list();
+  const marks = {
+    ...(changing.length && { pending: changing }),
+    ...(info.clockRate && { clockRate: info.clockRate }),
+    ...(deps.unsynced.size && { unsynced: [...deps.unsynced] }),
+    ...installationOf(info),
+    ...sealMark(info),
+  };
+  const status = statusOf(deps, entries, info);
+  return { status, version: info.version, ...self, extensions, ...marks };
+};
+
+// C10 (D10): where each running extension answers, and its parts; anonymous, bare JSON.
+const discoveryOf = async (entries: Entries) => {
+  const running = [...entries.values()].filter((e) => e.state === 'running');
+  const listed = running.map(async (e) => ({
+    id: e.id,
+    version: e.version,
+    parts: await partsOf(e),
+  }));
+  return { host: 'local', extensions: await Promise.all(listed) };
+};
+
+export const HOST_DISCOVERY_PATH = '/.well-known/agentage-host.json';
+
+export const healthRoutes = (
+  app: Express,
+  deps: SupervisorDeps,
+  entries: Entries,
+  info: DaemonInfo
+) => {
+  app.get('/health', async (_req, res) => {
+    res.set('Cache-Control', 'no-store').json(await healthOf(deps, entries, info));
+  });
+  app.get(HOST_DISCOVERY_PATH, async (_req, res) => {
+    res.set('Cache-Control', 'no-store').json(await discoveryOf(entries));
+  });
+};

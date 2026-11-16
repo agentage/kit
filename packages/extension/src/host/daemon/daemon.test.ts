@@ -61,7 +61,9 @@ describe('daemon routes (C5)', () => {
       version: '0.13.0',
       protocol: 1,
       startedBy: 'test',
+      hostToken: h!.token,
     });
+    expect((await stat(join(h!.configDir, 'daemon.json'))).mode & 0o777).toBe(0o600);
     const health = await h!.call('GET', '/health');
     expect(health.body).toEqual({
       status: 'ok',
@@ -69,7 +71,17 @@ describe('daemon routes (C5)', () => {
       service: 'agentage-daemon',
       pid: process.pid,
       protocol: 1,
-      extensions: [{ id: 'hosted', version: '1.0.0', state: 'running', pid }],
+      extensions: [
+        {
+          id: 'hosted',
+          version: '1.0.0',
+          state: 'running',
+          pid,
+          parts: ['api'],
+          seal: 'off',
+          restarts: 0,
+        },
+      ],
     });
   });
 

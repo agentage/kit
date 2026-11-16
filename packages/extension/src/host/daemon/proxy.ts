@@ -7,6 +7,7 @@ import {
 import { setTimeout as sleep } from 'node:timers/promises';
 import { type NextFunction, type Request, type RequestHandler, type Response } from 'express';
 import { fail } from '../../envelope/envelope.js';
+import { carriesHostToken } from './host-token.js';
 import { enter, type Lane } from './lane.js';
 import { type Entries } from './entries.js';
 import { type Limits } from './limits.js';
@@ -53,9 +54,16 @@ const noAnswer = (ms: number) =>
     retryAfter: undefined,
   });
 
-const requestTo = (req: Request, lane: Lane) => {
-  const { method, originalUrl: path } = req;
+// D11: the host token is for the daemon; a child never sees it, also when a client sends it here.
+const forChild = (req: Request, hostToken?: string): IncomingHttpHeaders => {
   const headers = endToEnd(req.headers);
+  if (hostToken && carriesHostToken(req.headers, hostToken)) delete headers['authorization'];
+  return headers;
+};
+
+const requestTo = (req: Request, lane: Lane, hostToken?: string) => {
+  const { method, originalUrl: path } = req;
+  const headers = forChild(req, hostToken);
   const options = { host: '127.0.0.1', port: lane.child.port, method, path, headers, agent: false };
   return request(options);
 };
@@ -81,9 +89,20 @@ const relay = (upstream: ClientRequest, res: Response, next: NextFunction, ms: n
 };
 
 // Streams the request to the child as it came (path and query kept), no pooled connection.
-const forward = (req: Request, res: Response, next: NextFunction, to: Taken, ms: number) => {
+interface Forward {
+  to: Taken;
+  ms: number;
+  hostToken?: string;
+}
+
+const forward = (
+  req: Request,
+  res: Response,
+  next: NextFunction,
+  { to, ms, hostToken }: Forward
+) => {
   const { lane, leave } = to;
-  const upstream = requestTo(req, lane);
+  const upstream = requestTo(req, lane, hostToken);
   const stop = relay(upstream, res, next, ms);
   upstream.on('error', leave);
   // A client that went away aborts the request to the child too.
@@ -95,9 +114,14 @@ const forward = (req: Request, res: Response, next: NextFunction, to: Taken, ms:
   req.pipe(upstream);
 };
 
+// ANY /api/{id}/* and /mcp/{id} (C1): the same lane, the same refusals (404 unknown, 503 not running).
 export const proxyTo =
-  (entries: Entries, limits: Pick<Limits, 'gateMs' | 'answerMs'>): RequestHandler =>
+  (
+    entries: Entries,
+    limits: Pick<Limits, 'gateMs' | 'answerMs'>,
+    hostToken?: string
+  ): RequestHandler =>
   async (req, res, next) => {
-    const taken = await laneFor(entries, String(req.params['id']), limits.gateMs);
-    forward(req, res, next, taken, limits.answerMs);
+    const to = await laneFor(entries, String(req.params['id']), limits.gateMs);
+    forward(req, res, next, { to, ms: limits.answerMs, hostToken });
   };

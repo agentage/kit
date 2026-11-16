@@ -9,7 +9,7 @@ import { readManifest } from '../../manifest/read-manifest.js';
 import { persist, summary, type Entries } from './entries.js';
 import { runInstaller } from './installer-call.js';
 import { type InstallEntry } from './installation.js';
-import { dataDirOf } from './daemon-files.js';
+import { clearRunDir, dataDirOf } from './daemon-files.js';
 import { needsSecret } from './start-checks.js';
 import { startEntry, startFailed, type Entry, type SupervisorDeps } from './supervisor.js';
 
@@ -63,6 +63,7 @@ const marketEntry = async (
 const rollBack = async (deps: SupervisorDeps, entries: Entries, entry: Entry, fresh: boolean) => {
   entries.delete(entry.id);
   await persist(deps, entry.id);
+  await clearRunDir(deps.configDir, entry.id);
   if (fresh) await rm(dataDirOf(deps.configDir, entry.id), { recursive: true, force: true });
 };
 

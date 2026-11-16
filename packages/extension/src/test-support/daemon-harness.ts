@@ -1,4 +1,4 @@
-import { writeFile } from 'node:fs/promises';
+import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { type Launch } from '../host/daemon/child.js';
 import { startDaemon, type Daemon, type DaemonOptions } from '../host/daemon/daemon.js';
@@ -8,8 +8,18 @@ import { json, tempDir } from './packages.js';
 export interface Harness {
   daemon: Daemon;
   configDir: string;
+  // The host token of daemon.json, as the cli reads it.
+  token: string;
   call(method: string, path: string, body?: unknown): Promise<{ status: number; body: unknown }>;
 }
+
+// D11: what the cli does, the token from daemon.json on /host/* only.
+export const hostTokenOf = async (configDir: string): Promise<string> =>
+  (JSON.parse(await readFile(join(configDir, 'daemon.json'), 'utf8')) as { hostToken: string })
+    .hostToken;
+
+export const authOf = (token: string, path: string): Record<string, string> =>
+  path.startsWith('/host') ? { authorization: `Bearer ${token}` } : {};
 
 export const tempConfigDir = () => tempDir('agentage-daemon-');
 
@@ -28,12 +38,14 @@ export const startHarness = async (
   const configDir = options.configDir ?? (await tempConfigDir());
   const opts = { port: 0, version: '0.13.0', startedBy: 'test', ...rest, configDir };
   const daemon = await startDaemon(opts, launch);
+  const token = await hostTokenOf(configDir);
   const call = async (method: string, path: string, body?: unknown) => {
-    const init = { method, headers: { 'content-type': 'application/json' } };
+    const headers = { 'content-type': 'application/json', ...authOf(token, path) };
+    const init = { method, headers };
     const sent = body === undefined ? init : { ...init, body: JSON.stringify(body) };
     const res = await fetch(`http://127.0.0.1:${daemon.port}${path}`, sent);
     const text = await res.text();
     return { status: res.status, body: text ? (JSON.parse(text) as unknown) : undefined };
   };
-  return { daemon, configDir, call };
+  return { daemon, configDir, token, call };
 };

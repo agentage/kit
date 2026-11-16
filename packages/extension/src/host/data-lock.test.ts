@@ -1,10 +1,11 @@
 import type * as FsPromises from 'node:fs/promises';
-import { readdir, readFile, writeFile } from 'node:fs/promises';
+import { existsSync } from 'node:fs';
+import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { tempDir } from '../test-support/packages.js';
 import { deadPid } from '../test-support/processes.js';
-import { DATA_DIR_LOCKED, EMPTY_LOCK_MS, lockDataDir } from './data-lock.js';
+import { clearOldLock, DATA_DIR_LOCKED, EMPTY_LOCK_MS, lockDataDir } from './data-lock.js';
 
 // A volume with no hard links (some CIFS and FUSE mounts): link fails with EPERM.
 // onRead: runs once the file was read (another starter acts in that window); onRename: after a rename.
@@ -145,5 +146,30 @@ describe.each([
     const release = await lockDataDir(data);
     expect(await pid(data)).toBe(String(process.pid));
     await release();
+  });
+});
+
+describe('the lock path and an old lock (C2)', () => {
+  it('lockDataDir takes the lock it is given, not <dataDir>.lock', async () => {
+    const dir = await tempDir('agentage-lock-at-');
+    const lock = join(dir, 'run', 'store.lock');
+    await mkdir(join(dir, 'run'));
+    const release = await lockDataDir(join(dir, 'data'), lock);
+    expect(await readFile(lock, 'utf8')).toBe(String(process.pid));
+    expect(existsSync(join(dir, 'data.lock'))).toBe(false);
+    await release();
+    expect(existsSync(lock)).toBe(false);
+  });
+
+  it('clearOldLock: none is fine, a dead holder is removed, a live one refuses', async () => {
+    const dir = await tempDir('agentage-lock-old-');
+    const lock = join(dir, 'data.lock');
+    await clearOldLock(lock);
+    await writeFile(lock, String(deadPid()));
+    await clearOldLock(lock);
+    expect(existsSync(lock)).toBe(false);
+    await writeFile(lock, String(process.ppid));
+    await expect(clearOldLock(lock)).rejects.toMatchObject({ code: DATA_DIR_LOCKED });
+    expect(existsSync(lock)).toBe(true);
   });
 });

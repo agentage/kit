@@ -47,10 +47,13 @@ const live = (lock: string, pid: number): boolean =>
   pid === process.pid ? held.has(lock) : pid > 0 && alive(pid);
 
 const locked = (lock: string, pid: number) =>
-  Object.assign(new Error(`${lock.slice(0, -5)} is open in process ${pid}`), {
-    code: DATA_DIR_LOCKED,
-    pid,
-  });
+  Object.assign(
+    new Error(`${lock.replace(/[/\\]?(store)?\.lock$/, '')} is open in process ${pid}`),
+    {
+      code: DATA_DIR_LOCKED,
+      pid,
+    }
+  );
 
 const exists = (err: unknown) => (err as NodeJS.ErrnoException).code === 'EEXIST';
 
@@ -121,6 +124,13 @@ const inTurn = <T>(lock: string, fn: () => Promise<T>): Promise<T> => {
   return run;
 };
 
+// A lock of an older kit (beside the folder, out of a sealed child's reach): dead is removed, live refuses.
+export const clearOldLock = async (lock: string): Promise<void> => {
+  const pid = await holder(lock);
+  if (pid > 0 && live(lock, pid)) throw locked(lock, pid);
+  if (pid > 0) await unlink(lock).catch(() => undefined);
+};
+
 const acquire = async (lock: string): Promise<void> => {
   if (await take(lock)) return;
   const pid = await holder(lock);
@@ -129,9 +139,11 @@ const acquire = async (lock: string): Promise<void> => {
   if (!(await take(lock))) throw locked(lock, await holder(lock));
 };
 
-// PGlite has one writer per folder: <dataDir>.lock holds the pid; a dead holder's lock is taken over.
-export const lockDataDir = async (dataDir: string): Promise<() => Promise<void>> => {
-  const lock = `${dataDir}.lock`;
+// PGlite has one writer per folder: the lock (<dataDir>.lock unless given) holds the pid; a dead holder's lock is taken over.
+export const lockDataDir = async (
+  dataDir: string,
+  lock = `${dataDir}.lock`
+): Promise<() => Promise<void>> => {
   await inTurn(lock, () => acquire(lock));
   // Sync, so no other taker in this process sees the file without its entry in held.
   return async () => {

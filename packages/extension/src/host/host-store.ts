@@ -1,4 +1,5 @@
 import { mkdir } from 'node:fs/promises';
+import { join } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { type Log } from '../log/log.js';
 import { type ExtensionPackage } from '../manifest/manifest.schema.js';
@@ -21,11 +22,15 @@ const within = <T>(work: Promise<T>, ms: number): Promise<T | 'late'> =>
 const LOCK_RETRY_MS = 100;
 
 // A holder that is still draining (an old child, an orphan) lets go soon: retry until openMs.
-export const lockWithin = async (dataDir: string, openMs: number): Promise<() => Promise<void>> => {
+export const lockWithin = async (
+  dataDir: string,
+  openMs: number,
+  lock = `${dataDir}.lock`
+): Promise<() => Promise<void>> => {
   const until = Date.now() + openMs;
   for (;;) {
     try {
-      return await lockDataDir(dataDir);
+      return await lockDataDir(dataDir, lock);
     } catch (err) {
       if ((err as { code?: unknown }).code !== DATA_DIR_LOCKED || Date.now() >= until) throw err;
       await sleep(LOCK_RETRY_MS);
@@ -42,11 +47,15 @@ const closer = (store: PgliteStore, release: () => Promise<void>, openMs: number
   if (closed !== 'late') await release();
 };
 
+// C2: in run/{id} when the daemon gives it; an old <dataDir>.lock is then not read (the daemon cleared it).
+export const lockOf = ({ dataDir, runDir }: Pick<StoreAt, 'dataDir' | 'runDir'>) =>
+  runDir ? join(runDir, 'store.lock') : `${dataDir}.lock`;
+
 // Locks dataDir, then opens PGlite in it and migrates; past openMs the part starts, /health says not ready.
 const open = async (at: StoreAt, log: Log): Promise<PgliteStore> => {
   const { dir, dataDir, openMs } = at;
   if (dataDir) await mkdir(dataDir, { recursive: true });
-  const release = dataDir ? await lockWithin(dataDir, openMs) : unlocked;
+  const release = dataDir ? await lockWithin(dataDir, openMs, lockOf(at)) : unlocked;
   const store = createPgliteStore((s) => migrate(s, dir, log), {
     dataDir: dataDir || undefined,
     from: dir,
@@ -66,6 +75,7 @@ const open = async (at: StoreAt, log: Log): Promise<PgliteStore> => {
 interface StoreAt {
   dir: string;
   dataDir: string;
+  runDir?: string;
   openMs: number;
 }
 

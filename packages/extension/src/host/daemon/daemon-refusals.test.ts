@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { startHarness, type Harness } from '../../test-support/daemon-harness.js';
+import { authOf, startHarness, type Harness } from '../../test-support/daemon-harness.js';
 import { HOSTED_MANIFEST, hostedPackage } from '../../test-support/hosted-fixture.js';
 import { rawRequest } from '../../test-support/http.js';
 
@@ -108,7 +108,8 @@ describe('daemon refusals', () => {
   });
 
   it('a body that is not JSON is 400, a body over the limit 413, both in the envelope', async () => {
-    const at = { host: `127.0.0.1:${h.daemon.port}`, 'content-type': 'application/json' };
+    const host = { host: `127.0.0.1:${h.daemon.port}`, 'content-type': 'application/json' };
+    const at = { ...host, ...authOf(h.token, '/host') };
     const bad = await rawRequest(h.daemon.port, at, '/host/extensions', 'POST', '{"source":');
     expect([bad.status, JSON.parse(bad.body)]).toMatchObject([
       400,

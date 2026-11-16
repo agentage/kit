@@ -27,6 +27,8 @@ export const hostEnvOf = (env: Env) => {
     port,
     bind: env['AGENTAGE_HOST_BIND'] === 'all' ? '0.0.0.0' : '127.0.0.1',
     dataDir: env['AGENTAGE_DATA_DIR'] ?? '',
+    // C2: the daemon's run/{id}; the store lock goes there (a sealed child cannot write beside data/{id}).
+    runDir: env['AGENTAGE_RUN_DIR'] ?? '',
     settings: env['AGENTAGE_SETTINGS'] ? parseObject(env['AGENTAGE_SETTINGS']) : {},
     secretsDir: env['AGENTAGE_SECRETS_DIR'] || SECRETS_DIR,
     origin: env['AGENTAGE_ORIGIN'] || `http://127.0.0.1${port ? `:${port}` : ''}`,

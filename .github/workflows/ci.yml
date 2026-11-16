@@ -112,6 +112,7 @@ jobs:
           tar -tzf /tmp/pack/agentage-app-*.tgz > /tmp/pack/app-files.txt
           grep -qx 'package/dist/index.js' /tmp/pack/app-files.txt
           grep -qx 'package/dist/test-host.js' /tmp/pack/app-files.txt
+          grep -qx 'package/theme.css' /tmp/pack/app-files.txt
           if grep -Eq '\.test\.' /tmp/pack/app-files.txt; then echo 'test files in the app tarball'; exit 1; fi
 
       - name: Pack smoke - shell (dist in, tests out)

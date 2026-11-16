@@ -33,6 +33,12 @@ Keys of `openAside`: `inspect`, `details`, `inbox` (the shell puts the key in th
   split clamps the stored value to its own `min` and `max` in CSS, so the first paint is final.
 - The shell owns the look of `.split`, `.sep` and `.card-err`; the app ships no layout CSS.
 
+## Theme
+
+`@agentage/app/theme.css` is one Tailwind v4 `@theme` block: the shell palette (the
+`shell-samples/index.html` hex values) under the design-system token names. The shell and the app
+build import it, so an app utility such as `bg-card` or `text-primary` matches the frame.
+
 ## Tests
 
 `@agentage/app/test-host` gives `TestHost`: the five regions as plain nodes and an in-memory host.

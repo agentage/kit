@@ -29,10 +29,12 @@
       "types": "./dist/test-host.d.ts",
       "default": "./dist/test-host.js"
     },
+    "./theme.css": "./theme.css",
     "./package.json": "./package.json"
   },
   "files": [
     "dist",
+    "theme.css",
     "!dist/**/*.test.*"
   ],
   "scripts": {

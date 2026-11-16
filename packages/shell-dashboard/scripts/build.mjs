@@ -1,8 +1,9 @@
-// Builds dist/: index.html, shell/shell.js, shell/shell.css, shell/vendor/* (one React for shell and apps).
+// Builds dist/: index.html, shell.js, shell.css, vendor/* (one React for shell and apps).
+// The daemon serves dist/index.html at / and dist/* at /shell/*: SHELL_URL is that one mapping.
 import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 import tailwind from '@tailwindcss/postcss';
 import { build } from 'esbuild';
 import postcss from 'postcss';
@@ -19,6 +20,11 @@ export const EXTERNALS = [
   'react-dom/client',
   '@agentage/app',
 ];
+export const SHELL_URL = '/shell/';
+// `/shell/vendor/react.js` -> `vendor/react.js` in dist/; null for any other path.
+export const shellFileOf = (path) =>
+  path.startsWith(SHELL_URL) ? path.slice(SHELL_URL.length) : null;
+
 const DS_USED = ['command', 'dropdown-menu', 'empty-state', 'icon-button', 'kbd'];
 
 const base = {
@@ -51,7 +57,7 @@ const buildVendor = async (out, tmp) => {
     entryPoints: Object.fromEntries(Object.keys(files).map((n) => [n, join(tmp, `${n}.js`)])),
     nodePaths: [join(pkgDir, 'node_modules'), join(pkgDir, '../../node_modules')],
     splitting: true,
-    outdir: join(out, 'shell/vendor'),
+    outdir: join(out, 'vendor'),
     entryNames: '[name]',
     chunkNames: 'chunk-[hash]',
   });
@@ -59,7 +65,9 @@ const buildVendor = async (out, tmp) => {
 
 const dsSources = () => {
   const dir = dirname(
-    fileURLToPath(import.meta.resolve('@agentage/design-system/kbd', pkgDir + '/'))
+    fileURLToPath(
+      import.meta.resolve('@agentage/design-system/kbd', pathToFileURL(pkgDir + '/').href)
+    )
   );
   return DS_USED.map(
     (f) => `@source "${join(dir, `${f}*.js`)}";\n@source "${join(dir, 'menu*.js')}";`
@@ -73,7 +81,7 @@ export const buildCss = async (out) => {
     source,
     { from }
   );
-  await writeFile(join(out, 'shell/shell.css'), res.css);
+  await writeFile(join(out, 'shell.css'), res.css);
 };
 
 export const buildShell = async ({
@@ -85,7 +93,7 @@ export const buildShell = async ({
   await build({
     ...base,
     entryPoints: [join(pkgDir, entry)],
-    outfile: join(out, 'shell', name),
+    outfile: join(out, name),
     external: EXTERNALS,
   });
   const { SPLIT_PREPAINT } = await import('@agentage/app');
@@ -98,7 +106,7 @@ export const buildShell = async ({
 
 export const buildAll = async (out = join(pkgDir, 'dist')) => {
   await rm(out, { recursive: true, force: true });
-  await mkdir(join(out, 'shell'), { recursive: true });
+  await mkdir(out, { recursive: true });
   await buildVendor(out, join(pkgDir, '.vendor'));
   await buildShell({ out });
   await buildCss(out);

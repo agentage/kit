@@ -8,13 +8,13 @@ prototype (`shell-samples/index.html`, variant B) in React 19, styled by Tailwin
 
 `npm run build` writes `dist/`:
 
-| Path                               | Served at              | What                                                                                  |
-| ---------------------------------- | ---------------------- | ------------------------------------------------------------------------------------- |
-| `dist/index.html`                  | `/` and every app page | pre-paint scripts, the import map, `<meta name="agentage-shell" content="<version>">` |
-| `dist/shell/shell.js`, `shell.css` | `/shell/*`             | the frame                                                                             |
-| `dist/shell/vendor/*.js`           | `/shell/vendor/*`      | one React, react-dom and `@agentage/app` for the shell and every app                  |
+| Path                              | Served at              | What                                                                                  |
+| --------------------------------- | ---------------------- | ------------------------------------------------------------------------------------- |
+| `dist/index.html`                 | `/` and every app page | pre-paint scripts, the import map, `<meta name="agentage-shell" content="<version>">` |
+| `dist/shell.js`, `dist/shell.css` | `/shell/*`             | the frame                                                                             |
+| `dist/vendor/*.js`                | `/shell/vendor/*`      | one React, react-dom and `@agentage/app` for the shell and every app                  |
 
-A host finds the folder with `import.meta.resolve('@agentage/shell-dashboard/dist/index.html')`.
+The host serves `dist/*` at `/shell/*` (one mapping, `shellFileOf` in `scripts/build.mjs`). A host finds the folder with `import.meta.resolve('@agentage/shell-dashboard/dist/index.html')`.
 
 ## Regions
 

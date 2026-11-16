@@ -1,9 +1,10 @@
-// The e2e server: the built shell at /, the frame fixture at /fixture.html, the prototype at /prototype.html.
+// The e2e server maps URLs as the daemon does (/shell/* -> dist/*, any page -> index.html),
+// plus the frame fixture at /fixture.html and the prototype at /prototype.html.
 import { createReadStream, existsSync, statSync } from 'node:fs';
 import { createServer } from 'node:http';
 import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildAll, buildShell } from '../scripts/build.mjs';
+import { buildAll, buildShell, shellFileOf } from '../scripts/build.mjs';
 
 const here = fileURLToPath(new URL('.', import.meta.url));
 const out = join(here, '../dist-e2e');
@@ -14,8 +15,10 @@ const TYPES = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/cs
 const file = (url) => {
   const path = normalize(decodeURIComponent(new URL(url, 'http://x').pathname));
   if (path === '/prototype.html') return join(here, 'prototype/index.html');
-  const found = join(out, path);
-  if (found.startsWith(out) && existsSync(found) && statSync(found).isFile()) return found;
+  if (path === '/fixture.html') return join(out, 'fixture.html');
+  const rel = shellFileOf(path);
+  const found = rel === null ? null : join(out, rel);
+  if (found?.startsWith(out) && existsSync(found) && statSync(found).isFile()) return found;
   return join(out, 'index.html');
 };
 const port = Number(process.env.SHELL_E2E_PORT ?? 4291);

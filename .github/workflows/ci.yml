@@ -116,10 +116,10 @@ jobs:
           npm pack -w @agentage/shell-dashboard --pack-destination /tmp/pack
           tar -tzf /tmp/pack/agentage-shell-dashboard-*.tgz > /tmp/pack/dash-files.txt
           grep -qx 'package/dist/index.html' /tmp/pack/dash-files.txt
-          grep -qx 'package/dist/shell/shell.js' /tmp/pack/dash-files.txt
-          grep -qx 'package/dist/shell/shell.css' /tmp/pack/dash-files.txt
-          grep -qx 'package/dist/shell/vendor/react.js' /tmp/pack/dash-files.txt
-          grep -qx 'package/dist/shell/vendor/app.js' /tmp/pack/dash-files.txt
+          grep -qx 'package/dist/shell.js' /tmp/pack/dash-files.txt
+          grep -qx 'package/dist/shell.css' /tmp/pack/dash-files.txt
+          grep -qx 'package/dist/vendor/react.js' /tmp/pack/dash-files.txt
+          grep -qx 'package/dist/vendor/app.js' /tmp/pack/dash-files.txt
           if grep -Eq '\.test\.|/e2e/|\.spec\.' /tmp/pack/dash-files.txt; then echo 'test files in the shell-dashboard tarball'; exit 1; fi
 
       - name: Pack smoke - shell (dist in, tests out)

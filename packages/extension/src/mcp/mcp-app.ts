@@ -14,7 +14,14 @@ import { prefixed, type ToolEntry } from './tools.js';
 export interface McpAppOptions extends PartAppBase {
   tools: ToolEntry[];
   listing: 'open' | 'token';
+  // Where the endpoint is: /mcp in a part image, /mcp/{id} in a host process.
+  paths?: string[];
 }
+
+export const MCP_PATH = '/mcp';
+
+// The endpoint of an extension on a host that runs many: the daemon routes it to its child.
+export const mcpPathOf = (id: string): string => `${MCP_PATH}/${id}`;
 
 const MCP_HEADERS = ['Mcp-Protocol-Version', 'Mcp-Method', 'Mcp-Name', 'Accept'];
 const MCP_CORS = {
@@ -125,21 +132,20 @@ const methodNotAllowed = (_req: Request, res: Response): void => {
     .json({ jsonrpc: '2.0', error: { code: -32000, message: 'Method not allowed.' }, id: null });
 };
 
-// Stateless Streamable HTTP on SDK v2: POST /mcp only, GET and DELETE (sessions) answer 405.
-export const createMcpApp = (options: McpAppOptions): Express => {
+// Stateless Streamable HTTP on SDK v2: POST only, GET and DELETE (sessions) answer 405.
+export const mountMcp = (app: Express, options: McpAppOptions): void => {
   const identity = { id: options.pkg.agentage.id, version: options.pkg.version };
   const handler = createMcpHandler(serverFactory(identity, options.tools, options.log), {
     legacy: 'stateless',
     onerror: (err) => options.log.warn('mcp request refused', { reason: err.message }),
   });
   const raw = express.raw({ type: () => true, limit: BODY_LIMIT });
-  return createPartApp({
-    ...options,
-    part: 'mcp',
-    mount: (app) => {
-      app.use('/mcp', cors(MCP_CORS));
-      app.post('/mcp', raw, handle(handler, options));
-      app.all('/mcp', methodNotAllowed);
-    },
-  });
+  for (const path of options.paths ?? [MCP_PATH]) {
+    app.use(path, cors(MCP_CORS));
+    app.post(path, raw, handle(handler, options));
+    app.all(path, methodNotAllowed);
+  }
 };
+
+export const createMcpApp = (options: McpAppOptions): Express =>
+  createPartApp({ ...options, part: 'mcp', mount: (app) => mountMcp(app, options) });

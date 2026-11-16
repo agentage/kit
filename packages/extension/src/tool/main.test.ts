@@ -81,23 +81,27 @@ describe('buildLines', () => {
     ]);
   });
 
-  it('names the one image by the parts it runs, then each part it does not run yet', () => {
+  it('names the one image, then one line of the parts it runs and skips (C7)', () => {
     const one: BuildResult = {
       ...RESULT,
       images: [],
       container: {
         tag: 'ghcr.io/agentage/probe:0.1.0',
         digest: DIGEST,
-        runs: ['api'],
-        skipped: ['mcp', 'worker'],
+        runs: ['api', 'mcp', 'worker'],
+        skipped: ['pages', 'ui'],
       },
       recordFile: '/repo/dist/agentage-container.json',
     };
     expect(buildLines(one, '/repo')).toEqual([
-      'api     ghcr.io/agentage/probe:0.1.0  sha256:bbbbbbbb pushed',
-      'mcp     not run by the one image yet',
-      'worker  not run by the one image yet',
+      'image   ghcr.io/agentage/probe:0.1.0  sha256:bbbbbbbb pushed',
+      'runs: api, mcp, worker; skipped: pages, ui',
       'record  dist/agentage-container.json',
+    ]);
+    const container = { tag: 'ghcr.io/agentage/probe:0.1.0', runs: ['api'], skipped: [] };
+    expect(buildLines({ ...RESULT, images: [], container })).toEqual([
+      'image   ghcr.io/agentage/probe:0.1.0  built',
+      'runs: api; skipped: none',
     ]);
   });
 });

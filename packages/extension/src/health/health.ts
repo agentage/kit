@@ -17,6 +17,8 @@ export interface HealthOptions {
   checks?: Record<string, HealthCheck>;
   instance?: string;
   startedAt?: number;
+  // The parts a host process runs (the daemon's child, the one container); unset in a part image.
+  parts?: ImagePartKind[];
   now?: () => Date;
   // The test clock, shown only when it is not 1.
   clockRate?: number;
@@ -65,11 +67,12 @@ export const healthBody = async (options: ResolvedHealth): Promise<HealthBody> =
   const now = (options.now ?? (() => new Date()))();
   const checks = await runChecks(options.checks ?? {});
   const status = worstOf(Object.values(checks));
-  const { extension, part, version, build, instance } = options;
+  const { extension, part, parts, version, build, instance } = options;
   const uptimeSeconds = Math.max(0, Math.floor((now.getTime() - options.startedAt) / 1000));
   const clock =
     options.clockRate && options.clockRate !== 1 ? { clockRate: options.clockRate } : {};
-  const data = { status, extension, part, version, ...build, instance, ...clock };
+  const listed = parts ? { parts } : {};
+  const data = { status, extension, part, ...listed, version, ...build, instance, ...clock };
   return {
     success: status !== 'unavailable',
     data: { ...data, uptimeSeconds, checkedAt: isoSeconds(now), checks },

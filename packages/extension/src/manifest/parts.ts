@@ -35,6 +35,14 @@ export const imageParts = (pkg: ExtensionPackage): ImagePartKind[] => {
   return IMAGE_PART_KINDS.filter((kind) => code[kind] !== undefined);
 };
 
+// The parts one host process runs (the daemon's child, the one container); pages and ui wait for phase 2.
+export const HOST_PARTS = ['api', 'mcp', 'worker'] as const;
+
+export type HostPartKind = (typeof HOST_PARTS)[number];
+
+export const hostParts = (pkg: ExtensionPackage): HostPartKind[] =>
+  HOST_PARTS.filter((kind) => imageParts(pkg).includes(kind));
+
 export const entryOf = (pkg: ExtensionPackage, part: ImagePartKind | 'cli'): string =>
   normalizeParts(pkg.agentage.parts).code[part]?.entry ?? `./dist/${part}/index.js`;
 

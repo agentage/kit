@@ -1,3 +1,4 @@
+import { linkModules } from './http.js';
 import { json, tempPackage } from './packages.js';
 
 // A package as the host sees it: an api part, one setting, one secret, one migration.
@@ -51,3 +52,50 @@ export const hostedPackage = (manifest: object = HOSTED_MANIFEST, api = API) =>
     'migrations/001-hits.sql':
       'create table hits (n int not null);\ninsert into hits values (0);\n',
   });
+
+// Every server part like the probe: api, an mcp tool, a worker tick into the store.
+export const ALL_PARTS_MANIFEST = {
+  ...HOSTED_MANIFEST,
+  agentage: {
+    id: 'all',
+    parts: { api: true, mcp: true, worker: true, store: 'postgres' },
+    settings: {
+      'mcp.listing': { type: 'string', enum: ['open', 'token'], default: 'open' },
+      'mcp.fail': { type: 'boolean', default: false },
+    },
+    secrets: [{ name: 'tick-key', parts: ['worker'] }],
+  },
+};
+
+const ALL_API = `export const create = (ctx) => async (req, res, next) => {
+  if (req.path !== '/ticks') return next();
+  const { rows } = await ctx.store.query('select count(*)::int as n from ticks');
+  res.json({ success: true, data: { total: rows[0].n, part: ctx.extension.part } });
+};
+`;
+
+const ALL_MCP = `import { z } from 'zod';
+export const create = (ctx) => {
+  if (ctx.settings['mcp.fail']) throw new Error('mcp create failed');
+  ctx.tool('echo', { description: 'Echo', input: z.object({ msg: z.string() }),
+    output: z.object({ msg: z.string() }) }, ({ msg }) => ({ msg: 'pong ' + msg }));
+};
+`;
+
+const ALL_WORKER = `export const create = ({ schedule, store, secrets }) => {
+  if (!secrets.tickKey) throw new Error('no tick key');
+  schedule('tick', '* * * * *', async () => { await store.query("insert into ticks values ('t')"); });
+};
+`;
+
+export const allPartsPackage = async (manifest: object = ALL_PARTS_MANIFEST): Promise<string> => {
+  const dir = await tempPackage({
+    'package.json': json(manifest),
+    'dist/api/index.js': ALL_API,
+    'dist/mcp/index.js': ALL_MCP,
+    'dist/worker/index.js': ALL_WORKER,
+    'migrations/001-ticks.sql': 'create table ticks (job text not null);\n',
+  });
+  await linkModules(dir);
+  return dir;
+};

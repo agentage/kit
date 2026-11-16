@@ -99,7 +99,9 @@ export const create: ApiCreate = (ctx) => {
 
 A store that cannot be reached is `UNAVAILABLE` (503). A ClickHouse error keeps its own code on
 `err.code` (`159` timeout, `243` no space). Pass `insert_deduplication_token` in `settings` so a
-retried batch is a no-op.
+retried batch is a no-op. A `Date` parameter goes as epoch seconds; one with milliseconds needs a `DateTime64(3)`
+parameter. A read waits for the whole answer (`wait_end_of_query`), so a late error is an error,
+not a row.
 
 `localOnly(port)` from `@agentage/extension/host` is the guard of the daemon, as Express middleware.
 A request needs the Host `127.0.0.1` or `localhost` at that port (`[::1]` is refused: nothing

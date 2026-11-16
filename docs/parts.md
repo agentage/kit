@@ -33,6 +33,10 @@ export function create(ctx: McpContext) {
 ctx.route('get', '/export', { summary: 'Export', produces: 'application/zip' }, () =>
   download(zipStream, { filename: 'memories.zip' })
 );
+// bare: true answers the body with no envelope (errors keep it); with etag a GET answers 304
+ctx.route('get', '/sync', { summary: 'Sync', bare: true, etag: true, output }, () =>
+  reply(body, { etag: '"v1"' })
+);
 // src/worker/index.ts: five-field cron, never twice at once, every run saved with its log
 export function create({ schedule, store, log }: WorkerContext) {
   schedule(

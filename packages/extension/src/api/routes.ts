@@ -33,6 +33,8 @@ export interface RouteSpec<
   etag?: true;
   // The success status the contract documents; 200 when left out.
   status?: 200 | 201 | 204;
+  // The body as it is, no envelope (a shape a client already reads); with etag a GET answers 304.
+  bare?: true;
   // The media type of a non-JSON answer (application/zip): the handler returns download(...).
   produces?: string;
 }
@@ -129,6 +131,7 @@ const problemOf = (routes: RouteEntry[], { method, path, spec }: RouteEntry) => 
   if (!PATH.test(path)) return 'path: /segments and {param} segments under /api/{id}';
   if (routes.some((r) => r.method === method && r.path === path)) return 'is registered twice';
   if (!spec.summary) return 'needs a summary: it documents the route';
+  if (spec.bare && spec.produces) return 'bare answers JSON, produces a download: pick one';
   return (spec.produces !== undefined && producesProblem(spec)) || badScope(spec.scope);
 };
 

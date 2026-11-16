@@ -66,7 +66,7 @@ export const STORE_KINDS = {
 } as const;
 
 // STORE_KINDS[kind].migrations: the api image carries a migrate job. SERVED_KINDS moves with the estate.
-export const SERVED_KINDS: readonly StoreKind[] = ['postgres', 'signoz', 'clickhouse'];
+export const SERVED_KINDS: readonly StoreKind[] = ['postgres', 'signoz', 'git', 'clickhouse'];
 
 export const StoreKindSchema = z.enum(Object.keys(STORE_KINDS) as [StoreKind, ...StoreKind[]]);
 

@@ -6,7 +6,8 @@ import { configDirOf, fillRun, makeRun, undoRun, type RunFolders } from './child
 import { lastWords } from './last-words.js';
 import { LIMITS } from './limits.js';
 import { pipeRedacted } from './redact-stream.js';
-import { permissionFlag, sealFlags, sealOf, type Seal } from './seal.js';
+import { readManifest } from '../../manifest/read-manifest.js';
+import { permissionFlag, sealFlags, sealOf, spawnsGit, type Seal } from './seal.js';
 
 interface LaunchSpec {
   id: string;
@@ -123,11 +124,12 @@ const stopOf = (child: ChildProcess, exited: Promise<Exit>) => async () => {
 };
 
 // The daemon's own node flags (a loader, --input-type) are never the child's; C2 where Node has --permission.
-const execArgvOf = (node: string, main: string, spec: LaunchSpec, run: RunFolders) => {
+const execArgvOf = async (node: string, main: string, spec: LaunchSpec, run: RunFolders) => {
   if (!permissionFlag(node)) return [];
   const configDir = configDirOf(spec.dataDir);
   const { id, dir, dataDir } = spec;
-  return sealFlags({ id, main, dir, configDir, runDir: run.runDir, dataDir });
+  const childProcess = spawnsGit(await readManifest(dir));
+  return sealFlags({ id, main, dir, configDir, runDir: run.runDir, dataDir, childProcess });
 };
 
 // The listed env of the daemon, then the child's own: TMPDIR in run/{id}, the test clock when not 1.
@@ -146,7 +148,7 @@ interface ForkAt {
 }
 
 const started = async (at: ForkAt, spec: LaunchSpec, run: RunFolders): Promise<Child> => {
-  const execArgv = execArgvOf(at.node, at.main, spec, run);
+  const execArgv = await execArgvOf(at.node, at.main, spec, run);
   await fillRun(run, spec);
   const stdio = ['ignore', 'pipe', 'pipe', 'ipc'] as const;
   const child = fork(at.main, [], {

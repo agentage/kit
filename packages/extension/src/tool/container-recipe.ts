@@ -39,17 +39,24 @@ const runnerEnv = (store: boolean) => [
   '    BUILD_TIME=$BUILD_TIME',
 ];
 
-const runner = (store: boolean) => [
-  ...runnerEnv(store),
+interface Stores {
+  pglite?: string;
+  // A git store: the git binary for the part, its repos on the /data volume.
+  git?: boolean;
+}
+
+const runner = ({ pglite, git }: Stores) => [
+  ...runnerEnv(pglite !== undefined || Boolean(git)),
+  ...(git ? ['RUN apk add --no-cache git'] : []),
   'WORKDIR /app',
   'COPY --from=deps /app/node_modules ./node_modules',
-  ...(store
+  ...(pglite !== undefined
     ? [
         'COPY --from=pglite /pglite/node_modules/@electric-sql/pglite ./node_modules/@electric-sql/pglite',
       ]
     : []),
   'COPY app/ ./',
-  ...(store
+  ...(pglite !== undefined || git
     ? [`RUN mkdir -p ${DATA_VOLUME} && chown node:node ${DATA_VOLUME}`, `VOLUME ${DATA_VOLUME}`]
     : []),
   'USER node',
@@ -60,5 +67,5 @@ const runner = (store: boolean) => [
 ];
 
 // The one image of an extension: the kit host in one process; pglite is set for a postgres store.
-export const containerRecipe = ({ pglite }: { pglite?: string }): string =>
-  [...DEPS, ...(pglite ? pgliteStage(pglite) : []), ...runner(pglite !== undefined)].join('\n');
+export const containerRecipe = (stores: Stores): string =>
+  [...DEPS, ...(stores.pglite ? pgliteStage(stores.pglite) : []), ...runner(stores)].join('\n');

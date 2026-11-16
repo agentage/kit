@@ -60,8 +60,20 @@ describe('container recipe', () => {
     const order = ['COPY --from=pglite', 'chown node:node /data', 'VOLUME /data', 'USER node'];
     const at = order.map((line) => runner.indexOf(line));
     expect(at.every((i, n) => i >= 0 && (n === 0 || i > (at[n - 1] ?? 0)))).toBe(true);
-    for (const absent of ['pglite', 'VOLUME', 'AGENTAGE_DATA_DIR'])
+    for (const absent of ['pglite', 'VOLUME', 'AGENTAGE_DATA_DIR', 'apk add'])
       expect(plain).not.toContain(absent);
+  });
+
+  it('a git store brings the git binary and the /data volume, no PGlite', () => {
+    const runner = runnerOf(containerRecipe({ git: true }));
+    for (const line of [
+      'RUN apk add --no-cache git',
+      'AGENTAGE_DATA_DIR=/data/store',
+      'VOLUME /data',
+    ])
+      expect(runner).toContain(line);
+    expect(containerRecipe({ git: true })).not.toContain('pglite');
+    expect(store).not.toContain('apk add');
   });
 
   it('HEALTHCHECK probes 127.0.0.1 at PORT: 200 and 503 pass, 404 fails', async () => {

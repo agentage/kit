@@ -68,6 +68,12 @@ A clickhouse store has no migrations. In the host, with `AGENTAGE_STORE_URL_FILE
 elsewhere its calls say the store is missing. See
 [Estate stores in the host](part-image.md#estate-stores-in-the-host).
 
+A git store is a folder. `ctx.store.gitRoot` is `data/{id}` (a temp folder when the host has no
+data folder); the part lays out its repos there and runs `git` itself. The host holds the data lock,
+so one process writes the folder. In the cloud, `ctx.store.gitRemote` is the store-git URL to push
+to; it holds a credential, so never log it. `ctx.store.query` refuses. `/health` checks that the
+root is writable (`checks.store`, `checks["store:git"]`).
+
 ## Workers and commands
 
 - Each worker run is saved in the table `agentage_job_runs`. A row holds the job, start, end,

@@ -16,8 +16,10 @@ import { migrationsCheck } from './host-migrations.js';
 // The host's store, whichever opened it: queries, and a close on stop.
 export interface HostStore extends Store {
   close(): Promise<void>;
-  // Set for a store opened from a URL: /health then also names the kind (checks["store:postgres"]).
-  readonly kind?: UrlStoreKind;
+  // Set for a store opened from a URL (or git): /health then also names the kind (checks["store:git"]).
+  readonly kind?: UrlStoreKind | 'git';
+  // checks.store in place of a select 1 (git: the root is writable).
+  readonly probe?: HealthCheck;
   // The store's own /health checks (store:migrations for postgres).
   readonly checks?: Record<string, HealthCheck>;
 }
@@ -90,7 +92,7 @@ const shared = (check: HealthCheck): HealthCheck => {
 // checks.store as before; a URL store adds store:<kind> (the same probe) and its own checks.
 export const hostStoreChecks = (store: HostStore | undefined): Record<string, HealthCheck> => {
   if (!store) return {};
-  const check = shared(storeCheck(store));
+  const check = shared(store.probe ?? storeCheck(store));
   const named = store.kind ? { [`store:${store.kind}`]: check } : {};
   return { store: check, ...named, ...store.checks };
 };

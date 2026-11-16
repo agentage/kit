@@ -3,7 +3,17 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { tempDir } from '../../test-support/packages.js';
 import { homedir } from 'node:os';
-import { kitReadDirs, permissionFlag, sealFlags, sealOf, sealOffReason, treeOf } from './seal.js';
+import { GIT_MANIFEST, NO_GIT_MANIFEST } from '../../test-support/git-fixture.js';
+import { type ExtensionPackage } from '../../manifest/manifest.schema.js';
+import {
+  kitReadDirs,
+  permissionFlag,
+  sealFlags,
+  sealOf,
+  sealOfEntry,
+  sealOffReason,
+  treeOf,
+} from './seal.js';
 
 describe('the Node floor of the seal (C2)', () => {
   it.each([
@@ -93,6 +103,21 @@ describe('the flags of a sealed child (C2)', () => {
       configDir: CFG,
     });
     expect(flags.filter((f) => /child-process|worker|addons|wasi/.test(f))).toEqual([]);
+  });
+
+  it('a git store (G6, PD2): the child-process grant alone, the same folders', () => {
+    const at = { id: 'probe', main: KIT, dir: '/work/probe', runDir: RUN, dataDir: DATA };
+    const plain = sealFlags({ ...at, configDir: CFG });
+    const git = sealFlags({ ...at, configDir: CFG, childProcess: true });
+    expect(git.filter((f) => !plain.includes(f))).toEqual(['--allow-child-process']);
+    expect(git.filter((f) => /worker|addons|wasi/.test(f))).toEqual([]);
+  });
+
+  it('/health per entry: a git store on a sealed Node is partial; off stays off', () => {
+    const git = GIT_MANIFEST as ExtensionPackage;
+    const plain = NO_GIT_MANIFEST as ExtensionPackage;
+    expect([sealOfEntry('on', git), sealOfEntry('on', plain)]).toEqual(['partial', 'on']);
+    expect([sealOfEntry('off', git), sealOfEntry('on', undefined)]).toEqual(['off', 'on']);
   });
 
   it('a folder row behind a symlink: the link and the real folder are granted', async () => {

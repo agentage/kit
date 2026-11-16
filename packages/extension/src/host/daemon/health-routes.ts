@@ -3,7 +3,7 @@ import { hostParts, type HostPartKind } from '../../manifest/parts.js';
 import { readManifest } from '../../manifest/read-manifest.js';
 import { summary, type Entries } from './entries.js';
 import { restartsOf } from './restart.js';
-import { type Seal } from './seal.js';
+import { sealOfEntry, type Seal } from './seal.js';
 import { type Entry, type SupervisorDeps } from './supervisor.js';
 
 // What /health says of the daemon itself: the values of daemon.json, so a client can prove it.
@@ -27,15 +27,21 @@ export interface DaemonInfo {
 }
 
 // Read at each call: a reload can change the package in its folder.
-const partsOf = async ({ dir }: Entry): Promise<HostPartKind[]> =>
-  dir ? readManifest(dir).then(hostParts, () => []) : [];
+const pkgOf = async ({ dir }: Entry) =>
+  dir ? readManifest(dir).catch(() => undefined) : undefined;
 
-const reported = async (entry: Entry, info: DaemonInfo) => ({
-  ...summary(entry),
-  parts: await partsOf(entry),
-  seal: info.seal ?? 'off',
-  restarts: restartsOf(entry),
-});
+const partsOf = async (entry: Entry): Promise<HostPartKind[]> => {
+  const pkg = await pkgOf(entry);
+  return pkg ? hostParts(pkg) : [];
+};
+
+// PD2: a git store's child is on with a child-process grant: partial; the daemon's status stays ok.
+const reported = async (entry: Entry, info: DaemonInfo) => {
+  const pkg = await pkgOf(entry);
+  const seal = sealOfEntry(info.seal ?? 'off', pkg);
+  const parts = pkg ? hostParts(pkg) : [];
+  return { ...summary(entry), parts, seal, restarts: restartsOf(entry) };
+};
 
 const installationOf = ({ invalid, unreadable, notJson }: DaemonInfo) => {
   if (unreadable) return { installation: 'unreadable', installationError: unreadable };

@@ -55,8 +55,8 @@ describe('shell chrome', () => {
     await shell.click('Notify');
     await shell.click('Fail');
     const [info, error] = toasts();
-    expect(info?.className).toContain('text-info');
-    expect(error?.className).toContain('text-destructive');
+    expect(info?.className).toContain('bg-info/10');
+    expect(error?.className).toContain('bg-destructive/10');
     expect(error?.getAttribute('role')).toBe('alert');
   });
 

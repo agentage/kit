@@ -69,7 +69,7 @@ The pages part maps each path to a page:
 The ui part is a `widgets` map on [`@agentage/widget`](../packages/widget).
 
 The app part is one root component in `src/app/index.tsx`, its default export. It imports
-`react`, `react-dom` and `@agentage/app`; the shell gives one copy of each. Turn it on with
+`react`, `react-dom` and `@agentage/extension/app`; the shell gives one copy of each. Turn it on with
 `parts.app: true` and give its nav row:
 
 ```json

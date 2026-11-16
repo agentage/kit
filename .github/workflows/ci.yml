@@ -315,7 +315,7 @@ jobs:
           npm pack --workspaces --prefix platform --pack-destination "$PWD/probe"
           cd probe
           # No npm ci first: a probe that already pins the candidate version cannot fetch it from npm.
-          # Any other workspace package the probe names (e.g. @agentage/app) comes from this tree too, never npm.
+          # Any other workspace package the probe names (identity, shell) comes from this tree too, never npm.
           tarballs=(./agentage-extension-*.tgz ./agentage-widget-*.tgz)
           for tgz in ./agentage-*.tgz; do
             name="@agentage/$(basename "$tgz" | sed -E 's/^agentage-(.*)-[0-9]+\.[0-9]+\.[0-9]+\.tgz$/\1/')"

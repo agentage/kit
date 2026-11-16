@@ -88,18 +88,18 @@ is safe. The cli runs the same code as `agentage extension check|build|up|down|t
 `app` (and `build` for a package with the app part) bundles `src/app/index.tsx` with esbuild and
 compiles its Tailwind classes. It writes four kinds of file to `dist/app`:
 
-| File             | What                                                                                                            | Cache     |
-| ---------------- | --------------------------------------------------------------------------------------------------------------- | --------- |
-| `app-<hash>.js`  | the bundle; `react`, `react/jsx-runtime`, `react-dom`, `react-dom/client` and `@agentage/app` stay bare imports | immutable |
-| `app-<hash>.css` | the Tailwind utilities that `src/app` uses; no preflight, no theme variables                                    | immutable |
-| `index.js`       | `export { default } from './app-<hash>.js'`                                                                     | no-cache  |
-| `app.json`       | `{ "entry": "app-<hash>.js", "css": "app-<hash>.css" }`, read by the host                                       | no-cache  |
+| File             | What                                                                                                                      | Cache     |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------- | --------- |
+| `app-<hash>.js`  | the bundle; `react`, `react/jsx-runtime`, `react-dom`, `react-dom/client` and `@agentage/extension/app` stay bare imports | immutable |
+| `app-<hash>.css` | the Tailwind utilities that `src/app` uses; no preflight, no theme variables                                              | immutable |
+| `index.js`       | `export { default } from './app-<hash>.js'`                                                                               | no-cache  |
+| `app.json`       | `{ "entry": "app-<hash>.js", "css": "app-<hash>.css" }`, read by the host                                                 | no-cache  |
 
 - The build keeps the files of the previous build: an open page can still import them.
 - `esbuild`, `postcss`, `@tailwindcss/postcss` and `tailwindcss` are required for an app part (the
   extension template adds them as dev dependencies). The tool takes the extension's own copy first,
   then the copy beside the kit. If one is missing, the build stops at once and names it.
-- When `@agentage/app/theme.css` resolves, its `@theme` names (the shell's tokens) give utilities
+- When `@agentage/extension/app/theme.css` resolves, its `@theme` names (the shell's tokens) give utilities
   such as `bg-primary`. They read the shell's variables.
 - `appBuilder(dir)` from `@agentage/extension/tool` keeps esbuild warm: `rebuild()` on each save,
   `dispose()` at the end.

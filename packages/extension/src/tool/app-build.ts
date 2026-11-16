@@ -6,13 +6,13 @@ import { APP_DIR, APP_META_FILE } from '../manifest/parts.js';
 import { exists } from './stage.js';
 import { loadFrom, packageDir, requireBuildDeps, resolveFrom } from './app-load.js';
 
-// K4: one React and one @agentage/app for the shell and every app, given by the import map.
+// K4: one React and one @agentage/extension/app for the shell and every app, given by the import map.
 export const APP_EXTERNALS = [
   'react',
   'react/jsx-runtime',
   'react-dom',
   'react-dom/client',
-  '@agentage/app',
+  '@agentage/extension/app',
 ] as const;
 
 export interface AppFiles {
@@ -73,7 +73,7 @@ const dsTheme = async (dir: string): Promise<string[]> => {
 // Token names only (reference): utilities like bg-primary exist; the shell gives the values.
 const cssInput = async (dir: string, extra: string[]): Promise<string> => {
   const tw = packageDir(dir, 'tailwindcss');
-  const tokens = resolveFrom(dir, '@agentage/app/theme.css');
+  const tokens = resolveFrom(dir, '@agentage/extension/app/theme.css');
   return [
     '@layer theme, utilities;',
     `@import "${join(tw, 'theme.css')}" layer(theme) theme(reference inline);`,

@@ -9,7 +9,7 @@ import { check, RULES } from './check.js';
 const APP = `import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { createRoot } from 'react-dom/client';
-import { useAppHost } from '@agentage/app';
+import { useAppHost } from '@agentage/extension/app';
 export default function Probe() {
   const [n] = useState(0);
   void [createPortal, createRoot];
@@ -42,7 +42,7 @@ describe('the app build (S1.2.2 row 7, K4)', () => {
     );
   });
 
-  it('keeps the five shared imports bare: React and @agentage/app are not bundled', async () => {
+  it('keeps the five shared imports bare: React and @agentage/extension/app are not bundled', async () => {
     const dir = await appPackage();
     const code = await read(dir, (await buildApp(dir)).entry);
     for (const spec of APP_EXTERNALS) expect(code).toContain(`"${spec}"`);

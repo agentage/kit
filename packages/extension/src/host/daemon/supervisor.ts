@@ -4,14 +4,17 @@ import { readManifest } from '../../manifest/read-manifest.js';
 import { type Exit, type Launch } from './child.js';
 import { dataDirOf, readValues } from './daemon-files.js';
 import { type InstallEntry } from './installation.js';
-import { laneOf, retire, type Lane } from './lane.js';
+import { halt } from './gate.js';
+import { laneOf, type Lane } from './lane.js';
 import { type Limits } from './limits.js';
 import { runInstaller } from './installer-call.js';
 import { type PendingChanges } from './pending.js';
 import { type Queue } from './queue.js';
-import { cancelRestart, crashed, reasonOf, resetRestarts, type Retry } from './restart.js';
-import { assertSecrets, healthy } from './start-checks.js';
+import { crashed, healthyFor, reasonOf, resetRestarts, type Retry } from './restart.js';
+import { assertSecrets, healthy, redact } from './start-checks.js';
 import { type Stopping } from './stopping.js';
+
+export { halt, hold } from './gate.js';
 
 // Called on every boot for each entry with a version: idempotent (docs/part-image.md).
 // signal: aborted when the daemon stops waiting (installMs); an installer may ignore it.
@@ -95,22 +98,28 @@ export const launchFor = async (
   const pkg = await readManifest(dir);
   assertSecrets(pkg, values.secrets);
   const spec = { id: entry.id, dir, dataDir: dataDirOf(deps.configDir, entry.id), ...values };
-  const child = await deps.launch({ ...spec, origin: deps.origin(), storeOpenMs: deps.healthMs });
+  const child = await deps
+    .launch({ ...spec, origin: deps.origin(), storeOpenMs: deps.healthMs })
+    .catch((err: Error) =>
+      Promise.reject(Object.assign(err, { message: redact(err.message, values.secrets) }))
+    );
   await healthy(child.port, deps.healthMs).catch(async (err: unknown) => {
     await child.stop();
     throw err;
   });
   Object.assign(entry, { dir, version: pkg.version });
   const lane = laneOf(child);
-  void child.exited.then((how) => exitedEarly(deps, entry, lane, how));
+  const words = (how: Exit) => redact(reasonOf(how), values.secrets);
+  void child.exited.then((how) => exitedEarly(deps, entry, lane, words(how)));
+  healthyFor(deps, entry, lane);
   return lane;
 };
 
 // A child that exits while it is the route restarts (C6); a retired one was detached first.
-const exitedEarly = (deps: SupervisorDeps, entry: Entry, lane: Lane, how: Exit): void => {
+const exitedEarly = (deps: SupervisorDeps, entry: Entry, lane: Lane, why: string): void => {
   if (entry.lane !== lane) return;
   entry.lane = undefined;
-  crashed(deps, entry, reasonOf(how), () => restartEntry(deps, entry));
+  crashed(deps, entry, why, () => restartEntry(deps, entry));
 };
 
 const failed = (deps: SupervisorDeps, entry: Entry, err: unknown): void => {
@@ -139,16 +148,6 @@ export const startEntry = async (
 const restartEntry = async (deps: SupervisorDeps, entry: Entry): Promise<void> => {
   const err = await startEntry(deps, entry);
   if (err) crashed(deps, entry, err.message, () => restartEntry(deps, entry));
-};
-
-// New requests of the extension wait here (the proxy gives up after gateMs) until release.
-export const hold = (entry: Entry): (() => void) => {
-  let release = () => undefined as void;
-  entry.gate = new Promise<void>((resolve) => (release = resolve));
-  return () => {
-    entry.gate = undefined;
-    release();
-  };
 };
 
 // The old install again after a refused change; a disabled one stays stopped.
@@ -181,12 +180,4 @@ export const swap = async (
     await restore(deps, entry);
     throw startFailed(entry, err);
   }
-};
-
-// Detached first, so its exit is not a failure; then drained and stopped.
-export const halt = async (entry: Entry, drainMs: number): Promise<void> => {
-  cancelRestart(entry);
-  const lane = entry.lane;
-  entry.lane = undefined;
-  await retire(lane, drainMs);
 };

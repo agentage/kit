@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { LIMITS } from './limits.js';
 import { serialQueue } from './queue.js';
-import { cancelRestart, crashed, resetRestarts, restartsOf } from './restart.js';
+import { cancelRestart, crashed, healthyFor, resetRestarts, restartsOf } from './restart.js';
 import { stoppingOf } from './stopping.js';
 import { type Entry, type SupervisorDeps } from './supervisor.js';
 
@@ -77,6 +77,22 @@ describe('restart with backoff (C6)', () => {
     expect([restartsOf(entry), entry.exits, entry.retry]).toEqual([0, [], undefined]);
     crashed(deps, entry, 'x', async () => undefined);
     expect(entry.error).toBe('x: restart in 1000 ms');
+  });
+
+  it('a child healthy for healthyResetMs has its count reset; one that exited before does not', async () => {
+    const deps = depsOf();
+    const entry = { ...entryOf(), restarts: 3, exits: [0, 1, 2] };
+    const lane = { child: {} as never, open: 0, idle: [] };
+    entry.lane = lane;
+    healthyFor(deps, entry, lane);
+    await vi.advanceTimersByTimeAsync(599_999);
+    expect(restartsOf(entry)).toBe(3);
+    await vi.advanceTimersByTimeAsync(1);
+    expect([restartsOf(entry), entry.exits]).toEqual([0, []]);
+    const gone = { ...entryOf(), restarts: 2, lane: undefined };
+    healthyFor(deps, gone, lane);
+    await vi.advanceTimersByTimeAsync(600_000);
+    expect(restartsOf(gone)).toBe(2);
   });
 
   it('a cancel, a lane, a disable or a daemon stop before the timer fires: no restart', async () => {

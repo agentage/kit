@@ -1,9 +1,8 @@
 import { existsSync } from 'node:fs';
-import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { startHarness, tempConfigDir, type Harness } from '../../test-support/daemon-harness.js';
-import { json } from '../../test-support/packages.js';
+import { startHarness, type Harness } from '../../test-support/daemon-harness.js';
 import { wordLaunch, wordPackage, type WordLaunch } from '../../test-support/word-launch.js';
 
 let h: Harness | undefined;
@@ -142,38 +141,5 @@ describe('POST /host/extensions/{id}/reload (D14)', () => {
     expect(await reload('ghost')).toMatchObject({ status: 404 });
     await h.call('PATCH', '/host/extensions/word', { enabled: true });
     expect(await reload('word', { force: true })).toMatchObject({ status: 400 });
-  });
-});
-
-describe('a reload that a crash cut (the marker)', () => {
-  const bootWith = async () => {
-    const configDir = await tempConfigDir();
-    const extensions = [{ id: 'word', source: dir }];
-    await writeFile(join(configDir, 'installation.json'), json({ host: 'local', extensions }));
-    await mkdir(join(configDir, 'run', 'word'), { recursive: true });
-    await writeFile(join(configDir, 'run', 'word', 'reload.json'), json({ id: 'word', dir }));
-    h = await startHarness({ configDir, launch: w.launch });
-  };
-
-  it('cut after the first rename: dist.prev goes back to dist', async () => {
-    await rename(join(dir, 'dist'), join(dir, 'dist.prev'));
-    await bootWith();
-    expect([await word(), await at('dist'), marker()]).toEqual(['one', 'one', false]);
-  });
-
-  it('cut before the new build was healthy: the last good build runs, the new one is in dist.next', async () => {
-    await rename(join(dir, 'dist'), join(dir, 'dist.prev'));
-    await mkdir(join(dir, 'dist'));
-    await writeFile(join(dir, 'dist', 'word.txt'), 'throw');
-    await bootWith();
-    expect([await word(), await at('dist.next'), marker()]).toEqual(['one', 'throw', false]);
-  });
-
-  it('no marker: a dist.prev left by a confirmed reload is not touched at boot', async () => {
-    await mkdir(join(dir, 'dist.prev'));
-    await writeFile(join(dir, 'dist.prev', 'word.txt'), 'old');
-    h = await startHarness({ launch: w.launch });
-    await h.call('POST', '/host/extensions', { source: dir });
-    expect([await word(), await at('dist.prev')]).toEqual(['one', 'old']);
   });
 });

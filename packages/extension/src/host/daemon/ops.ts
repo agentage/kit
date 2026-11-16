@@ -4,6 +4,7 @@ import { fail } from '../../envelope/envelope.js';
 import { parse } from '../../envelope/parse.js';
 import { SecretNameSchema } from '../../manifest/primitives.schema.js';
 import { purgeData } from './daemon-files.js';
+import { unmarkReload } from './reload-marker.js';
 import { entryOf, summary, type Entries } from './entries.js';
 import { unsynced, writeAll } from './write-all.js';
 import { runInstaller } from './installer-call.js';
@@ -111,6 +112,7 @@ export const removeExtension = async (
   );
   entries.delete(id);
   await halt(entry, deps.drainMs);
+  await unmarkReload(deps.configDir, id);
   if (purge) await purgeData(deps.configDir, id);
   return { id };
 };

@@ -119,7 +119,7 @@ const hostRoutes = (
   app.post('/host/extensions', json, add);
   app.patch('/host/extensions/:id', json, change);
   app.delete('/host/extensions/:id', remove);
-  reloadRoute(app, deps, entries);
+  reloadRoute(app, deps, entries, () => checkReadable(deps, info));
 };
 
 // C5: /health, /host/extensions, and /api/{id}/* to the child of that id; Host and Origin first.

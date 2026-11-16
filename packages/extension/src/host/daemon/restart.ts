@@ -1,4 +1,5 @@
 import { type Exit } from './child.js';
+import { type Lane } from './lane.js';
 import { type Entry, type SupervisorDeps } from './supervisor.js';
 
 // The restart waiting for its backoff; a halt, a change or a stop clears it.
@@ -20,6 +21,12 @@ export const cancelRestart = (entry: Entry): void => {
 export const resetRestarts = (entry: Entry): void => {
   cancelRestart(entry);
   Object.assign(entry, { exits: [], restarts: 0 });
+};
+
+// Healthy for healthyResetMs on the same child: the past exits no longer count.
+export const healthyFor = (deps: SupervisorDeps, entry: Entry, lane: Lane): void => {
+  const reset = () => entry.lane === lane && Object.assign(entry, { exits: [], restarts: 0 });
+  setTimeout(reset, deps.healthyResetMs).unref();
 };
 
 export const reasonOf = (how: Exit): string =>

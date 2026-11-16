@@ -122,22 +122,33 @@ only when this start made it (the data of an id that had a folder, and its setti
 rows, stay). A `PATCH` that fails to start answers the same envelope and the old child runs again.
 A declared secret of a server part with no value is checked before the fork: the install is kept,
 state `failed`, error `needs secret <name>`; `PATCH { secrets }` starts it. A running child that
-exits restarts after `backoffMs` (1, 2, 4, 8, 16 s, by the restarts since the last reset; the last
-value repeats); a restart that does not start counts as an exit. `crashLimit` (5) exits in
-`crashWindowMs` (10 min) is `failed`, error `exited 5 times in 10 min: <last words>` (the child's
-last stderr line above info), and no more restarts. While it waits the state is `starting`, the
-error `<last words>: restart in <ms> ms`. A `PATCH` that starts it (enable, configure, update) or a
-reload resets the count. A restart runs in the change queue; a change, remove or stop cancels it.
+exits restarts after `backoffMs`, by the restarts since the last reset: in a tight loop the steps
+are 1, 2, 4 and 8 s, and the 5th exit in `crashWindowMs` (10 min) is `failed`; 16 s is the cap for
+later exits, once older exits left the window. A restart that does not start counts as an exit.
+`failed` reads `exited 5 times in 10 min: <last words>`, with no more restarts. While it waits the
+state is `starting`, the error `<last words>: restart in <ms> ms`. The last words are the last
+stderr line that says why (an error line, an error log row's msg, or the thrown text; stack frames,
+error properties, blank lines and the `Node.js v` line are skipped). Each secret value of 4 or
+more characters that the child was given reads `***` there, in `/health`, the list and the log. A
+`PATCH` that starts it (enable, configure, update), a reload, or `healthyResetMs` (10 min) healthy
+on one child resets the count. A restart runs in the change queue; a change, remove or stop
+cancels it. A store open that finds the data lock held by a live process retries every 100 ms up
+to the open limit, then fails as before; on Linux a holder in state `Z` (exited, not reaped) is dead.
 
 Reload (D14). `POST /host/extensions/{id}/reload`, body `{}`, for a folder row only (a market row
-is 400 `VALIDATION_ERROR`, a disabled one 409 `CONFLICT`). In the change queue (a second reload
-waits): requests wait at the gate (`gateMs`), the child stops and its exit is awaited, `dist` is
-renamed to `dist.prev` and `dist.next` to `dist` (with no `dist.next` it restarts on `dist`), the
-new child starts and must be healthy. Then 200 `{ id, version, state, pid, reloaded: true }`.
-Not healthy: `dist` goes back to `dist.next`, `dist.prev` to `dist`, the last good build starts, 200
-`{ ..., reloaded: false, refused: "<why>" }`; the store rows stay. `run/{id}/reload.json` is written
-before the swap and removed after; at boot a marker means a cut reload, and the last good build
-goes back to `dist`. A reload exit is not a crash exit.
+is 400 `VALIDATION_ERROR`, a disabled one 409 `CONFLICT`, an unreadable `installation.json` 409
+`INSTALLATION_UNREADABLE`). In the change queue (a second reload waits): requests wait at the gate
+(`gateMs`), the child stops and its exit is awaited, `dist` is renamed to `dist.prev` and
+`dist.next` is COPIED to `dist` (with no `dist.next` it restarts on `dist`), the new child starts
+and must be healthy. Then 200 `{ id, version, state, pid, reloaded: true }`; the removal of
+`dist.prev` and of the marker after that is best-effort (a warn line). `dist.next` is the
+watcher's tree: the daemon never moves or deletes it. Not healthy: the copied `dist` goes,
+`dist.prev` comes back, the last good build starts, 200 `{ ..., reloaded: false, refused: "<why>" }`;
+the store rows stay. A rename or copy that fails (`EPERM`, `EBUSY`) answers the same way, not a 500.
+`run/{id}/reload.json` records the folder and is written before the swap, removed after, and on a
+remove of the id. At boot a marker of the row's own folder with a `dist.prev` is a cut reload: the
+partial `dist` goes and `dist.prev` comes back; with no `dist.prev`, `dist` is never touched. A
+reload exit is not a crash exit.
 
 Two exports from `/host` write the daemon files under the kit's lock, for a client that moves
 older files before the daemon starts:
@@ -164,6 +175,7 @@ Each wait of the daemon has a bound, a `createDaemon` option:
 | `installMs`                   | `660000`                          | one `Installer` call, then 504 (at boot the entry fails); a queued change, then 503     |
 | `backoffMs`                   | `[1000, 2000, 4000, 8000, 16000]` | the wait before each restart of a child that exited                                     |
 | `crashLimit`, `crashWindowMs` | `5`, `600000`                     | this many exits in the window is `failed`                                               |
+| `healthyResetMs`              | `600000`                          | a child healthy this long has its restart count reset                                   |
 
 The 11 min of `installMs` is above the cli's npm bound (10 min) and below its client wait (12 min).
 

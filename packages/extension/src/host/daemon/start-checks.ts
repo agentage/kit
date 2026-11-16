@@ -23,3 +23,10 @@ export const healthy = async (port: number, ms: number): Promise<void> => {
   });
   if (res.status !== 200) throw new Error(`health answered ${res.status}`);
 };
+
+// A secret value this child was given never reaches error, /health, the list or the log.
+export const redact = (text: string, secrets: Record<string, string>): string =>
+  Object.values(secrets)
+    .filter((value) => value.length >= 4)
+    .sort((a, b) => b.length - a.length)
+    .reduce((out, value) => out.split(value).join('***'), text);

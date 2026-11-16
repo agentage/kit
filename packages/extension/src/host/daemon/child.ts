@@ -62,19 +62,32 @@ export const childEnv = (spec: LaunchSpec, secretsDir: string): Record<string, s
 const passedEnv = () =>
   Object.fromEntries(PASSED.flatMap((k) => (process.env[k] ? [[k, process.env[k]]] : [])));
 
-// The child's last stderr line, its msg when it is a log row: why it did not start.
-const lastWords = (tail: string, how: Exit): string => {
-  const lines = tail
-    .trim()
-    .split('\n')
-    .filter((l) => !/^Node\.js v\d/.test(l));
-  const line = lines.at(-1) ?? '';
+// Lines that never say why: blanks, stack frames, error properties, the Node version, the hint.
+const NOISE = [
+  /^\s*$/,
+  /^\s+at /,
+  /^\s*[{}]\s*$/,
+  /^\s+[\w$'"]+: /,
+  /^Node\.js v\d/,
+  /^\(Use `node/,
+];
+// A log row below error (listening, a request, a warning) is not why a child exited.
+const QUIET = /^\{.*"level":"(warn|info|debug|trace)"/;
+
+const msgOf = (line: string): string => {
   try {
-    const msg = String((JSON.parse(line) as { msg?: unknown }).msg ?? line);
-    return msg.replace(/^[A-Za-z]*Error: /, '');
+    return String((JSON.parse(line) as { msg?: unknown }).msg ?? line);
   } catch {
-    return line || `exited with ${how.signal ? `signal ${how.signal}` : `code ${how.code}`}`;
+    return line;
   }
+};
+
+// The last line that says why (an error line, a log row's msg, or the thrown text): from stderr.
+export const lastWords = (tail: string, how: Exit): string => {
+  const lines = tail.split('\n').map((l) => l.trimEnd());
+  const line = lines.reverse().find((l) => !QUIET.test(l) && !NOISE.some((re) => re.test(l)));
+  if (line) return msgOf(line).replace(/^[A-Za-z]*Error(?: \[[A-Z_]+\])?: /, '');
+  return `exited with ${how.signal ? `signal ${how.signal}` : `code ${how.code}`}`;
 };
 
 const captured = (child: ChildProcess): (() => string) => {
@@ -95,18 +108,11 @@ const flushed = (child: ChildProcess): Promise<void> =>
     setTimeout(resolve, 500).unref();
   });
 
-// A log row below error (listening, a request, a warning) is not why a running child exited.
-const loud = (tail: string): string =>
-  tail
-    .split('\n')
-    .filter((line) => !/^\{.*"level":"(warn|info|debug|trace)"/.test(line))
-    .join('\n');
-
 const exitOf = (child: ChildProcess, tail: () => string): Promise<Exit> =>
   new Promise((resolve) =>
     child.once('exit', (code, signal) => {
       const how = { code, signal };
-      void flushed(child).then(() => resolve({ ...how, words: lastWords(loud(tail()), how) }));
+      void flushed(child).then(() => resolve({ ...how, words: lastWords(tail(), how) }));
     })
   );
 

@@ -20,6 +20,8 @@ export const LIMITS = {
   // C6: this many exits inside crashWindowMs is failed, with no more restarts.
   crashLimit: 5,
   crashWindowMs: 600_000,
+  // A child healthy this long has its restart count and exits reset.
+  healthyResetMs: 600_000,
 };
 
 export type Limits = typeof LIMITS;

@@ -66,6 +66,19 @@ describe('a child that exits (C6)', () => {
   });
 });
 
+describe('secrets in the reason of an exit', () => {
+  it('every value of 4 or more characters this child was given is *** in the list and /health', async () => {
+    h = await startHarness({ launch: w.launch, backoffMs: [60_000] });
+    const rows = { word: { 'key-a': 'sekret-value', 'key-b': 'ab' } };
+    await writeFile(join(h.configDir, 'secrets.json'), JSON.stringify(rows), { mode: 0o600 });
+    await h.call('POST', '/host/extensions', { source: await wordPackage('one') });
+    w.children.at(-1)!.crash('token sekret-value refused, ab');
+    const error = 'token *** refused, ab: restart in 60000 ms';
+    await vi.waitFor(async () => expect(await rowOf()).toMatchObject({ error }));
+    expect(JSON.stringify((await h.call('GET', '/health')).body)).not.toContain('sekret-value');
+  });
+});
+
 describe('a new install that does not start (C6)', () => {
   it('is 400 START_FAILED, leaves no row and no data folder; the others answer', async () => {
     h = await startHarness({ launch: w.launch });

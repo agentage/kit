@@ -1,10 +1,11 @@
 import { mkdir } from 'node:fs/promises';
+import { setTimeout as sleep } from 'node:timers/promises';
 import { type Log } from '../log/log.js';
 import { type ExtensionPackage } from '../manifest/manifest.schema.js';
 import { hasStore } from '../manifest/parts.js';
 import { migrate } from '../store/migrations.js';
 import { createPgliteStore, type PgliteStore } from '../store/pglite-store.js';
-import { lockDataDir } from './data-lock.js';
+import { DATA_DIR_LOCKED, lockDataDir } from './data-lock.js';
 
 const unlocked = async () => undefined;
 
@@ -16,6 +17,21 @@ const within = <T>(work: Promise<T>, ms: number): Promise<T | 'late'> =>
     work,
     new Promise<'late'>((resolve) => setTimeout(() => resolve('late'), ms).unref()),
   ]);
+
+const LOCK_RETRY_MS = 100;
+
+// A holder that is still draining (an old child, an orphan) lets go soon: retry until openMs.
+export const lockWithin = async (dataDir: string, openMs: number): Promise<() => Promise<void>> => {
+  const until = Date.now() + openMs;
+  for (;;) {
+    try {
+      return await lockDataDir(dataDir);
+    } catch (err) {
+      if ((err as { code?: unknown }).code !== DATA_DIR_LOCKED || Date.now() >= until) throw err;
+      await sleep(LOCK_RETRY_MS);
+    }
+  }
+};
 
 // A close past openMs keeps the data lock: PGlite may still write there until the process exits.
 const closer = (store: PgliteStore, release: () => Promise<void>, openMs: number) => async () => {
@@ -30,7 +46,7 @@ const closer = (store: PgliteStore, release: () => Promise<void>, openMs: number
 const open = async (at: StoreAt, log: Log): Promise<PgliteStore> => {
   const { dir, dataDir, openMs } = at;
   if (dataDir) await mkdir(dataDir, { recursive: true });
-  const release = dataDir ? await lockDataDir(dataDir) : unlocked;
+  const release = dataDir ? await lockWithin(dataDir, openMs) : unlocked;
   const store = createPgliteStore((s) => migrate(s, dir, log), {
     dataDir: dataDir || undefined,
     from: dir,

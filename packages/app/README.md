@@ -1,11 +1,14 @@
-# @agentage/app
+# @agentage/extension/app
+
+This workspace (`packages/app`, private) is published only inside the kit: the kit build copies its
+`dist` and `theme.css` to `dist/vendor/app` (`scripts/inline-app.mjs`). React 19 is a peer of the kit.
 
 The one import of an agentage app. An app is one root component (the default export of
 `src/app/index.tsx`); the shell mounts it in the `main` region and gives it these hooks. The app has
 no code for layout, auth or storage.
 
 The shell serves one copy of React and of this package through an import map: an app bundle keeps
-`react`, `react-dom` and `@agentage/app` external.
+`react`, `react-dom` and `@agentage/extension/app` external.
 
 ## The calls
 
@@ -36,17 +39,17 @@ Keys of `openAside`: `inspect`, `details`, `inbox` (the shell puts the key in th
 
 ## Theme
 
-`@agentage/app/theme.css` is one Tailwind v4 `@theme` block: the shell palette (the
+`@agentage/extension/app/theme.css` is one Tailwind v4 `@theme` block: the shell palette (the
 `shell-samples/index.html` hex values) under the design-system token names. The shell and the app
 build import it, so an app utility such as `bg-card` or `text-primary` matches the frame.
 
 ## Tests
 
-`@agentage/app/test-host` gives `TestHost`: the five regions as plain nodes and an in-memory host.
+`@agentage/extension/app/test-host` gives `TestHost`: the five regions as plain nodes and an in-memory host.
 It records notices, api calls, the aside key and pages; `reply(call)` sets the api answer.
 
 ```tsx
-import { createTestRecord, TestHost } from '@agentage/app/test-host';
+import { createTestRecord, TestHost } from '@agentage/extension/app/test-host';
 
 const record = createTestRecord();
 render(

@@ -140,6 +140,7 @@ jobs:
           PROBE_REF: ${{ vars.PROBE_REF }}
         run: |
           set -euo pipefail
+          mkdir -p /tmp/pack
           npm pack --workspaces --pack-destination /tmp/pack >/dev/null
           # A PR runs against the extension-probe branch named as its head (or a non-default base), else
           # the repo variable PROBE_REF (set while a kit change waits on a probe release), else master.

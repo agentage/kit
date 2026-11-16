@@ -30,17 +30,28 @@ export const connectionOf = (text: string): ClickhouseConnection => {
   };
 };
 
-const quoted = (s: string) => `'${s.replace(/\\/g, '\\\\').replace(/'/g, "\\'")}'`;
-const inner = (v: unknown): string =>
-  typeof v === 'string' ? quoted(v) : Array.isArray(v) ? `[${v.map(inner).join(',')}]` : value(v);
+const ESCAPES: Record<string, string> = { '\\': '\\\\', '\t': '\\t', '\n': '\\n', "'": "\\'" };
+const escaped = (s: string) => s.replace(/[\\\t\n']/g, (c) => ESCAPES[c] ?? c);
+// Whole seconds fit DateTime and DateTime64; a Date with milliseconds needs DateTime64(3).
+const epoch = (d: Date) => {
+  const ms = d.getTime();
+  return ms % 1000 === 0 ? String(ms / 1000) : (ms / 1000).toFixed(3);
+};
+const inner = (v: unknown): string => {
+  if (v === null || v === undefined) return 'NULL';
+  if (typeof v === 'string') return `'${escaped(v)}'`;
+  if (v instanceof Date) return epoch(v);
+  return Array.isArray(v) ? `[${v.map(inner).join(',')}]` : value(v);
+};
 
 // A {name:Type} parameter in the escaped text form ClickHouse reads from param_<name>.
 export const value = (v: unknown): string => {
   if (v === null || v === undefined) return '\\N';
+  if (typeof v === 'string') return escaped(v);
   if (Array.isArray(v)) return `[${v.map(inner).join(',')}]`;
-  if (v instanceof Date) return String(Math.floor(v.getTime() / 1000));
+  if (v instanceof Date) return epoch(v);
   if (typeof v === 'object') return JSON.stringify(v);
-  return String(v as string | number | boolean);
+  return String(v as number | boolean);
 };
 
 const urlOf = (c: ClickhouseConnection, call: ClickhouseCall): URL => {
@@ -79,8 +90,18 @@ export const request = async (c: ClickhouseConnection, call: ClickhouseCall): Pr
   return res.text();
 };
 
+// An error after the first rows comes in the body of a 200: never read it as a row.
+const rowOf = <R>(line: string): R => {
+  try {
+    return JSON.parse(line) as R;
+  } catch {
+    const code = /Code: (\d+)/.exec(line)?.[1] ?? 'BAD_ROW';
+    throw Object.assign(new Error(line.slice(0, 500)), { code });
+  }
+};
+
 export const rowsOf = <R>(text: string): R[] =>
   text
     .split('\n')
     .filter((line) => line.trim())
-    .map((line) => JSON.parse(line) as R);
+    .map((line) => rowOf<R>(line));

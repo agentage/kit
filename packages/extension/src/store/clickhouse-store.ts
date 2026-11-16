@@ -31,8 +31,11 @@ export interface ClickhouseStore {
   close(): Promise<void>;
 }
 
-// Counts as JSON numbers, as the part code reads them.
-const READS: ClickhouseSettings = { output_format_json_quote_64bit_integers: 0 };
+// Counts as JSON numbers; the whole answer before the status, so a late error is a 500, not a 200.
+const READS: ClickhouseSettings = {
+  output_format_json_quote_64bit_integers: 0,
+  wait_end_of_query: 1,
+};
 const TABLE = /^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)?$/;
 const PING_MS = 900;
 

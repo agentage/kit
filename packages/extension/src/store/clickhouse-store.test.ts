@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest';
 import { isFailure } from '../envelope/envelope.js';
 import { closedPort, fakeClickhouse } from '../test-support/fake-clickhouse.js';
 import { recordedLog } from '../test-support/http.js';
-import { connectionOf, value } from './clickhouse-http.js';
+import { connectionOf, rowsOf, value } from './clickhouse-http.js';
 import {
   clickhouseOf,
   createClickhouseStore,
@@ -22,8 +22,9 @@ describe('createClickhouseStore', () => {
     expect([one?.user, one?.key]).toEqual(['logs', 'p@ss']);
     const params = Object.fromEntries(one?.url.searchParams ?? []);
     expect(params).toMatchObject({ database: 'platform_logs', default_format: 'JSONEachRow' });
-    expect(params).toMatchObject({ param_k: "it's", param_ns: '[1,2]', a: '1' });
+    expect(params).toMatchObject({ param_k: "it\\'s", param_ns: '[1,2]', a: '1' });
     expect(params).toMatchObject({ output_format_json_quote_64bit_integers: '0' });
+    expect(params).toMatchObject({ wait_end_of_query: '1' });
     expect(await store.query('SELECT 1', [])).toEqual({ rows: [{ n: 1 }, { n: 2 }] });
     expect(ch.seen[1]?.url.searchParams.has('param_0')).toBe(false);
     await expect(store.query('SELECT {0:UInt8}', [1])).rejects.toThrow(/named parameters/);
@@ -83,12 +84,23 @@ describe('createClickhouseStore', () => {
 });
 
 describe('clickhouse helpers', () => {
-  it('value writes the escaped text form of a parameter', () => {
+  it('value writes the escaped text form of a parameter (checked on a 26.8 server)', () => {
     expect(value(null)).toBe('\\N');
-    expect(value(['a', "b'c", 'd\\e', 1, ['x']])).toBe("['a','b\\'c','d\\\\e',1,['x']]");
+    expect(value("a\\b\tc\nd'e")).toBe("a\\\\b\\tc\\nd\\'e");
+    expect(value(['a', "b'c", null, 1, ['x']])).toBe("['a','b\\'c',NULL,1,['x']]");
     expect(value(new Date('2026-01-01T00:00:00Z'))).toBe('1767225600');
+    expect(value(new Date('2026-01-01T00:00:00.123Z'))).toBe('1767225600.123');
+    expect(value([new Date('2026-01-01T00:00:00Z')])).toBe('[1767225600]');
     expect(value({ a: 1 })).toBe('{"a":1}');
     expect(value(true)).toBe('true');
+  });
+
+  it('an error after the first rows is an error with its code, not a row', () => {
+    expect(rowsOf('{"n":1}\n')).toEqual([{ n: 1 }]);
+    expect(() => rowsOf('{"n":1}\nCode: 395. DB::Exception: late')).toThrow(
+      expect.objectContaining({ code: '395' })
+    );
+    expect(() => rowsOf('{"n":')).toThrow(expect.objectContaining({ code: 'BAD_ROW' }));
   });
 
   it('connectionOf defaults the user and the database', () => {

@@ -57,6 +57,6 @@ export const stageContainer = async (
   for (const path of await containerPaths(dir, pkg))
     await cp(join(dir, path), join(root, 'app', path), { recursive: true, filter });
   const pglite = hasStore(pkg, 'postgres') ? await pgliteVersion(dir) : undefined;
-  await writeFile(join(root, 'Dockerfile'), containerRecipe({ pglite }));
+  await writeFile(join(root, 'Dockerfile'), containerRecipe({ pglite, git: hasStore(pkg, 'git') }));
   return root;
 };

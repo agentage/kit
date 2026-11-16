@@ -6,9 +6,11 @@ export const STORE_URL_FILE_ENV = 'AGENTAGE_STORE_URL_FILE';
 // The kinds a host opens from a URL; every other kind keeps its own way in.
 export type UrlStoreKind = 'postgres' | 'clickhouse';
 
-const SCHEMES: Record<UrlStoreKind, { protocol: RegExp; form: string }> = {
+// git reads its URL too, as the remote of its repos (the host opens the repos in dataDir).
+const SCHEMES: Record<UrlStoreKind | 'git', { protocol: RegExp; form: string }> = {
   postgres: { protocol: /^postgres(ql)?:$/, form: 'postgres://' },
   clickhouse: { protocol: /^https?:$/, form: 'http:// or https://' },
+  git: { protocol: /^https?:$/, form: 'http:// or https://' },
 };
 
 export const isUrlStoreKind = (kind: string | undefined): kind is UrlStoreKind =>
@@ -27,7 +29,7 @@ const readText = async (file: string, read: (file: string) => Promise<string>) =
 // Every error names the variable and the file, never the URL: it holds a credential.
 export const readStoreUrl = async (
   file: string,
-  kind: UrlStoreKind,
+  kind: UrlStoreKind | 'git',
   read = (at: string) => readFile(at, 'utf8')
 ): Promise<string> => {
   const text = await readText(file, read);

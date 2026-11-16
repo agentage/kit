@@ -46,8 +46,9 @@ port or at the port of `AGENTAGE_ORIGIN`. The daemon child and the one container
 | `AGENTAGE_HOST_BIND=all`  | listen on every address. It needs a token check (`AGENTAGE_ISSUER`, `AGENTAGE_AUDIENCE`, `AGENTAGE_ORIGIN`) or `AGENTAGE_HOST_AUTH=off`                                                                                                                                         |
 
 The one container (`build --container`) sets `AGENTAGE_HOST_BIND=all`, `PORT=8080` and
-`AGENTAGE_DRAIN_MS=8000`. With a postgres store it also sets `AGENTAGE_DATA_DIR=/data/store` on the
-volume `/data`. So it needs the token values, or `-e AGENTAGE_HOST_AUTH=off` for a local run.
+`AGENTAGE_DRAIN_MS=8000`. With a postgres or git store it also sets `AGENTAGE_DATA_DIR=/data/store` on
+the volume `/data`; a git store also installs `git`. So it needs the token values, or
+`-e AGENTAGE_HOST_AUTH=off` for a local run.
 `/health` answers on loopback only: use `docker exec` or the `HEALTHCHECK` state.
 
 ```bash
@@ -65,10 +66,11 @@ docker run -p 8080:8080 -e AGENTAGE_HOST_AUTH=off -v probe-data:/data ghcr.io/ag
 With `AGENTAGE_STORE_URL_FILE` set, the host (the one container, `serveHost`, `hostExtension(dir, {
 storeUrlFile })`) opens the store of the estate:
 
-| Store kind   | The file holds                    | The host                                                                                                               |
-| ------------ | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `postgres`   | `postgres://user:pw@host:5432/db` | a `pg` pool as `ctx.store`; it never migrates: `checks["store:migrations"]` is `unavailable` until the migrate job ran |
-| `clickhouse` | `http://user:pw@host:8123/db`     | a client over the HTTP interface as `ctx.store`; `clickhouseOf(ctx)` gives `query`, `command`, `insert`, `ping`        |
+| Store kind   | The file holds                    | The host                                                                                                                                                                  |
+| ------------ | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `postgres`   | `postgres://user:pw@host:5432/db` | a `pg` pool as `ctx.store`; it never migrates: `checks["store:migrations"]` is `unavailable` until the migrate job ran                                                    |
+| `clickhouse` | `http://user:pw@host:8123/db`     | a client over the HTTP interface as `ctx.store`; `clickhouseOf(ctx)` gives `query`, `command`, `insert`, `ping`                                                           |
+| `git`        | `http://root:pw@host:8080/root/`  | the repos stay in `AGENTAGE_DATA_DIR` (`ctx.store.gitRoot`); `ctx.store.git.remote` (no credential) is the push remote, the credential is a header in `ctx.store.git.env` |
 
 - Unset: a postgres store is PGlite in `AGENTAGE_DATA_DIR`, as before. The daemon does not pass the
   variable to its children.
@@ -76,7 +78,7 @@ storeUrlFile })`) opens the store of the estate:
   variable and the file, never the URL.
 - A store that is down does not stop the start: the host waits `AGENTAGE_STORE_OPEN_MS`, then
   serves, and `/health` is 503 until the store answers.
-- `/health` keeps `checks.store` and adds `checks["store:postgres"]` or `checks["store:clickhouse"]`
+- `/health` keeps `checks.store` and adds `checks["store:postgres"]`, `checks["store:clickhouse"]` or `checks["store:git"]`
   (one probe answers both), so a reader sees which store answered. A PGlite store has
   `checks.store` only.
 - A package with another store kind (or none) logs a warn and ignores the file.
@@ -272,19 +274,26 @@ Statuses, not codes, tell a retry: 503 `UNAVAILABLE` is worth a retry after `Ret
 
 ## The daemon: routes, host token, seal
 
-| Route                                 | Answer                                                                                                                          |
-| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
-| `ANY /api/{id}/*`, `ANY /mcp/{id}`    | the child of that id, path kept; 404 envelope not installed or disabled; 503 `Retry-After: 5` not running                       |
-| `GET /.well-known/agentage-host.json` | `{ host: "local", extensions: [{ id, version, parts }] }` of the running extensions; anonymous                                  |
-| `GET /health`                         | each entry adds `parts`, `seal` (`on`/`off`), `restarts`; below the Node floor `seal: "off"`, `sealError`, `status: "degraded"` |
-| `/host/*`                             | `Authorization: Bearer <hostToken>`: 401 `UNAUTHORIZED` with none, 403 `FORBIDDEN` with another                                 |
+| Route                                 | Answer                                                                                                                                    |
+| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
+| `ANY /api/{id}/*`, `ANY /mcp/{id}`    | the child of that id, path kept; 404 envelope not installed or disabled; 503 `Retry-After: 5` not running                                 |
+| `GET /.well-known/agentage-host.json` | `{ host: "local", extensions: [{ id, version, parts }] }` of the running extensions; anonymous                                            |
+| `GET /health`                         | each entry adds `parts`, `seal` (`on`/`partial`/`off`), `restarts`; below the Node floor `seal: "off"`, `sealError`, `status: "degraded"` |
+| `/host/*`                             | `Authorization: Bearer <hostToken>`: 401 `UNAUTHORIZED` with none, 403 `FORBIDDEN` with another                                           |
 
 `hostToken` is new at each daemon start and is only in `daemon.json` (0600). The proxy drops an
 `Authorization` that carries it, so no child sees it.
 
 A child is forked with `node --permission --no-experimental-sqlite`. It may read the `node_modules`
 that holds the kit and the tree of its package (a folder row: the folder). It may read and write
-`run/{id}` and `data/{id}`. It gets no child-process, worker, addon or WASI grant. A symlinked
+`run/{id}` and `data/{id}`. It gets no child-process, worker, addon or WASI grant, with one
+exception: a package with `store: git` gets `--allow-child-process`, because its part runs `git`
+(PD2). Its entry in `/health` says `seal: "partial"`; the daemon status stays `ok`. The `git`
+process runs outside the permission model: it can read and write any path the user can. The grant
+is not limited to `git`: the child may start any program (`sh`, `cat`), so for code the seal of this
+child is off. This is accepted for first-party extensions only (memory). Before a third-party
+extension installs from the market, the grant gets an allowlist (an installation flag or host
+config) and the install shows `seal: partial`. A symlinked
 path is granted as given and as its real path. A kit checkout grants its package and its workspace
 root, never a folder above the user's home.
 

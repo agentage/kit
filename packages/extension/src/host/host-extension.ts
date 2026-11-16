@@ -14,6 +14,7 @@ import { buildInfoFromEnv, type Env } from '../runtime/build-info.js';
 import { type PartAppBase } from '../server/app.js';
 import { hostClockRate } from '../worker/clock.js';
 import { localOnly } from './daemon/guard.js';
+import { openGitStore } from './host-git-store.js';
 import { hostPartsOf, type HostedParts, type Hosting } from './host-parts.js';
 import { openHostStore, STORE_OPEN_MS } from './host-store.js';
 import { hostStoreChecks, openUrlStore } from './host-url-store.js';
@@ -33,7 +34,7 @@ export interface HostOptions {
   localPorts?: number[];
   // The wait for the store to open, STORE_OPEN_MS when left out; past it /health says unavailable.
   storeOpenMs?: number;
-  // AGENTAGE_STORE_URL_FILE: postgres or clickhouse from the estate in place of PGlite (G1, G2).
+  // AGENTAGE_STORE_URL_FILE: postgres or clickhouse in place of PGlite (G1, G2); git: its push remote.
   storeUrlFile?: string;
 }
 
@@ -106,7 +107,10 @@ export const hostWith = async (dir: string, opts: HostOptions, extras: HostExtra
   const openMs = opts.storeOpenMs ?? STORE_OPEN_MS;
   const at = { dir, dataDir: opts.dataDir, runDir: opts.runDir, openMs };
   const url = { dir, file: opts.storeUrlFile, openMs };
-  const store = (await openUrlStore(pkg, url, log)) ?? (await openHostStore(pkg, at, log));
+  const store =
+    (await openGitStore(pkg, { ...at, file: opts.storeUrlFile }, log)) ??
+    (await openUrlStore(pkg, url, log)) ??
+    (await openHostStore(pkg, at, log));
   const onExit = once(opts.onExit ?? (() => undefined));
   const build = extras.build ?? (await hostBuildInfo({}, dir));
   const h: Hosting = { dir, pkg, log, opts, extras, store, onExit, build };

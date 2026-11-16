@@ -189,14 +189,14 @@ describe('parts', () => {
     ]);
   });
 
-  it('knows four store kinds, postgres alone with migrations, and serves three', () => {
+  it('knows four store kinds, postgres alone with migrations, and serves all four', () => {
     expect(STORE_KINDS).toEqual({
       postgres: { migrations: true },
       signoz: { migrations: false },
       git: { migrations: false },
       clickhouse: { migrations: false },
     });
-    expect(SERVED_KINDS).toEqual(['postgres', 'signoz', 'clickhouse']);
+    expect(SERVED_KINDS).toEqual(['postgres', 'signoz', 'git', 'clickhouse']);
     const sqlite = PackageSchema.safeParse(withAgentage({ parts: { api: true, store: 'sqlite' } }));
     expect(sqlite.error?.issues.map((issue) => issue.message)).toEqual([
       'one of postgres, signoz, git, clickhouse',

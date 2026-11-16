@@ -1,9 +1,18 @@
 import { existsSync, readFileSync } from 'node:fs';
 import { homedir } from 'node:os';
 import { dirname, join, parse, sep } from 'node:path';
+import { type ExtensionPackage } from '../../manifest/manifest.schema.js';
+import { hasStore } from '../../manifest/parts.js';
 import { assertReach, real } from './seal-reach.js';
 
-export type Seal = 'on' | 'off';
+// partial: on, with the child-process grant of a git store (PD2): git itself runs outside the seal.
+export type Seal = 'on' | 'off' | 'partial';
+
+// G6 (PD2): a git store spawns git for each operation; no other package gets a child process.
+export const spawnsGit = (pkg: ExtensionPackage): boolean => hasStore(pkg, 'git');
+
+export const sealOfEntry = (seal: Seal, pkg: ExtensionPackage | undefined): Seal =>
+  seal === 'on' && pkg && spawnsGit(pkg) ? 'partial' : seal;
 
 // C2: the permission model with the bypass fixes of D2; the same rule as e2e sealFloorMet.
 const SEAL_FLOOR = 'Node 22.22.2 or 24.14.1';
@@ -75,10 +84,12 @@ interface SealAt {
   configDir: string;
   runDir: string;
   dataDir: string;
+  childProcess?: boolean;
 }
 
-// C2: read kit, tree, run/{id}, data/{id}; write the last two; no child process, worker, addon, WASI, sqlite.
-export const sealFlags = ({ id, main, dir, configDir, runDir, dataDir }: SealAt): string[] => {
+// C2: read kit, tree, run/{id}, data/{id}; write the last two; no worker, addon, WASI, sqlite; a child process for git only.
+export const sealFlags = (at: SealAt): string[] => {
+  const { id, main, dir, configDir, runDir, dataDir } = at;
   const both = (paths: string[]) => [...new Set(paths.flatMap((path) => [path, real(path)]))];
   const writes = both([runDir, dataDir]);
   const kit = both([...kitReadDirs(main), treeOf(dir)]);
@@ -87,6 +98,7 @@ export const sealFlags = ({ id, main, dir, configDir, runDir, dataDir }: SealAt)
   return [
     '--permission',
     '--no-experimental-sqlite',
+    ...(at.childProcess ? ['--allow-child-process'] : []),
     ...reads.map((path) => `--allow-fs-read=${path}`),
     ...writes.map((path) => `--allow-fs-write=${path}`),
   ];

@@ -129,7 +129,7 @@ describe('store', () => {
     expect(docker.calls.map((c) => c.args[0])).toEqual(['version', 'version']);
   });
 
-  it('refuses a kind the estate does not serve and skips one without migrations, before docker', async () => {
+  it('skips a kind without migrations (git, signoz), before docker', async () => {
     const withStore = (kind: string) => ({
       ...SPEC_MANIFEST,
       agentage: { ...SPEC_MANIFEST.agentage, parts: { api: true, store: kind } },
@@ -140,12 +140,7 @@ describe('store', () => {
         run: docker.run,
         rules: [store],
       });
-    expect((await at('git')).problems).toEqual([
-      {
-        rule: 'store',
-        problem: 'kind git is not served yet; served: postgres, signoz, clickhouse',
-      },
-    ]);
+    expect((await at('git')).skipped).toEqual({ store: 'kind git has no migrations' });
     expect((await at('signoz')).skipped).toEqual({ store: 'kind signoz has no migrations' });
     expect(docker.calls).toEqual([]);
   });

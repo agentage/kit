@@ -11,9 +11,9 @@ import { hostParts, type HostPartKind } from '../manifest/parts.js';
 import { mcpPathOf } from '../mcp/mcp-app.js';
 import { MOUNTS, type PartMount, type RunnerInput } from '../runtime/part-mounts.js';
 import { createPartApp, type PartAppBase } from '../server/app.js';
-import { type PgliteStore } from '../store/pglite-store.js';
 import { type HealthCheck } from '../health/health.js';
 import { type HostExtras, type HostOptions } from './host-extension.js';
+import { type HostStore } from './host-url-store.js';
 import { partChecks } from './part-checks.js';
 
 export interface Hosting {
@@ -22,7 +22,7 @@ export interface Hosting {
   log: Log;
   opts: HostOptions;
   extras: HostExtras;
-  store: PgliteStore | undefined;
+  store: HostStore | undefined;
   onExit: () => void;
   build: BuildInfo;
 }

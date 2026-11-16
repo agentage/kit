@@ -82,6 +82,7 @@ export {
   type ClickhouseStore,
 } from './store/clickhouse-store.js';
 export { type QueryResult, type Row, type Store } from './store/store.types.js';
+export { type GitAccess } from './store/git-env.js';
 export {
   startTestMcp,
   startTestServer,

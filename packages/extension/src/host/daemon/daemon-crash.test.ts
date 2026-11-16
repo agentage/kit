@@ -34,7 +34,11 @@ describe('a child that exits (C6)', () => {
     h = await startHarness({ launch: w.launch, ...SHORT });
     await h.call('POST', '/host/extensions', { source: await wordPackage('one') });
     for (let start = 1; start <= 5; start += 1) {
-      await vi.waitFor(() => expect(w.children).toHaveLength(start), WAIT);
+      // Running, not just launched: a crash before the health check is a failed start, not an exit.
+      await vi.waitFor(async () => {
+        expect(w.children).toHaveLength(start);
+        expect(await rowOf()).toMatchObject({ state: 'running' });
+      }, WAIT);
       crashLast();
     }
     await vi.waitFor(

@@ -6,7 +6,7 @@ import { type Finding } from '../check.js';
 
 type Part = ImagePartKind | 'cli';
 
-const PARTS: readonly string[] = [...IMAGE_PART_KINDS, 'cli'];
+const PARTS: readonly string[] = [...IMAGE_PART_KINDS, 'cli', 'app'];
 const PART_FOLDER = /^(?:src|dist)\/(?:pages|ui|api|mcp|worker|cli)(?:\/|$)/;
 // Erased at build, so a type crosses no image; blanked keeping newlines for the line count.
 const TYPE_ONLY = /\b(?:import|export)\s+type\b[^;'"]*?from\s*(['"])[^'"]*\1/g;

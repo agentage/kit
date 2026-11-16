@@ -77,7 +77,7 @@ describe('manifest schema', () => {
     expect(issuesOf(withAgentage({ id: 'x'.repeat(33) }))).toEqual([expect.stringMatching(/<=32/)]);
     expect(issuesOf(withAgentage({ id: 'authors' }))).toEqual([]);
     expect(issuesOf(withAgentage({ parts: { worker: true } }))).toContain(
-      'at least one routed part (pages, ui, api or mcp)'
+      'at least one routed part (pages, ui, app, api or mcp)'
     );
     const ping = { name: 'ping', summary: 'p' };
     const dup = withAgentage({ parts: { api: true, cli: true }, commands: [ping, ping] });

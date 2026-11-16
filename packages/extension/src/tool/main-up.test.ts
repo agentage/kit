@@ -17,6 +17,7 @@ const fakes = (failWith?: Error) => {
   };
   const d: MainDeps = {
     build: async () => Promise.reject(new Error('not here')),
+    app: async () => Promise.reject(new Error('not here')),
     up: async (options) => (
       calls.up.push(options),
       options.onLine?.('ready    7 parts healthy'),

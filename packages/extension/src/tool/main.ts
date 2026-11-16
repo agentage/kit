@@ -1,6 +1,7 @@
 import { parseArgs } from 'node:util';
 import { UsageError } from '../command/args.js';
 import { EXIT_FAILED, EXIT_OK, EXIT_USAGE } from '../command/run-command.js';
+import { buildApp, type AppFiles } from './app-build.js';
 import { build, type BuildOptions, type BuildResult } from './build.js';
 import { buildLines } from './format.js';
 import { down, type DownOptions } from './up/down.js';
@@ -9,6 +10,7 @@ import { up, type UpOptions } from './up/up.js';
 
 export interface MainDeps {
   build: (options: BuildOptions) => Promise<BuildResult>;
+  app: (dir: string) => Promise<AppFiles>;
   up: (options: UpOptions) => Promise<unknown>;
   down: (options: DownOptions) => Promise<unknown>;
   token: (options: TokenOptions) => Promise<string>;
@@ -16,7 +18,7 @@ export interface MainDeps {
   err: (line: string) => void;
 }
 
-const USAGE = `usage: agentage-extension <build|up|down|token> [options]
+const USAGE = `usage: agentage-extension <build|app|up|down|token> [options]
 
   build      one image per part from the kit recipe
     --push     push the images and write dist/agentage-extension.json with their digests
@@ -24,6 +26,7 @@ const USAGE = `usage: agentage-extension <build|up|down|token> [options]
                lists the parts it does not run yet; with --push the record is
                dist/agentage-container.json
     --registry image registry and owner (default: ghcr.io/agentage)
+  app        the app part only: dist/app (index.js, app.json, hashed js and css)
   up         the release images on Docker: store, dev issuer, gateway on localhost:4280
   down       remove what up started; --keep-data keeps the store volume
   token      a dev token: --scope <id>:<verb> [--issuer <url>]
@@ -31,6 +34,7 @@ const USAGE = `usage: agentage-extension <build|up|down|token> [options]
 
 const defaultDeps: MainDeps = {
   build,
+  app: buildApp,
   up,
   down,
   token,
@@ -65,6 +69,10 @@ const COMMANDS: Record<string, (values: Values, deps: MainDeps) => Promise<void>
       })
     ))
       deps.out(line);
+  },
+  app: async (v, deps) => {
+    const { entry, css } = await deps.app(v.dir ?? '.');
+    deps.out(`app     dist/app/${entry} dist/app/${css}`);
   },
   up: async (v, deps) => void (await deps.up({ dir: v.dir, onLine: deps.out })),
   down: async (v, deps) =>

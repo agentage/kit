@@ -33,7 +33,7 @@
         "id": {
           "type": "string",
           "maxLength": 32,
-          "pattern": "^(?!(?:auth|www|api|sync|mail|mcp|ui|git|setup|status|update|extension|add|remove|help|con|prn|aux|nul|com[0-9]|lpt[0-9])$)[a-z][a-z0-9-]*$"
+          "pattern": "^(?!(?:auth|www|api|sync|mail|mcp|ui|app|shell|host|git|setup|status|update|extension|add|remove|help|con|prn|aux|nul|com[0-9]|lpt[0-9])$)[a-z][a-z0-9-]*$"
         },
         "parts": {
           "type": "object",
@@ -73,6 +73,9 @@
                   "additionalProperties": false
                 }
               ]
+            },
+            "app": {
+              "type": "boolean"
             },
             "api": {
               "anyOf": [
@@ -178,6 +181,30 @@
               ]
             }
           },
+          "additionalProperties": false
+        },
+        "app": {
+          "type": "object",
+          "properties": {
+            "title": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 40
+            },
+            "icon": {
+              "type": "string",
+              "maxLength": 64,
+              "pattern": "^[a-z][a-z0-9-]*$"
+            },
+            "order": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 1000
+            }
+          },
+          "required": [
+            "title"
+          ],
           "additionalProperties": false
         },
         "commands": {

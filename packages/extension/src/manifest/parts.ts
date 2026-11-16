@@ -73,3 +73,7 @@ export const migratesStore = (pkg: ExtensionPackage): boolean => {
   const kind = storeOf(pkg);
   return kind !== undefined && STORE_KINDS[kind].migrations;
 };
+
+// The app part: a browser bundle the host serves from dist/app, never an image or a child.
+export const appOf = (pkg: ExtensionPackage) =>
+  pkg.agentage.parts.app ? pkg.agentage.app : undefined;

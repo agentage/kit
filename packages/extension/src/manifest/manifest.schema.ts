@@ -23,12 +23,13 @@ const StorePartSchema = z.union([StoreKindSchema, z.strictObject({ kind: StoreKi
   error: `one of ${StoreKindSchema.options.join(', ')}`,
 });
 
-const ROUTED = ['pages', 'ui', 'api', 'mcp'] as const;
+const ROUTED = ['pages', 'ui', 'app', 'api', 'mcp'] as const;
 
 const PartsSchema = z
   .strictObject({
     pages: CodePartSchema.optional(),
     ui: CodePartSchema.optional(),
+    app: z.boolean().optional(),
     api: CodePartSchema.optional(),
     mcp: CodePartSchema.optional(),
     worker: CodePartSchema.optional(),
@@ -36,7 +37,7 @@ const PartsSchema = z
     store: StorePartSchema.optional(),
   })
   .refine((parts) => ROUTED.some((kind) => isOn(parts[kind])), {
-    message: 'at least one routed part (pages, ui, api or mcp)',
+    message: 'at least one routed part (pages, ui, app, api or mcp)',
   });
 
 const ArgTypeSchema = z.enum(['string', 'integer', 'number', 'boolean']);
@@ -76,9 +77,21 @@ const SecretSchema = z.union([
   z.strictObject({ name: SecretNameSchema, parts: z.array(SecretPartSchema).min(1) }),
 ]);
 
+// The nav row of the app part; icon is a lucide icon name.
+const AppMetaSchema = z.strictObject({
+  title: z.string().min(1).max(40),
+  icon: z
+    .string()
+    .max(64)
+    .regex(/^[a-z][a-z0-9-]*$/)
+    .optional(),
+  order: z.int().min(0).max(1000).optional(),
+});
+
 const AgentageBaseSchema = z.strictObject({
   id: ExtensionIdSchema,
   parts: PartsSchema,
+  app: AppMetaSchema.optional(),
   commands: z.array(CommandSchema).min(1).optional(),
   settings: z.record(SettingKeySchema, SettingSchema).optional(),
   secrets: z.array(SecretSchema).optional(),
@@ -98,6 +111,7 @@ export const PackageSchema = z
     path: ['name'],
   });
 
+export type AppMeta = z.infer<typeof AppMetaSchema>;
 export type CodePart = z.infer<typeof CodePartSchema>;
 export type CommandSpec = z.infer<typeof CommandSchema>;
 export type Parts = z.infer<typeof PartsSchema>;
@@ -129,6 +143,8 @@ function crossFieldRules(manifest: z.infer<typeof AgentageBaseSchema>, ctx: z.Re
       issue(`secret ${s.name} names a part the extension does not have`, ['secrets']);
   const ids = (manifest.secrets ?? []).map((s) => camelName(typeof s === 'string' ? s : s.name));
   if (new Set(ids).size !== ids.length) issue('secret names must be unique', ['secrets']);
+  if (isOn(manifest.parts.app) !== Boolean(manifest.app))
+    issue('the app part and agentage.app come together', manifest.app ? ['app'] : ['parts', 'app']);
   if (manifest.settings?.['mcp.listing'] && !isOn(manifest.parts.mcp)) {
     issue('mcp.listing needs the mcp part', ['settings', 'mcp.listing']);
   }

@@ -27,6 +27,7 @@ const regions = createRegionHost();
 const host: HostAdapter = { user: null, scopes: [], request: (_i, p) => fetch(p) };
 const ctx: AppContextValue = {
   id: 'overview',
+  route: { path: '', query: {} },
   regions,
   host,
   store: createStateStore(),

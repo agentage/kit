@@ -1,0 +1,30 @@
+import { mkdtemp } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { createRequire } from 'node:module';
+const W = process.env.HOME + '/.worktrees/platform';
+const { startDaemon } = await import(W + '/daemon-shell-routes/packages/extension/dist/host/daemon/daemon.js');
+const { chromium } = createRequire(W + '/shell-router/package.json')('playwright');
+const configDir = await mkdtemp(join(tmpdir(), 'shell-proof-'));
+const daemon = await startDaemon({ configDir, port: 0, version: '0.17.0', startedBy: 'proof', shellDir: W + '/shell-router/packages/shell-dashboard' }, async () => { throw new Error('no launch'); });
+const base = `http://127.0.0.1:${daemon.port}`;
+const disc = await (await fetch(base + '/.well-known/agentage-host.json')).json();
+console.log('discovery', JSON.stringify(disc));
+const browser = await chromium.launch();
+const out = process.argv[2];
+let ok = true;
+for (const [name, viewport] of [['desktop', { width: 1280, height: 800 }], ['phone', { width: 390, height: 844 }]]) {
+  const page = await browser.newPage({ viewport });
+  const errors = [];
+  page.on('pageerror', (e) => errors.push(e.message));
+  const res = await page.goto(base + '/');
+  await page.getByText('No extensions').first().waitFor({ timeout: 10000 }).catch(() => (ok = false));
+  const visible = await page.getByText('No extensions').first().isVisible().catch(() => false);
+  await page.screenshot({ path: `${out}/shell-${name}.png` });
+  console.log(name, 'status', res.status(), 'type', res.headers()['content-type'], 'No extensions visible', visible, 'errors', errors);
+  if (!visible || errors.length) ok = false;
+}
+await browser.close();
+await daemon.stop();
+console.log(ok ? 'PASS' : 'FAIL');
+process.exit(ok ? 0 : 1);

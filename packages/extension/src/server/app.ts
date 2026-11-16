@@ -42,6 +42,8 @@ export interface PartAppBase {
   guards?: RequestHandler[];
   // The parts one host process runs, listed on /health; unset in a part image.
   parts?: ImagePartKind[];
+  // The host's test clock, shown on /health when it is not 1.
+  clockRate?: number;
 }
 
 export interface PartAppOptions extends PartAppBase {
@@ -104,6 +106,7 @@ const healthHandler = (options: PartAppOptions): RequestHandler =>
     instance: options.instance,
     startedAt: options.startedAt,
     parts: options.parts,
+    clockRate: options.clockRate,
   });
 
 // The kit app every part image runs: agcid, headers, /health, discovery, the part, the envelope.

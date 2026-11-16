@@ -10,6 +10,7 @@ import { readManifest } from '../manifest/read-manifest.js';
 import { buildInfoFromEnv } from '../runtime/build-info.js';
 import { type PartAppBase } from '../server/app.js';
 import { storeCheck } from '../store/store.js';
+import { hostClockRate } from '../worker/clock.js';
 import { localOnly } from './daemon/guard.js';
 import { hostPartsOf, type HostedParts, type Hosting } from './host-parts.js';
 import { openHostStore, STORE_OPEN_MS } from './host-store.js';
@@ -60,9 +61,10 @@ const baseOf = async (h: Hosting): Promise<PartAppBase> => {
   const guard = (await h.extras.guard?.(h.pkg, h.log)) ?? {};
   const checks = { ...(h.store && { store: storeCheck(h.store) }), ...guard.checks };
   const resolved = { instance: randomBytes(4).toString('hex'), startedAt: Date.now() };
+  const clockRate = hostClockRate();
   const guards = h.opts.localOnly ? [localOnly(undefined, h.opts.localPorts)] : undefined;
   const { pkg, log, build, onExit } = h;
-  return { pkg, log, build, onExit, guards, ...guard, checks, ...resolved };
+  return { pkg, log, build, onExit, guards, ...guard, checks, clockRate, ...resolved };
 };
 
 // The jobs stop before the store closes: a tick never writes to a closed store.
@@ -70,9 +72,10 @@ const hostedOf = (h: Hosting, hosted: HostedParts, base: PartAppBase): HostedExt
   const { id } = h.pkg.agentage;
   const { version } = h.pkg;
   const { app, parts } = hosted;
-  const { instance = '', startedAt = 0, build, checks } = base;
+  const { instance = '', startedAt = 0, build, checks, clockRate } = base;
+  const at = { instance, startedAt, clockRate };
   const health = () =>
-    healthBody({ extension: id, part: 'api', parts, version, build, checks, instance, startedAt });
+    healthBody({ extension: id, part: 'api', parts, version, build, checks, ...at });
   let stopped: Promise<void> | undefined;
   const close = () => (hosted.stop(), h.store ? h.store.close() : Promise.resolve());
   const stop = () => (stopped ??= close());

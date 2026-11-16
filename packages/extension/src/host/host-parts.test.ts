@@ -5,6 +5,7 @@ import { fail } from '../envelope/envelope.js';
 import { startOn } from '../testing/test-server.js';
 import { ALL_PARTS_MANIFEST, allPartsPackage } from '../test-support/hosted-fixture.js';
 import { tempDir } from '../test-support/packages.js';
+import { setHostClockRate } from '../worker/clock.js';
 import { hostExtension, hostWith, type HostedExtension } from './host-extension.js';
 
 const SECRETS = { 'tick-key': 'k' };
@@ -66,6 +67,19 @@ describe('one host process runs every server part', () => {
       { timeout: 8000, interval: 100 }
     );
     await server.close();
+  });
+
+  it('/health of the host shows the test clock rate when it is not 1', async () => {
+    setHostClockRate(60);
+    try {
+      const { h, server } = await host({ dataDir: '', secrets: SECRETS });
+      const health = (await (await server.fetch('/health')).json()) as { data: object };
+      expect(health.data).toMatchObject({ clockRate: 60 });
+      expect((await h.health()).data).toMatchObject({ clockRate: 60 });
+      await server.close();
+    } finally {
+      setHostClockRate(1);
+    }
   });
 
   it('tools/list stays open with no token check, mcp.listing "token" too', async () => {

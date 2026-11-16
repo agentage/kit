@@ -30,10 +30,10 @@ const ClaimsSchema = z.object({
 
 const unavailable = (message: string) => fail('UNAVAILABLE', message, { retryAfter: 5 });
 
-const invalid = (origin: string, message = 'Invalid token') =>
+const invalid = (origin: string, message = 'Invalid token', at = '') =>
   fail('UNAUTHORIZED', message, {
     headers: {
-      'WWW-Authenticate': `Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource"`,
+      'WWW-Authenticate': `Bearer resource_metadata="${origin}/.well-known/oauth-protected-resource${at}"`,
     },
   });
 
@@ -64,16 +64,17 @@ export const remoteKeys = (issuer: string) => {
   return { keys: keysOrOutage(set), read: () => retryOnce(set.reload), held };
 };
 
-const claimsOf = async (authorization: string, deps: TokenCheckDeps) => {
+const claimsOf = async (authorization: string, deps: TokenCheckDeps, at?: string) => {
   const [scheme = '', credential = '', ...rest] = authorization.split(' ');
   const bearer = scheme.toLowerCase() === 'bearer' && rest.length === 0;
   const jwt = bearer && credential.startsWith('aga_') ? credential : '';
   const options = { ...VERIFY, issuer: deps.issuer, audience: deps.audience };
   const verified = await jwtVerify(jwt.slice(4), deps.keys, options).catch((err: unknown) => {
-    throw isFailure(err) ? err : invalid(deps.origin);
+    throw isFailure(err) ? err : invalid(deps.origin, undefined, at);
   });
   const claims = ClaimsSchema.safeParse(verified.payload);
-  if (!claims.success || verified.protectedHeader.typ !== 'at+jwt') throw invalid(deps.origin);
+  if (!claims.success || verified.protectedHeader.typ !== 'at+jwt')
+    throw invalid(deps.origin, undefined, at);
   return claims.data;
 };
 
@@ -84,13 +85,13 @@ export const grants = (scope: string, id: string, access: Access): boolean => {
 
 export const createTokenCheck =
   (deps: TokenCheckDeps): TokenCheck =>
-  async (authorization, access) => {
+  async (authorization, access, at) => {
     // optional: no bearer is anonymous, but a bearer sent is checked like read, never ignored.
     if (access === 'public' || (access === 'optional' && !authorization)) return null;
-    if (!authorization) throw invalid(deps.origin, 'Missing token');
-    const { sub, scope, jti } = await claimsOf(authorization, deps);
+    if (!authorization) throw invalid(deps.origin, 'Missing token', at);
+    const { sub, scope, jti } = await claimsOf(authorization, deps, at);
     if (jti !== undefined && !deps.revoked.loaded()) throw unavailable('Revoked list unavailable');
-    if (jti !== undefined && deps.revoked.has(jti)) throw invalid(deps.origin, 'Token revoked');
+    if (jti !== undefined && deps.revoked.has(jti)) throw invalid(deps.origin, 'Token revoked', at);
     if (!grants(scope, deps.id, access)) throw forbidden(scopeOf(deps.id, access));
     return withJti({ sub, scopes: scope.split(' ') }, jti);
   };

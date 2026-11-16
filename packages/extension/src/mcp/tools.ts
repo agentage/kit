@@ -42,6 +42,8 @@ export type Instructions = string | ((caller: Caller | null) => string | Promise
 export interface McpContext extends PartContext {
   readonly tool: ToolRegistrar;
   readonly instructions: (instructions: Instructions) => void;
+  // A tool of the connector profile at /connector/{id} (ChatGPT search and fetch), named as given.
+  readonly connector: ToolRegistrar;
 }
 
 export interface ToolEntry {
@@ -53,9 +55,9 @@ export interface ToolEntry {
 const TOOL_NAME = /^[a-z][a-z0-9_-]*$/;
 const TOOL_ACCESS = ACCESS.filter((access) => access !== 'optional');
 
-export const createToolRegistry = () => {
-  const tools: ToolEntry[] = [];
-  const tool: ToolRegistrar = (name, spec, handler) => {
+const registrarOn =
+  (tools: ToolEntry[]): ToolRegistrar =>
+  (name, spec, handler) => {
     if (!TOOL_NAME.test(name)) throw new Error(`tool name ${name}: lowercase, digits, _ and -`);
     if (tools.some((entry) => entry.name === name))
       throw new Error(`tool ${name} is registered twice`);
@@ -64,12 +66,21 @@ export const createToolRegistry = () => {
     if (bad) throw new Error(`tool ${name} ${bad}`);
     tools.push({ name, spec, handler: handler as ToolEntry['handler'] });
   };
+
+export const createToolRegistry = () => {
+  const tools: ToolEntry[] = [];
+  const connectors: ToolEntry[] = [];
   const served: { instructions?: Instructions } = {};
   const instructions = (value: Instructions) => {
     if (served.instructions !== undefined) throw new Error('instructions are set twice');
     served.instructions = value;
   };
-  return { tool, tools, instructions, served };
+  const [tool, connector] = [registrarOn(tools), registrarOn(connectors)];
+  return { tool, tools, instructions, served, connector, connectors };
 };
 
 export const prefixed = (id: string, name: string): string => `${id}__${name}`;
+
+// A connector tool keeps its own name (search, fetch); every other is {id}__{name}.
+export const nameOf = (id: string, name: string, bare?: boolean): string =>
+  bare ? name : prefixed(id, name);

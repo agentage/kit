@@ -4,11 +4,12 @@ import { type Caller } from '../auth/token-check.js';
 import { currentAgcid } from '../agcid/current.js';
 import { fail, isFailure, type Failure } from '../envelope/envelope.js';
 import { type Log } from '../log/log.js';
-import { prefixed, type Instructions, type ToolEntry } from './tools.js';
+import { nameOf, type Instructions, type ToolEntry } from './tools.js';
 
 export interface ServerIdentity {
   id: string;
   version: string;
+  bare?: boolean;
 }
 
 const text = (value: string) => [{ type: 'text' as const, text: value }];
@@ -105,7 +106,7 @@ export const serverFactory =
     const info = { name: `agentage-${identity.id}`, version: identity.version };
     const server = new McpServer(info, { instructions: await textOf(instructions, ctx, log) });
     for (const entry of tools) {
-      const tool = prefixed(identity.id, entry.name);
+      const tool = nameOf(identity.id, entry.name, identity.bare);
       server.registerTool(tool, configOf(entry.spec), callback(entry, log, tool, caller));
     }
     return server;

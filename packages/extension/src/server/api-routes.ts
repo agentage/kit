@@ -1,5 +1,6 @@
 import { Router, type RequestHandler } from 'express';
 import { inQuery } from '../api/openapi-doc.js';
+import { type GitHandler } from '../api/git-registry.js';
 import { createRouteRegistry, type ApiContext, type RouteEntry } from '../api/routes.js';
 import { type WellKnownEntry } from '../api/well-known.js';
 import { type PartContext } from '../context/context.js';
@@ -49,21 +50,29 @@ const routesRouter = (ctx: PartContext, routes: RouteEntry[]): Router => {
   return router;
 };
 
-// What create(ctx) gave: its ctx.route routes, or the router it returned; exactly one.
-const handlerFor = (ctx: PartContext, routes: RouteEntry[], returned: unknown): ApiHandler => {
+// What create(ctx) gave: its ctx.route routes, or the router it returned; exactly one (or ctx.git alone).
+const handlerFor = (ctx: PartContext, routes: RouteEntry[], returned: unknown, git: boolean) => {
   if (routes.length > 0 && returned)
     throw new Error('the api part registers ctx.route routes and returns a router: pick one');
-  if (routes.length > 0) return routesRouter(ctx, routes);
+  if (routes.length > 0 || (git && !returned)) return routesRouter(ctx, routes);
   if (!returned) throw new Error('the api part registers nothing and returns no router');
   return returned as ApiHandler;
 };
+
+export interface MountedApi {
+  router: ApiHandler;
+  routes: RouteEntry[];
+  documents: WellKnownEntry[];
+  git?: GitHandler;
+}
 
 // Runs the api part's create(ctx) with ctx.route; the runtime and the test server mount alike.
 export const mountApi = async (
   ctx: PartContext,
   create: (ctx: ApiContext) => unknown
-): Promise<{ router: ApiHandler; routes: RouteEntry[]; documents: WellKnownEntry[] }> => {
-  const { route, routes, wellKnown, documents } = createRouteRegistry();
-  const returned = await create({ ...ctx, route, wellKnown });
-  return { router: handlerFor(ctx, routes, returned), routes, documents };
+): Promise<MountedApi> => {
+  const { route, routes, wellKnown, documents, git, gitServed } = createRouteRegistry();
+  const returned = await create({ ...ctx, route, wellKnown, git });
+  const router = handlerFor(ctx, routes, returned, gitServed.git !== undefined);
+  return { router, routes, documents, git: gitServed.git };
 };

@@ -84,7 +84,8 @@ export const startTestServer = async <C extends PartContext = PartContext>(
 export const startTestMcp = async (options: TestMcpOptions): Promise<TestMcp> => {
   const ctx = options.ctx ?? createTestContext();
   const registry = createToolRegistry();
-  await options.create({ ...ctx, tool: registry.tool, instructions: registry.instructions });
+  const { tool, instructions, connector } = registry;
+  await options.create({ ...ctx, tool, instructions, connector });
   const pkg = testPackage(ctx, { mcp: true });
   const app = createMcpApp({
     pkg,

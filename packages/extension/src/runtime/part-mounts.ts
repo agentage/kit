@@ -54,10 +54,11 @@ export const callCreate = async <C>(
 
 const api = async (input: RunnerInput): Promise<PartMount> => {
   const ctx = input.ctx();
-  const { router, routes, documents } = await mountApi(ctx, (api) => callCreate(input, 'api', api));
+  const mounted = await mountApi(ctx, (api) => callCreate(input, 'api', api));
+  const { router, routes, documents, git } = mounted;
   // Declared routes guard at their own scope, whatever the committed file says.
   const openapi = routes.length > 0 ? generatedOpenapi(input.pkg, routes) : input.openapi;
-  const options = { ...input.base, router, routes, openapi, wellKnown: documents };
+  const options = { ...input.base, router, routes, openapi, wellKnown: documents, git };
   const record = openapi ? { openapi: openapiPath(input.pkg.agentage.id) } : {};
   return { mount: (app) => mountApiRoutes(app, { ...options, aliases: input.apiAliases }), record };
 };
@@ -65,14 +66,22 @@ const api = async (input: RunnerInput): Promise<PartMount> => {
 const mcp = async (input: RunnerInput): Promise<PartMount> => {
   const registry = createToolRegistry();
   const ctx = input.ctx();
-  const { tool, instructions, tools: registered, served } = registry;
-  await callCreate(input, 'mcp', { ...ctx, tool, instructions });
+  const { tool, instructions, connector, tools: registered, served } = registry;
+  await callCreate(input, 'mcp', { ...ctx, tool, instructions, connector });
   const token = !input.openListing && ctx.settings['mcp.listing'] === 'token';
   const listing: McpAppOptions['listing'] = token ? 'token' : 'open';
-  const paths = input.mcpPaths;
+  const paths = input.mcpPaths ?? ['/mcp'];
   const options = { ...input.base, tools: registered, listing, paths, ...served };
+  // The connector profile beside it: /mcp{rest} becomes /connector{rest}, tools by their own name.
+  const atConnector = paths.map((path) => path.replace(/^\/mcp/, '/connector'));
+  const connectors = { ...options, tools: registry.connectors, paths: atConnector, bare: true };
+  const mount = (app: Express) => {
+    mountMcp(app, options);
+    if (registry.connectors.length > 0) mountMcp(app, { ...connectors, instructions: undefined });
+  };
+  // Connector tools stay out of the record: the record lists the {id}__{name} tools only.
   const tools = toolRecords(input.pkg.agentage.id, registry.tools);
-  return { mount: (app) => mountMcp(app, options), record: tools.length ? { tools } : {} };
+  return { mount, record: tools.length ? { tools } : {} };
 };
 
 const worker = async (input: RunnerInput): Promise<PartMount> => {

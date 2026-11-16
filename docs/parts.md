@@ -18,7 +18,11 @@ export function create(ctx: McpContext) {
   );
   // Optional: title, annotations (hints) and output; instructions as a text or per caller.
   ctx.instructions((caller) => `Notes of ${caller?.sub ?? 'nobody'}`);
+  // The connector profile at /connector/{id}: tools listed by their own name (search, fetch).
+  ctx.connector('search', { description, input, output }, async ({ query }, caller) => ({ ids: [] }));
 }
+// The api part may also serve git smart-HTTP at /git/{id}/* (raw body; Basic password = token).
+// ctx.git((req, res) => { /* git http-backend, ctx.auth.caller(req) */ });
 // src/worker/index.ts: five-field cron, never twice at once, every run saved with its log
 export function create({ schedule, store, log }: WorkerContext) {
   schedule(

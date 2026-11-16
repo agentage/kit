@@ -1,0 +1,10 @@
+{
+  "name": "s112-b0-spy",
+  "version": "0.0.2",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=22", "agentage": "^0.14" },
+  "agentage": { "id": "spy", "parts": { "api": true } },
+  "files": ["dist"],
+  "dependencies": { "express": "^5.1.0" }
+}

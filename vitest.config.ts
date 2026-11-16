@@ -10,6 +10,7 @@ export default defineConfig({
     setupFiles: [
       'packages/extension/src/test-support/cleanup.ts',
       'packages/extension/src/test-support/pglite-copy.ts',
+      'packages/extension/src/test-support/wait-bound.ts',
     ],
     coverage: {
       provider: 'v8',

@@ -25,7 +25,7 @@ jobs:
         env:
           TITLE: ${{ github.event.pull_request.title }}
         run: |
-          scoped='^(feat|fix|refactor|test|chore|ci|docs|perf|build)\((extension|logs|widget|identity|shell|release|ci|docs|deps)\)!?: .{1,60}$'
+          scoped='^(feat|fix|refactor|test|chore|ci|docs|perf|build)\((extension|logs|widget|identity|shell|app|release|ci|docs|deps)\)!?: .{1,60}$'
           bare='^(ci|docs|chore|build): '
           if [ "${#TITLE}" -le 72 ] && { [[ $TITLE =~ $scoped ]] || [[ $TITLE =~ $bare ]]; }; then exit 0; fi
           echo "::error::PR title '$TITLE' breaks the commit title rules in CLAUDE.md (type(scope): text, max 72)"; exit 1
@@ -104,6 +104,15 @@ jobs:
           tar -tzf /tmp/pack/agentage-identity-*.tgz > /tmp/pack/identity-files.txt
           grep -qx 'package/dist/index.js' /tmp/pack/identity-files.txt
           if grep -Eq '\.test\.' /tmp/pack/identity-files.txt; then echo 'test files in the identity tarball'; exit 1; fi
+
+      - name: Pack smoke - app (dist and the test host in, tests out)
+        run: |
+          set -euo pipefail
+          npm pack -w @agentage/app --pack-destination /tmp/pack
+          tar -tzf /tmp/pack/agentage-app-*.tgz > /tmp/pack/app-files.txt
+          grep -qx 'package/dist/index.js' /tmp/pack/app-files.txt
+          grep -qx 'package/dist/test-host.js' /tmp/pack/app-files.txt
+          if grep -Eq '\.test\.' /tmp/pack/app-files.txt; then echo 'test files in the app tarball'; exit 1; fi
 
       - name: Pack smoke - shell (dist in, tests out)
         run: |

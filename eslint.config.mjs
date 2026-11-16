@@ -63,7 +63,7 @@ export default [
     },
   },
   {
-    files: ['packages/widget/src/**/*.tsx'],
+    files: ['packages/widget/src/**/*.tsx', 'packages/app/src/**/*.tsx'],
     plugins: { 'jsx-a11y': jsxA11y, 'react-hooks': reactHooks },
     rules: { ...jsxA11y.flatConfigs.recommended.rules, ...reactHooks.configs.recommended.rules },
   },

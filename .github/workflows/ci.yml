@@ -322,7 +322,7 @@ jobs:
         # The kit's own tool, not the agentage bin: the probe's @agentage/cli bundles the released kit.
         run: node node_modules/@agentage/extension/dist/tool/cli.js up
 
-      - name: e2e gate on local (agentage/e2e, probe gate local)
+      - name: e2e gate on docker (agentage/e2e, probe gate docker)
         if: github.actor != 'dependabot[bot]'
         working-directory: e2e-suite
         env:
@@ -336,7 +336,7 @@ jobs:
           echo "e2e validates with @agentage/extension $(jq -r .version node_modules/@agentage/extension/package.json) from $resolved"
           case "$resolved" in file:*) ;; *) echo "::error::the e2e kit is $resolved, not the candidate"; exit 1 ;; esac
           npx playwright install chromium
-          npm run e2e -- probe gate local
+          npm run e2e -- probe gate docker
 
       # A gate that skipped itself is not green.
       - name: Assert the gate was not vacuous

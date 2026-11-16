@@ -9,7 +9,7 @@ import { entryOf, normalizeParts } from '../manifest/parts.js';
 import { type ImagePartKind } from '../manifest/primitives.schema.js';
 import { formatIssues, readJsonIfExists } from '../manifest/read-manifest.js';
 import { runCommand, type Run } from './exec.js';
-import { problemLines } from './format.js';
+import { problemLines, warningLines } from './format.js';
 import { exportedPartCode } from './rules/folders.js';
 import { sealing } from './rules/sealing.js';
 import { store } from './rules/store.js';
@@ -174,8 +174,12 @@ export const check = async (at: string, options: CheckOptions = {}): Promise<Che
 };
 
 // What build runs after the compile and before any image: any problem stops everything.
-export const assertConforms = async (dir: string, options: CheckOptions = {}): Promise<void> => {
+export const assertConforms = async (
+  dir: string,
+  options: CheckOptions = {}
+): Promise<string[]> => {
   const report = await check(dir, { ...options, requireDocker: true });
   const lines = problemLines(report).map((line) => `check failed: ${line}`);
   if (!report.conforms) throw new Error(lines.join('\n'));
+  return warningLines(report);
 };

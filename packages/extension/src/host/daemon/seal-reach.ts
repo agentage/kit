@@ -42,6 +42,8 @@ export const assertReach = (
   const star = [...reads, ...writes].find((path) => path.includes('*'));
   if (star) throw refused(star, 'has a * that Node reads as a wildcard');
   const configs = [configDir, real(configDir)];
-  const open = reads.find((grant) => configs.some((config) => exposes(grant, config, id)));
+  const open = reads.find((grant) =>
+    [grant, real(grant)].some((path) => configs.some((config) => exposes(path, config, id)))
+  );
   if (open) throw refused(open, 'would expose the agentage config folder');
 };

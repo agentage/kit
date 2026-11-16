@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { chmod, open, readFile, rename, stat, unlink } from 'node:fs/promises';
 import { setTimeout as sleep } from 'node:timers/promises';
+import { constants } from 'node:os';
 import { basename, dirname } from 'node:path';
 import { fail } from '../../envelope/envelope.js';
 import { DATA_DIR_LOCKED, lockDataDir } from '../data-lock.js';
@@ -23,8 +24,14 @@ export const unreadableReason = (err: unknown): string =>
 // The folder is full or not writable: the errno, the file and where to look, never a bare 500.
 const NOT_WRITABLE = ['ENOSPC', 'EDQUOT', 'EROFS', 'EACCES', 'EPERM'];
 
-const unwritable = (file: string, err: unknown) => {
-  const code = (err as NodeJS.ErrnoException).code ?? '';
+// Node has no code name for EDQUOT on Linux ("Unknown system error -122"): read the errno too.
+const errnoName = (err: unknown): string => {
+  const { errno, code } = err as NodeJS.ErrnoException;
+  return errno === -constants.errno.EDQUOT ? 'EDQUOT' : (code ?? '');
+};
+
+export const unwritable = (file: string, err: unknown) => {
+  const code = errnoName(err);
   if (!NOT_WRITABLE.includes(code)) return err;
   const message = `${basename(file)} cannot be written (${code}): check the free space and rights of ${dirname(file)}; no change was made`;
   return fail('UNAVAILABLE', message, { retryAfter: 30 });

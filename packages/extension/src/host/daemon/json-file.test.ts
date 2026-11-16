@@ -3,9 +3,28 @@ import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { tempDir } from '../../test-support/packages.js';
 import { deadPid } from '../../test-support/processes.js';
-import { LOCK_WAIT_MS, readJsonFile, withFileLock, writeJsonFile } from './json-file.js';
+import {
+  LOCK_WAIT_MS,
+  readJsonFile,
+  unwritable,
+  withFileLock,
+  writeJsonFile,
+} from './json-file.js';
 
 describe('json files of the daemon', () => {
+  it('a folder over its quota is 503 EDQUOT, though Node names no code for it', () => {
+    const quota = Object.assign(new Error('Unknown system error -122, write'), {
+      errno: -122,
+      code: 'Unknown system error -122',
+    });
+    expect(unwritable('/c/a.json', quota)).toMatchObject({
+      status: 503,
+      message: expect.stringContaining('a.json cannot be written (EDQUOT)'),
+    });
+    const other = Object.assign(new Error('x'), { code: 'EIO' });
+    expect(unwritable('/c/a.json', other)).toBe(other);
+  });
+
   it('writes whole files with their mode; a missing file is the fallback, a folder throws', async () => {
     const dir = await tempDir();
     const file = join(dir, 'a.json');

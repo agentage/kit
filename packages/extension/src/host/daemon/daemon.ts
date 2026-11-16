@@ -4,6 +4,7 @@ import { type AddressInfo } from 'node:net';
 import { createLog } from '../../log/log.js';
 import { closeNow, listen } from '../../server/serve.js';
 import { forkLaunch, type Launch } from './child.js';
+import { syncCliUser, watchCliUser } from './cli-user-watch.js';
 import { removeDaemonFile, writeDaemonFile, DAEMON_PROTOCOL } from './daemon-files.js';
 import { assertNoOtherDaemon } from './daemon-owner.js';
 import { bootInstallation, updateInstallation } from './installation.js';
@@ -119,6 +120,7 @@ const depsOf = (opts: DaemonOptions, launch: Launch, origin: () => string, stopp
     queue: serialQueue(),
     pending: pendingChanges(),
     unsynced: new Set<string>(),
+    user: {},
   }) satisfies SupervisorDeps;
 
 // No other daemon, read and check the file, listen, write daemon.json, start the children; a failed boot undoes it.
@@ -139,7 +141,9 @@ export const startDaemon = async (opts: DaemonOptions, launch: Launch): Promise<
   const stop = stopper(server, entries, deps, life);
   try {
     await announce(opts, port, hostToken);
+    await deps.queue(() => syncCliUser(deps, entries));
     await deps.queue(() => boot(deps, entries));
+    life.signal.addEventListener('abort', watchCliUser(deps, entries));
   } catch (err) {
     await stop();
     throw err;

@@ -1,7 +1,10 @@
 import { describe, expect, it } from 'vitest';
+import { z } from 'zod';
 import { linkModules } from '../../test-support/http.js';
 import { API_MANIFEST, json, tempPackage } from '../../test-support/packages.js';
 import { check } from '../check.js';
+import { generatedOpenapi } from '../../api/openapi-doc.js';
+import { createRouteRegistry } from '../../api/routes.js';
 import { surface } from './surface.js';
 
 const API = `import { Router } from 'express';
@@ -45,7 +48,38 @@ const surfaceOf = async (files: Record<string, string>, parts: object = { api: t
   return (await check(dir, { rules: [surface] })).problems.map((p) => `${p.file} ${p.problem}`);
 };
 
+const EXPORT = `import { download } from '@agentage/extension';
+export const create = (ctx) =>
+  ctx.route('get', '/export', { summary: 'Export', produces: 'application/zip' }, () => download('z'));
+`;
+
+const SYNC = `import { z } from 'zod';
+export const create = (ctx) =>
+  ctx.route('get', '/sync', { summary: 'Sync', bare: true, etag: true, output: z.object({ ttl: z.number() }) }, () => ({ ttl: 1 }));
+`;
+
 describe('surface, the api part', () => {
+  it('passes a bare route, against the contract the kit writes', async () => {
+    const { route, routes } = createRouteRegistry();
+    const output = z.object({ ttl: z.number() });
+    route('get', '/sync', { summary: 'Sync', bare: true, etag: true, output }, () => ({ ttl: 1 }));
+    const manifest = { ...API_MANIFEST, agentage: { id: 'probe', parts: { api: true } } };
+    const files = {
+      'dist/api/index.js': SYNC,
+      'openapi.json': json(generatedOpenapi(manifest, routes)),
+    };
+    expect(await surfaceOf(files)).toEqual([]);
+  });
+
+  it('passes a route that produces a file, against the contract the kit writes', async () => {
+    const { route, routes } = createRouteRegistry();
+    route('get', '/export', { summary: 'Export', produces: 'application/zip' }, () => 'z');
+    const manifest = { ...API_MANIFEST, agentage: { id: 'probe', parts: { api: true } } };
+    const doc = generatedOpenapi(manifest, routes);
+    const files = { 'dist/api/index.js': EXPORT, 'openapi.json': json(doc) };
+    expect(await surfaceOf(files)).toEqual([]);
+  });
+
   it('passes when openapi.json documents exactly the routes, each with its access', async () => {
     expect(await surfaceOf({ 'dist/api/index.js': API, 'openapi.json': json(OPENAPI) })).toEqual(
       []

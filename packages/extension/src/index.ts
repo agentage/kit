@@ -7,6 +7,12 @@ export {
   type RouteRequest,
   type RouteSpec,
 } from './api/routes.js';
+export {
+  download,
+  type DownloadAnswer,
+  type DownloadBody,
+  type DownloadOptions,
+} from './api/download.js';
 export { pageOf, PageQuerySchema, type Pagination } from './api/page.js';
 export { type Access, type Caller } from './auth/token-check.js';
 export { type ArgValue } from './command/args.js';
@@ -66,8 +72,12 @@ export {
 } from '@agentage/logs';
 export { type Span, type SpanRecord } from './log/span.js';
 export {
+  toolResult,
   type McpContext,
+  type TextContent,
   type ToolHandler,
+  type ToolResult,
+  type ToolResultOptions,
   type ToolRegistrar,
   type ToolSpec,
 } from './mcp/tools.js';

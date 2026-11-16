@@ -17,6 +17,8 @@ export function create(ctx: McpContext) {
     async ({ msg }, caller) => ({ msg: `pong ${msg}` })
   );
   // Optional: title, annotations (hints) and output; instructions as a text or per caller.
+  // The text is the JSON of the output; toolResult(markdown, { structured }) sends own text,
+  // toolResult(text, { isError: true }) a tool error of that text only.
   ctx.instructions((caller) => `Notes of ${caller?.sub ?? 'nobody'}`);
   // The connector profile at /connector/{id}: tools listed by their own name (search, fetch).
   ctx.connector('search', { description, input, output }, async ({ query }, caller) => ({
@@ -27,6 +29,14 @@ export function create(ctx: McpContext) {
 // password = token). Only a clone or fetch reads ({id}:read); all else needs {id}:write. A dot
 // segment is a 400. owner runs on every request (false = 403); a push over maxPushBytes is a 413.
 // ctx.files((req, res) => { /* git http-backend */ }, { owner: (req: Request, caller) => true, maxPushBytes });
+// src/api/index.ts with ctx.route: a non-JSON answer declares its media type and returns download()
+ctx.route('get', '/export', { summary: 'Export', produces: 'application/zip' }, () =>
+  download(zipStream, { filename: 'memories.zip' })
+);
+// bare: true answers the body with no envelope (errors keep it); with etag a GET answers 304
+ctx.route('get', '/sync', { summary: 'Sync', bare: true, etag: true, output }, () =>
+  reply(body, { etag: '"v1"' })
+);
 // src/worker/index.ts: five-field cron, never twice at once, every run saved with its log
 export function create({ schedule, store, log }: WorkerContext) {
   schedule(

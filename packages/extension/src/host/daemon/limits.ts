@@ -22,6 +22,8 @@ export const LIMITS = {
   crashWindowMs: 600_000,
   // A child healthy this long has its restart count and exits reset.
   healthyResetMs: 600_000,
+  // How often auth.json is read: a sign-in or sign-out restarts the running children.
+  userPollMs: 2_000,
 };
 
 export type Limits = typeof LIMITS;

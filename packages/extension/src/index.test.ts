@@ -19,6 +19,7 @@ describe('public surface', () => {
       'createClickhouseStore',
       'createEventsClient',
       'createTestContext',
+      'download',
       'fail',
       'isClickhouseOutage',
       'ok',
@@ -29,6 +30,7 @@ describe('public surface', () => {
       'siteFromDir',
       'startTestMcp',
       'startTestServer',
+      'toolResult',
       'versionPage',
     ]);
   });

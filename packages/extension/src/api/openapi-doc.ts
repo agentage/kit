@@ -24,18 +24,24 @@ const content = (description: string, schema: Json) => ({ description, content: 
 
 const STRING = { type: 'string' };
 
-const okResponse = (spec: RouteEntry['spec']) =>
-  spec.status === 204 ? { description: 'no content' } : okBody(spec);
+const BINARY = { type: 'string', format: 'binary' };
 
-const okBody = ({ output, etag }: RouteEntry['spec']) => ({
-  ...content('the envelope', {
-    type: 'object',
-    properties: {
-      success: { type: 'boolean', const: true },
-      data: output ? bare(output, 'output') : {},
-    },
-    required: ['success', 'data'],
-  }),
+const okResponse = (spec: RouteEntry['spec']) => {
+  if (spec.produces)
+    return { description: 'the file', content: { [spec.produces]: { schema: BINARY } } };
+  return spec.status === 204 ? { description: 'no content' } : okBody(spec);
+};
+
+const envelopeOf = (data: Json): Json => ({
+  type: 'object',
+  properties: { success: { type: 'boolean', const: true }, data },
+  required: ['success', 'data'],
+});
+
+const okBody = ({ output, etag, bare: asIs }: RouteEntry['spec']) => ({
+  ...(asIs
+    ? content('the body', output ? bare(output, 'output') : {})
+    : content('the envelope', envelopeOf(output ? bare(output, 'output') : {}))),
   ...(etag && { headers: { ETag: { schema: STRING } } }),
 });
 
@@ -73,10 +79,16 @@ const queryParameters = ({ method, spec }: RouteEntry): Json[] => [
 
 const IF_MATCH = { name: 'If-Match', in: 'header', required: false, schema: STRING };
 
+const IF_NONE_MATCH = { ...IF_MATCH, name: 'If-None-Match' };
+
+// A bare GET with an ETag is a conditional GET: If-None-Match and 304, not If-Match and 412.
+const conditionalGet = ({ method, spec }: RouteEntry): boolean =>
+  method === 'get' && spec.bare === true && spec.etag === true;
+
 const parameters = (entry: RouteEntry): Json[] => [
   ...pathParameters(entry),
   ...queryParameters(entry),
-  ...(entry.spec.etag ? [IF_MATCH] : []),
+  ...(entry.spec.etag ? [conditionalGet(entry) ? IF_NONE_MATCH : IF_MATCH] : []),
 ];
 
 const responses = (entry: RouteEntry): Json => {
@@ -86,8 +98,9 @@ const responses = (entry: RouteEntry): Json => {
     ...((input || params) && { '400': refusal('VALIDATION_ERROR') }),
     ...(scope !== 'public' && { '401': refusal('UNAUTHORIZED'), '403': refusal('FORBIDDEN') }),
     ...(entry.path.includes('{') && { '404': refusal('NOT_FOUND') }),
+    ...(conditionalGet(entry) && { '304': { description: 'not modified' } }),
     // If-Match absent on a PUT overwrites (no 428); only a stale tag is refused.
-    ...(etag && { '412': refusal('PRECONDITION_FAILED') }),
+    ...(etag && !conditionalGet(entry) && { '412': refusal('PRECONDITION_FAILED') }),
   };
 };
 

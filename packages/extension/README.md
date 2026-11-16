@@ -12,7 +12,9 @@ npm install @agentage/extension express zod
 ```
 
 `agentage extension check [dir] --json` prints the conformance report (exit 1 when `conforms` is
-false); `file` and `line` are there only when a problem has them:
+false); `file` and `line` are there only when a problem has them. `warnings` is there only when a
+rule warned: an `engines.agentage` of an older kit minor from the floor `0.12` up conforms with a
+warning; below the floor or above the running kit it is a problem:
 
 ```json
 {

@@ -308,14 +308,23 @@ jobs:
           cache-dependency-path: platform/package-lock.json
 
       # The tarballs sit in the probe folder and the lock points at them, so the server images build from the candidate.
-      - name: Pack the candidate kit and widget, install them in probe
+      - name: Pack the candidate kit, widget and app, install them in probe
         run: |
           npm ci --prefix platform
           npm run build --prefix platform
           npm pack --workspaces --prefix platform --pack-destination "$PWD/probe"
           cd probe
           # No npm ci first: a probe that already pins the candidate version cannot fetch it from npm.
-          npm install --no-audit --no-fund ./agentage-extension-*.tgz ./agentage-widget-*.tgz
+          # Any other workspace package the probe names (e.g. @agentage/app) comes from this tree too, never npm.
+          tarballs=(./agentage-extension-*.tgz ./agentage-widget-*.tgz)
+          for tgz in ./agentage-*.tgz; do
+            name="@agentage/$(basename "$tgz" | sed -E 's/^agentage-(.*)-[0-9]+\.[0-9]+\.[0-9]+\.tgz$/\1/')"
+            case "$name" in @agentage/extension | @agentage/widget) continue ;; esac
+            if jq -e --arg n "$name" '(.dependencies // {}) + (.devDependencies // {}) | has($n)' package.json >/dev/null; then
+              tarballs+=("$tgz")
+            fi
+          done
+          npm install --no-audit --no-fund "${tarballs[@]}"
           # Permanent: the probe's own range refuses every new kit minor; the gate proves the candidate runs the probe.
           npm pkg set engines.agentage=">=0.6"
           grep -E "\"@agentage/(extension|widget)\": \"file:" package.json

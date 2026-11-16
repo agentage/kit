@@ -154,4 +154,12 @@ describe('X-Agentage-App (S1.2.2 row 10, K10)', () => {
     ]);
     expect((await call('hosted')).status).toBe(200);
   });
+
+  it('/files/{id} and /connector/{id} refuse another app before the child', async () => {
+    await appRunning();
+    for (const path of ['/files/hosted/a.txt', '/connector/hosted']) {
+      const res = await fetch(at(path), { headers: { 'x-agentage-app': 'probe' } });
+      expect([path, res.status]).toEqual([path, 403]);
+    }
+  });
 });

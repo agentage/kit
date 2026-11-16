@@ -1,12 +1,21 @@
+import { existsSync } from 'node:fs';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import express, { type Express, type RequestHandler } from 'express';
 import { fail } from '../../envelope/envelope.js';
 import { hasApp } from './app-files.js';
+import { type CliUser } from './cli-user-watch.js';
 import { type Entries } from './entries.js';
 import { type ShellEvents } from './shell-events.js';
 
-// The shell package the cli pins (K3): its dist/ is served, its name and version are in discovery.
+// The shell the kit carries (dist/shell, written by the kit build); none when run from src.
+export const kitShellDir = (base: string = import.meta.url): string | undefined => {
+  const dir = fileURLToPath(new URL('../../shell', base));
+  return existsSync(join(dir, 'package.json')) ? dir : undefined;
+};
+
+// A shell package (the kit's own or shellDir): dist/ is served; name and version go in discovery.
 export interface Shell {
   dir: string;
   package: string;
@@ -20,25 +29,22 @@ export const readShell = async (dir: string): Promise<Shell> => {
   return { dir, package: (pkg as { name: string }).name, version: pkg.version };
 };
 
-type User = { id: string; email: string; name?: string };
+type User = { id: string; email?: string; name?: string };
 
-const userOf = (value: unknown): User | null => {
-  const user = (value as { user?: Record<string, unknown> } | null)?.user;
-  if (typeof user?.['id'] !== 'string' || typeof user['email'] !== 'string') return null;
-  const name = typeof user['name'] === 'string' ? { name: user['name'] } : {};
-  return { id: user['id'], email: user['email'], ...name };
-};
+const textOf = (value: unknown) => (typeof value === 'string' ? value : undefined);
 
-// K9: only user of auth.json leaves the daemon, never a token; a file that is bad reads signed out.
-export const sessionOf = async (configDir: string) => {
-  const text = await readFile(join(configDir, 'auth.json'), 'utf8').catch(() => 'null');
-  let parsed: unknown = null;
+// K9: the user the children run as (issuer checked in cli-user.ts); email, name of its auth.json.
+export const sessionOf = ({ sub, text }: CliUser): { user: User | null; host: 'local' } => {
+  if (sub === undefined) return { user: null, host: 'local' };
+  let shown: Record<string, unknown> = {};
   try {
-    parsed = JSON.parse(text);
+    shown = (JSON.parse(text ?? '') as { user?: Record<string, unknown> }).user ?? {};
   } catch {
-    // signed out
+    // the sub alone
   }
-  return { user: userOf(parsed), host: 'local' as const };
+  const email = textOf(shown['email']);
+  const name = textOf(shown['name']);
+  return { user: { id: sub, ...(email && { email }), ...(name && { name }) }, host: 'local' };
 };
 
 // First path segments that are daemon routes: an unknown path under them stays a JSON 404.
@@ -65,12 +71,9 @@ const notAFile: RequestHandler = (req) => {
 };
 
 // S1.2.1: /, /{id}/* (the shell page, 404 for an id with no app), /shell/*, the session, the events.
-export const shellRoutes = (
-  app: Express,
-  { shell, entries, events, configDir }: ShellDeps
-): void => {
+export const shellRoutes = (app: Express, { shell, entries, events, user }: ShellDeps): void => {
   app.get('/shell/session', async (_req, res) => {
-    res.set('Cache-Control', 'no-store').json(await sessionOf(configDir));
+    res.set('Cache-Control', 'no-store').json(sessionOf(user));
   });
   app.get('/shell/events', events.stream);
   if (!shell) return;
@@ -83,5 +86,5 @@ export interface ShellDeps {
   shell?: Shell;
   entries: Entries;
   events: ShellEvents;
-  configDir: string;
+  user: CliUser;
 }

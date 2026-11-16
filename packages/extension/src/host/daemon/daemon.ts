@@ -16,7 +16,7 @@ import { pendingChanges } from './pending.js';
 import { serialQueue } from './queue.js';
 import { launchUnlessStopping, stopAll, stoppingOf, type Stopping } from './stopping.js';
 import { daemonApp } from './routes.js';
-import { readShell } from './shell-routes.js';
+import { kitShellDir, readShell } from './shell-routes.js';
 import { runInstaller } from './installer-call.js';
 import { repairReload } from './reload-marker.js';
 import { halt } from './gate.js';
@@ -30,7 +30,7 @@ export interface DaemonOptions extends Partial<Limits> {
   startedBy: string;
   // The test clock for every child (AGENTAGE_CLOCK_RATE); 1 when unset. createDaemon only.
   clockRate?: number;
-  // The folder of the shell package (@agentage/shell-dashboard): / and /shell/* serve its dist/.
+  // The folder of a shell package: / and /shell/* serve its dist/; unset, the kit's own dist/shell.
   shellDir?: string;
 }
 
@@ -143,7 +143,8 @@ export const startDaemon = async (opts: DaemonOptions, launch: Launch): Promise<
   const deps = depsOf(opts, launch, () => `http://127.0.0.1:${port}`, stoppingOf(life.signal));
   const { entries, ...file } = await loadEntries(deps);
   const self = { version: opts.version, pid: process.pid, protocol: DAEMON_PROTOCOL };
-  const shell = opts.shellDir ? { shell: await shellOf(deps, opts.shellDir) } : {};
+  const shellDir = opts.shellDir ?? kitShellDir();
+  const shell = shellDir ? { shell: await shellOf(deps, shellDir) } : {};
   const info = { ...launchMarks(launch), ...self, ...file, ...shell };
   const hostToken = newHostToken();
   const app = daemonApp(deps, entries, () => port, info, hostToken);

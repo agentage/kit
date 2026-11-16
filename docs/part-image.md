@@ -283,12 +283,12 @@ Statuses, not codes, tell a retry: 503 `UNAVAILABLE` is worth a retry after `Ret
 | `/host/*`                             | `Authorization: Bearer <hostToken>`: 401 `UNAUTHORIZED` with none, 403 `FORBIDDEN` with another                                                                                                                  |
 
 | `GET /`, `GET /{id}/*` | for a client that prefers HTML: the shell `index.html` (`no-cache`), 404 when `id` has no app; others get the JSON 404 |
-| `GET /shell/*` | the `dist/` of the shell package (`shellDir` option); no shellDir, no page and no `shell` key |
-| `GET /shell/session` | `{ user: { id, email, name? } \| null, host: "local" }` from `auth.json`; never a token |
+| `GET /shell/*` | the kit's own `dist/shell` (the kit build writes it), or the `dist/` of the `shellDir` option; neither, no page and no `shell` key |
+| `GET /shell/session` | `{ user: { id, email?, name? } \| null, host: "local" }`: `id` is the user the children run as (issuer checked, as the cli does), `email` and `name` from that `auth.json`; never a token |
 | `GET /shell/events` | server-sent events: `extensions` after each change, `app { id, entry, css }` after an app reload |
 | `GET /app/{id}/*` | the package's `dist/app`, also while the child is down; hashed files `immutable`, `index.js` and `app.json` `no-cache` |
 
-`X-Agentage-App: <id>` on `/api/{other}/*` is 403 `FORBIDDEN`: an app calls only its own
+`X-Agentage-App: <id>` on `/api/{other}/*`, `/files/{other}/*` or `/connector/{other}` is 403 `FORBIDDEN`: an app calls only its own
 extension. The header is self-declared, so it is a guard against mistakes, not a boundary: a
 request with no header, or with a false one, is not stopped. `POST /host/extensions/{id}/reload` with body
 `{ "part": "app" }` restarts no child: it reads `dist/app/app.json` and sends the `app` event.

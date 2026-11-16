@@ -4,6 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { startHarness, writeSecrets, type Harness } from '../../test-support/daemon-harness.js';
 import { hostedPackage, NO_STORE_MANIFEST } from '../../test-support/hosted-fixture.js';
 import { wordLaunch } from '../../test-support/word-launch.js';
+import { fakeIssuer, signedInAuth } from '../../test-support/fake-issuer.js';
 import { json } from '../../test-support/packages.js';
 
 let h: Harness | undefined;
@@ -91,25 +92,36 @@ describe('/shell/events (S1.2.3 rows 1 to 4, K7)', () => {
   });
 });
 
-describe('/shell/session (S1.2.1 row 7, K9)', () => {
-  const TOKEN = 'secret-access-token-value';
+describe('/shell/session (S1.2.1 row 7, K9): the user the children run as', () => {
+  const session = async () => (await fetch(at('/shell/session'))).text();
 
-  it('the user of auth.json, never a token; a bad or absent file reads signed out', async () => {
-    h = await startHarness();
-    const session = async () => (await fetch(at('/shell/session'))).text();
-    expect(JSON.parse(await session())).toEqual({ user: null, host: 'local' });
-    const auth = {
-      siteFqdn: 'x',
-      clientId: 'c',
-      tokens: { accessToken: TOKEN, refreshToken: TOKEN },
-      user: { id: 'u1', email: 'a@b.c', hidden: TOKEN },
-    };
-    await writeFile(join(h.configDir, 'auth.json'), json(auth));
-    const text = await session();
-    expect(JSON.parse(text)).toEqual({ user: { id: 'u1', email: 'a@b.c' }, host: 'local' });
-    expect(text).not.toContain(TOKEN);
-    await writeFile(join(h.configDir, 'auth.json'), '{not json');
-    expect(JSON.parse(await session())).toEqual({ user: null, host: 'local' });
+  it('the issuer-checked user with the email of auth.json, never a token; else signed out', async () => {
+    const issuer = await fakeIssuer({ 'opaque-alice': 'u_alice' });
+    try {
+      h = await startHarness({ userPollMs: 20 });
+      expect(JSON.parse(await session())).toEqual({ user: null, host: 'local' });
+      const user = { id: 'ignored', email: 'a@b.c', hidden: 'opaque-alice' };
+      await writeFile(
+        join(h.configDir, 'auth.json'),
+        signedInAuth(issuer.issuer, 'opaque-alice', { user })
+      );
+      await vi.waitFor(async () => expect(JSON.parse(await session()).user).not.toBeNull(), {
+        timeout: 5000,
+      });
+      const text = await session();
+      expect(JSON.parse(text)).toEqual({ user: { id: 'u_alice', email: 'a@b.c' }, host: 'local' });
+      expect(text).not.toContain('opaque-alice');
+      // The same file with no issuer is no user (cli-user.ts), not the user field it holds.
+      await writeFile(
+        join(h.configDir, 'auth.json'),
+        json({ tokens: { accessToken: 'opaque-alice' }, user })
+      );
+      await vi.waitFor(async () => expect(JSON.parse(await session()).user).toBeNull(), {
+        timeout: 5000,
+      });
+    } finally {
+      await issuer.close();
+    }
   });
 });
 

@@ -115,14 +115,14 @@ export const daemonApp = (
   app.use(agcidMiddleware, localOnly(port));
   app.use('/api/:id', ownAppOnly, proxy);
   app.use('/mcp/:id', proxy);
-  app.use('/connector/:id', proxy);
-  app.use('/files/:id', proxy);
+  app.use('/connector/:id', ownAppOnly, proxy);
+  app.use('/files/:id', ownAppOnly, proxy);
   healthRoutes(app, deps, entries, info);
   app.use('/host', requireHostToken(hostToken));
   const events = shellEvents();
   hostRoutes(app, deps, entries, info, events);
   appRoutes(app, entries);
-  shellRoutes(app, { shell: info.shell, entries, events, configDir: deps.configDir });
+  shellRoutes(app, { shell: info.shell, entries, events, user: deps.user });
   app.use(notFound);
   app.use(errorHandler(deps.log));
   return app;

@@ -52,16 +52,18 @@ describe('one host process runs every server part', () => {
   });
 
   it('the worker job runs on the minute and writes to the one store', async () => {
+    const [dir, data] = [await allPartsPackage(), await dataDir()];
     const minute = new Date();
-    minute.setSeconds(59, 700);
+    // About 1.5 s before the minute: the store opens first, then the job fires on it.
+    minute.setSeconds(58, 500);
     vi.useFakeTimers({ toFake: ['Date'], now: minute, shouldAdvanceTime: true });
-    const { server } = await host({ dataDir: await dataDir(), secrets: SECRETS });
+    const { server } = await host({ dataDir: data, secrets: SECRETS }, dir);
     await vi.waitFor(
       async () => {
         const ticks = await (await server.fetch('/api/all/ticks')).json();
         expect(ticks).toMatchObject({ data: { total: 1 } });
       },
-      { timeout: 5000, interval: 100 }
+      { timeout: 8000, interval: 100 }
     );
     await server.close();
   });

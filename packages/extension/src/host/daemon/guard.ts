@@ -6,8 +6,7 @@ const FOREIGN = ['cross-site', 'same-site'];
 
 const hostsAt = (port: number): string[] => [`127.0.0.1:${port}`, `localhost:${port}`];
 
-// Only this machine by name (DNS rebinding, a cross-site form): no port given, the socket's own.
-// more: other local ports a caller may name, as the daemon's for the request it forwards to a child.
+// Only this machine by name (DNS rebinding, a cross-site form); more: other local ports, as the daemon's.
 export const localOnly =
   (port?: () => number, more: number[] = []): RequestHandler =>
   (req, _res, next) => {

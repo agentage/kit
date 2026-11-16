@@ -11,7 +11,9 @@ import { mcpPathOf } from '../mcp/mcp-app.js';
 import { MOUNTS, type PartMount, type RunnerInput } from '../runtime/part-mounts.js';
 import { createPartApp, type PartAppBase } from '../server/app.js';
 import { type PgliteStore } from '../store/pglite-store.js';
+import { type HealthCheck } from '../health/health.js';
 import { type HostExtras, type HostOptions } from './host-extension.js';
+import { partChecks } from './part-checks.js';
 
 export interface Hosting {
   dir: string;
@@ -38,7 +40,7 @@ const secretsOf = ({ pkg, opts, extras }: Hosting, part: HostPartKind) =>
     : secretsFrom(pkg, part, async (name) => opts.secrets?.[name] ?? '');
 
 // A ctx for each part: its own log and mounted secrets, the one store and the one map of checks.
-const contextOf = async (h: Hosting, part: HostPartKind, base: PartAppBase) =>
+const contextOf = async (h: Hosting, part: HostPartKind, checks: Record<string, HealthCheck>) =>
   createContext({
     pkg: h.pkg,
     part,
@@ -51,12 +53,17 @@ const contextOf = async (h: Hosting, part: HostPartKind, base: PartAppBase) =>
     settings: settingsOf(h.pkg, h.opts.settings ?? {}, h.log),
     store: h.store,
     secrets: await secretsOf(h, part),
-    checks: base.checks ?? {},
+    checks,
     onExit: h.onExit,
   });
 
-const inputOf = async (h: Hosting, part: HostPartKind, base: PartAppBase): Promise<RunnerInput> => {
-  const ctx: PartContext = await contextOf(h, part, base);
+const inputOf = async (
+  h: Hosting,
+  part: HostPartKind,
+  base: PartAppBase,
+  reserved: Set<string>
+): Promise<RunnerInput> => {
+  const ctx: PartContext = await contextOf(h, part, partChecks(base.checks ?? {}, reserved));
   const openapi = await readOpenapi(h.dir);
   const mcpPaths = [mcpPathOf(h.pkg.agentage.id)];
   return {
@@ -74,8 +81,11 @@ const inputOf = async (h: Hosting, part: HostPartKind, base: PartAppBase): Promi
 // In order api, mcp, worker; a create that throws stops what the earlier ones started.
 const mountsOf = async (h: Hosting, parts: HostPartKind[], base: PartAppBase) => {
   const mounts: PartMount[] = [];
+  // The host's own checks (store, token) stay refused names, as in a part image.
+  const reserved = new Set(Object.keys(base.checks ?? {}));
   try {
-    for (const part of parts) mounts.push(await MOUNTS[part](await inputOf(h, part, base)));
+    for (const part of parts)
+      mounts.push(await MOUNTS[part](await inputOf(h, part, base, reserved)));
   } catch (err) {
     for (const m of mounts) m.stop?.();
     throw err;

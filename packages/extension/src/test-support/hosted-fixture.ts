@@ -62,29 +62,38 @@ export const ALL_PARTS_MANIFEST = {
     settings: {
       'mcp.listing': { type: 'string', enum: ['open', 'token'], default: 'open' },
       'mcp.fail': { type: 'boolean', default: false },
+      'health.shared': { type: 'boolean', default: false },
+      'tick.slow': { type: 'boolean', default: false },
     },
     secrets: [{ name: 'tick-key', parts: ['worker'] }],
   },
 };
 
-const ALL_API = `export const create = (ctx) => async (req, res, next) => {
+const ALL_API = `export const create = (ctx) => {
+  if (ctx.settings['health.shared']) ctx.health('shared', async () => 'ok');
+  return async (req, res, next) => {
   if (req.path !== '/ticks') return next();
   const { rows } = await ctx.store.query('select count(*)::int as n from ticks');
   res.json({ success: true, data: { total: rows[0].n, part: ctx.extension.part } });
+  };
 };
 `;
 
 const ALL_MCP = `import { z } from 'zod';
 export const create = (ctx) => {
   if (ctx.settings['mcp.fail']) throw new Error('mcp create failed');
+  if (ctx.settings['health.shared']) ctx.health('shared', async () => 'degraded');
   ctx.tool('echo', { description: 'Echo', input: z.object({ msg: z.string() }),
     output: z.object({ msg: z.string() }) }, ({ msg }) => ({ msg: 'pong ' + msg }));
 };
 `;
 
-const ALL_WORKER = `export const create = ({ schedule, store, secrets }) => {
+const ALL_WORKER = `export const create = ({ schedule, store, secrets, settings }) => {
   if (!secrets.tickKey) throw new Error('no tick key');
-  schedule('tick', '* * * * *', async () => { await store.query("insert into ticks values ('t')"); });
+  schedule('tick', '* * * * *', async () => {
+    if (settings['tick.slow']) (globalThis.tickRunning = true), await new Promise((r) => setTimeout(r, 400));
+    await store.query("insert into ticks values ('t')");
+  });
 };
 `;
 

@@ -104,6 +104,38 @@ describe('one host process runs every server part', () => {
   });
 });
 
+describe('two parts, one check name; a stop while a job runs', () => {
+  it('api and mcp both register "shared": the host starts and /health shows the worse', async () => {
+    const opts = { dataDir: '', secrets: SECRETS, settings: { 'health.shared': true } };
+    const { h, server } = await host(opts);
+    const health = (await (await server.fetch('/health')).json()) as { data: object };
+    expect(health.data).toMatchObject({ status: 'degraded', checks: { shared: 'degraded' } });
+    expect((await h.health()).data.checks).toMatchObject({ shared: 'degraded' });
+    await server.close();
+  });
+
+  it('stop() while a job runs: no unhandled rejection, the store closes, the lock is freed', async () => {
+    const [dir, data] = [await allPartsPackage(), await dataDir()];
+    const rejected = vi.fn();
+    process.on('unhandledRejection', rejected);
+    const minute = new Date();
+    minute.setSeconds(58, 500);
+    vi.useFakeTimers({ toFake: ['Date'], now: minute, shouldAdvanceTime: true });
+    const opts = { dataDir: data, secrets: SECRETS, settings: { 'tick.slow': true } };
+    const h = await hostExtension(dir, opts);
+    const state = globalThis as { tickRunning?: boolean };
+    await vi.waitFor(() => expect(state.tickRunning).toBe(true), { timeout: 8000 });
+    await h.stop();
+    await expect(readFile(`${data}.lock`)).rejects.toThrow('ENOENT');
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    process.off('unhandledRejection', rejected);
+    expect(rejected).not.toHaveBeenCalled();
+    const { server } = await host({ dataDir: data, secrets: SECRETS }, dir);
+    expect((await server.fetch('/api/all/ticks')).status).toBe(200);
+    await server.close();
+  });
+});
+
 describe('a part that cannot start stops the host', () => {
   it('a secret of the worker with no value: refused by name, the store closed', async () => {
     const data = await dataDir();

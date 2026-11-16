@@ -1,5 +1,5 @@
 import { existsSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { setTimeout as pause } from 'node:timers/promises';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { startHarness, writeSecrets, type Harness } from '../../test-support/daemon-harness.js';
 import {
@@ -11,9 +11,9 @@ import { seedStore } from '../../test-support/pglite-seed.js';
 import { alive } from '../../test-support/processes.js';
 import { forkLaunch } from './child.js';
 import { dataDirOf } from './daemon-files.js';
+import { BUILT_MAIN as MAIN } from '../../test-support/launch-spec.js';
 
 // The built entry: verify builds it (tsc -b) before the tests run.
-const MAIN = fileURLToPath(new URL('../../../dist/host/main.js', import.meta.url));
 const OTHER = { ...NO_STORE_MANIFEST, agentage: { ...NO_STORE_MANIFEST.agentage, id: 'other' } };
 
 let h: Harness;
@@ -24,7 +24,6 @@ const echo = async (id: string) => {
     body: (await res.json()) as { data?: { msg: string; pid: number } },
   };
 };
-const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 beforeAll(async () => {
   if (!existsSync(MAIN)) throw new Error(`${MAIN} is missing: npm run build first`);

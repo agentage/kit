@@ -2,14 +2,13 @@ import { fork } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { describe, expect, it } from 'vitest';
 import { hostedPackage } from '../test-support/hosted-fixture.js';
 import { tempDir } from '../test-support/packages.js';
 import { seedStore } from '../test-support/pglite-seed.js';
+import { BUILT_MAIN as MAIN } from '../test-support/launch-spec.js';
 
 // The built entry: verify builds it (tsc -b) before the tests run.
-const MAIN = fileURLToPath(new URL('../../dist/host/main.js', import.meta.url));
 
 describe('dist/host/main.js', () => {
   it('reports its port over IPC, answers, and exits 0 on a real SIGTERM', async () => {

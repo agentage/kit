@@ -13,7 +13,7 @@ import { changeExtension, removeExtension } from './ops.js';
 import { type Pending, type PendingChanges } from './pending.js';
 import { waitAtMost } from './queue.js';
 import { proxyTo } from './proxy.js';
-import { reloadRoute } from './reload-route.js';
+import { reloadExtension } from './reload.js';
 import { stopsNow } from './stopping.js';
 import { type SupervisorDeps } from './supervisor.js';
 
@@ -48,6 +48,8 @@ const runner =
       })
     );
 
+const purge = (q: unknown) => (q as Record<string, unknown>)['purge'] === 'true';
+
 const changes = (deps: SupervisorDeps, entries: Entries, info: DaemonInfo, p: PendingChanges) => {
   const run = runner(deps, info, p);
   const id = (params: Record<string, string | string[]>) => String(params['id']);
@@ -59,12 +61,15 @@ const changes = (deps: SupervisorDeps, entries: Entries, info: DaemonInfo, p: Pe
     const what = { op: 'update' as const, id: id(params) };
     res.json(ok(await run(what, () => changeExtension(deps, entries, id(params), body))));
   };
-  const purge = (q: unknown) => (q as Record<string, unknown>)['purge'] === 'true';
   const remove: RequestHandler = async ({ params, query }, res) => {
     const what = { op: 'remove' as const, id: id(params) };
     res.json(ok(await run(what, () => removeExtension(deps, entries, what.id, purge(query)))));
   };
-  return { add, change, remove };
+  const reload: RequestHandler = async ({ params, body }, res) => {
+    const what = { op: 'reload' as const, id: id(params) };
+    res.json(ok(await run(what, () => reloadExtension(deps, entries, what.id, body))));
+  };
+  return { add, change, remove, reload };
 };
 
 const hostRoutes = (
@@ -76,11 +81,11 @@ const hostRoutes = (
 ) => {
   app.get('/host/extensions', (_req, res) => void res.json(ok([...entries.values()].map(listed))));
   const json = express.json({ limit: BODY_LIMIT });
-  const { add, change, remove } = changes(deps, entries, info, p);
+  const { add, change, remove, reload } = changes(deps, entries, info, p);
   app.post('/host/extensions', json, add);
   app.patch('/host/extensions/:id', json, change);
   app.delete('/host/extensions/:id', remove);
-  reloadRoute(app, deps, entries, () => checkReadable(deps, info));
+  app.post('/host/extensions/:id/reload', json, reload);
 };
 
 // C5 and C1: /health, discovery, /host/* (host token), /api/{id}/* and /mcp/{id} to the child; Host and Origin first.

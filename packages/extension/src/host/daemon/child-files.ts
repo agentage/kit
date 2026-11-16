@@ -18,13 +18,12 @@ export interface RunFolders {
   runDir: string;
   secretsDir: string;
   tmpDir: string;
-  // The folders this launch made (run/{id}, data/{id}), so a first start that fails leaves none.
-  made: { run: boolean; data: boolean };
+  // The first folder this launch made up to run/{id}, and data/{id}: a failed first start leaves none.
+  made: { run?: string; data: boolean };
 }
 
 // The supervisor's dataDir is <configDir>/data/{id}, so run/{id} sits beside data/ (C2).
-export const runDirFor = (spec: Pick<RunSpec, 'id' | 'dataDir'>): string =>
-  runDirOf(dirname(dirname(spec.dataDir)), spec.id);
+export const configDirOf = (dataDir: string): string => dirname(dirname(dataDir));
 
 // Only the names the package declares now: a row can still hold one an older version declared.
 const declared = async (spec: RunSpec): Promise<[string, string][]> => {
@@ -34,14 +33,15 @@ const declared = async (spec: RunSpec): Promise<[string, string][]> => {
 
 // The folders first, so undoRun knows what this launch made; data/{id} before the fork (PGlite).
 export const makeRun = async (spec: RunSpec): Promise<RunFolders> => {
-  const runDir = runDirFor(spec);
-  const run = await mkdir(runDir, { recursive: true, mode: 0o700 });
+  const runDir = runDirOf(configDirOf(spec.dataDir), spec.id);
+  const made = { run: await mkdir(runDir, { recursive: true, mode: 0o700 }), data: false };
+  const run = { runDir, secretsDir: join(runDir, 'secrets'), tmpDir: join(runDir, 'tmp'), made };
   const data = await mkdir(spec.dataDir, { recursive: true }).catch(async (err: unknown) => {
-    if (run !== undefined) await rm(runDir, { recursive: true, force: true });
+    await undoRun(run, spec.dataDir);
     throw err;
   });
-  const made = { run: run !== undefined, data: data !== undefined };
-  return { runDir, secretsDir: join(runDir, 'secrets'), tmpDir: join(runDir, 'tmp'), made };
+  made.data = data !== undefined;
+  return run;
 };
 
 // Fresh secrets and tmp; the old lock beside data/{id} and a left-over run lock are cleared.
@@ -56,8 +56,14 @@ export const fillRun = async (run: RunFolders, spec: RunSpec): Promise<void> => 
     await writeFile(join(run.secretsDir, SecretNameSchema.parse(name)), value, { mode: 0o600 });
 };
 
-// A child that never reported its port: what this launch made goes; data/{id} only while empty.
+// From dir up to top, each folder only while it is empty: rmdir refuses one that is not.
+const emptyUpTo = async (dir: string, top: string): Promise<void> => {
+  for (; dir.startsWith(top); dir = dirname(dir)) if (await rmdir(dir).catch(() => 'kept')) return;
+};
+
+// A child that never reported its port: what this launch made goes, run/ only while empty.
 export const undoRun = async ({ runDir, made }: RunFolders, dataDir: string): Promise<void> => {
   if (made.run) await rm(runDir, { recursive: true, force: true });
+  if (made.run) await emptyUpTo(dirname(runDir), made.run);
   if (made.data) await rmdir(dataDir).catch(() => undefined);
 };

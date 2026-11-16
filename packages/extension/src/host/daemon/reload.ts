@@ -4,7 +4,8 @@ import { parse } from '../../envelope/parse.js';
 import { entryOf, type Entries } from './entries.js';
 import { confirmReload, markReload, swapBack, swapIn, unmarkReload } from './reload-marker.js';
 import { resetRestarts } from './restart.js';
-import { halt, hold, startEntry, type Entry, type SupervisorDeps } from './supervisor.js';
+import { halt, hold } from './gate.js';
+import { startEntry, type Entry, type SupervisorDeps } from './supervisor.js';
 
 const ReloadSchema = z.strictObject({});
 

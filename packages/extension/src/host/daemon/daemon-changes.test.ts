@@ -6,7 +6,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { startHarness, writeSecrets, type Harness } from '../../test-support/daemon-harness.js';
 import { inProcessLaunch } from '../../test-support/in-process-launch.js';
-import { hostedPackage } from '../../test-support/hosted-fixture.js';
+import { hostedPackage, NO_STORE_MANIFEST } from '../../test-support/hosted-fixture.js';
 import { type Launch } from './child.js';
 
 let h: Harness | undefined;
@@ -17,10 +17,12 @@ afterEach(async () => {
   vi.restoreAllMocks();
 });
 
+// No store: a PGlite boot costs seconds on a loaded machine; store swaps: daemon-lifecycle.test.ts.
 const installed = async (options: Parameters<typeof startHarness>[0] = {}) => {
   h = await startHarness(options);
   await writeSecrets(h.configDir);
-  await h.call('POST', '/host/extensions', { source: await hostedPackage() });
+  const source = await hostedPackage(NO_STORE_MANIFEST);
+  await h.call('POST', '/host/extensions', { source });
   return h;
 };
 const echo = async () =>
@@ -106,7 +108,7 @@ describe('daemon changes', () => {
   });
 
   it('a PATCH that changes nothing is 200 and keeps the child; the same version calls no installer', async () => {
-    const dir = await hostedPackage();
+    const dir = await hostedPackage(NO_STORE_MANIFEST);
     const install = vi.fn(async ({ id }: { id: string }) => ({ id, version: '1.0.0', dir }));
     const launch = vi.fn<Launch>(inProcessLaunch);
     h = await startHarness({ install, launch });

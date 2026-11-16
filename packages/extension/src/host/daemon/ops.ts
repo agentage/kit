@@ -10,9 +10,8 @@ import { unsynced, writeAll } from './write-all.js';
 import { runInstaller } from './installer-call.js';
 import { checkedSettings } from './patch-values.js';
 import { type InstallEntry } from './installation.js';
+import { halt, hold } from './gate.js';
 import {
-  halt,
-  hold,
   swap,
   valuesOf,
   type Entry,

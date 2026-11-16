@@ -47,10 +47,14 @@ describe('json files of the daemon', () => {
   it('with no waitMs it gives up after LOCK_WAIT_MS (5 s)', async () => {
     const file = join(await tempDir(), 'settings.json');
     await writeFile(`${file}.lock`, String(process.ppid));
-    const started = Date.now();
+    const now = Date.now();
+    // The clock jumps LOCK_WAIT_MS after the deadline is set, so the test does not wait 5 s.
+    vi.spyOn(Date, 'now')
+      .mockReturnValueOnce(now)
+      .mockReturnValue(now + LOCK_WAIT_MS);
     await expect(withFileLock(file, async () => undefined)).rejects.toMatchObject({
       message: `settings.json is locked by process ${process.ppid}: waited ${LOCK_WAIT_MS} ms`,
     });
-    expect(Date.now() - started).toBeGreaterThanOrEqual(LOCK_WAIT_MS);
+    vi.restoreAllMocks();
   });
 });

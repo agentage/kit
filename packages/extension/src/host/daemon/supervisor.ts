@@ -14,8 +14,6 @@ import { crashed, healthyFor, reasonOf, resetRestarts, type Retry } from './rest
 import { assertSecrets, healthy, redact } from './start-checks.js';
 import { type Stopping } from './stopping.js';
 
-export { halt, hold } from './gate.js';
-
 // Called on every boot for each entry with a version: idempotent (docs/part-image.md).
 // signal: aborted when the daemon stops waiting (installMs); an installer may ignore it.
 export interface InstallSpec {
@@ -87,7 +85,7 @@ const dirOf = async (deps: SupervisorDeps, entry: Entry, install: InstallEntry, 
 };
 
 // A new child for install with values, healthy; the entry learns the version the package has.
-export const launchFor = async (
+const launchFor = async (
   deps: SupervisorDeps,
   entry: Entry,
   install: InstallEntry,
@@ -151,7 +149,7 @@ const restartEntry = async (deps: SupervisorDeps, entry: Entry): Promise<void> =
 };
 
 // The old install again after a refused change; a disabled one stays stopped.
-export const restore = async (deps: SupervisorDeps, entry: Entry): Promise<void> => {
+const restore = async (deps: SupervisorDeps, entry: Entry): Promise<void> => {
   if (entry.install.enabled === false) entry.state = 'disabled';
   else await startEntry(deps, entry);
 };

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { lastWords } from './child.js';
+import { lastWords } from './last-words.js';
 
 // Real stderr of an uncaught error, captured on Node 24.6.0 and 22.23.2 (paths shortened).
 const SAMPLES: [string, string, string][] = [

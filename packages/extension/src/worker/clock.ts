@@ -1,5 +1,5 @@
 export const CLOCK_RATE_ENV = 'AGENTAGE_CLOCK_RATE';
-export const MAX_CLOCK_RATE = 3600;
+const MAX_CLOCK_RATE = 3600;
 
 // The test clock (tests only): it scales run timestamps, job ms, timeoutMs and the late check. A rate of 60 makes one cron minute last one second; a bad value is refused, never ignored.
 export const parseClockRate = (raw: string | number | undefined): number => {

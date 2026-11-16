@@ -1,9 +1,8 @@
 import { fork, type ChildProcess } from 'node:child_process';
 import { rm } from 'node:fs/promises';
-import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CLOCK_RATE_ENV, parseClockRate } from '../../worker/clock.js';
-import { fillRun, makeRun, undoRun, type RunFolders } from './child-files.js';
+import { configDirOf, fillRun, makeRun, undoRun, type RunFolders } from './child-files.js';
 import { lastWords } from './last-words.js';
 import { LIMITS } from './limits.js';
 import { pipeRedacted } from './redact-stream.js';
@@ -61,8 +60,6 @@ export const childEnv = (
   ...(runDir && { AGENTAGE_RUN_DIR: runDir }),
   ...(spec.storeOpenMs && { AGENTAGE_STORE_OPEN_MS: String(spec.storeOpenMs) }),
 });
-
-export { lastWords } from './last-words.js';
 
 const passedEnv = () =>
   Object.fromEntries(PASSED.flatMap((k) => (process.env[k] ? [[k, process.env[k]]] : [])));
@@ -128,7 +125,7 @@ const stopOf = (child: ChildProcess, exited: Promise<Exit>) => async () => {
 // The daemon's own node flags (a loader, --input-type) are never the child's; C2 where Node has --permission.
 const execArgvOf = (node: string, main: string, spec: LaunchSpec, run: RunFolders) => {
   if (!permissionFlag(node)) return [];
-  const configDir = dirname(dirname(spec.dataDir));
+  const configDir = configDirOf(spec.dataDir);
   const { id, dir, dataDir } = spec;
   return sealFlags({ id, main, dir, configDir, runDir: run.runDir, dataDir });
 };

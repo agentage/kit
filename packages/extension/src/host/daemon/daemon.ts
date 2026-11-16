@@ -17,7 +17,8 @@ import { launchUnlessStopping, stopAll, stoppingOf, type Stopping } from './stop
 import { daemonApp } from './routes.js';
 import { runInstaller } from './installer-call.js';
 import { repairReload } from './reload-marker.js';
-import { halt, startEntry, type Entry, type Installer, type SupervisorDeps } from './supervisor.js';
+import { halt } from './gate.js';
+import { startEntry, type Entry, type Installer, type SupervisorDeps } from './supervisor.js';
 
 export interface DaemonOptions extends Partial<Limits> {
   configDir: string;
@@ -146,7 +147,6 @@ export const startDaemon = async (opts: DaemonOptions, launch: Launch): Promise<
   return { port, stop };
 };
 
-// One daemon on 127.0.0.1, one child process for each extension (D1).
-// A bad clockRate rejects the promise, like every other refusal of this function.
+// One daemon on 127.0.0.1, one child process for each extension (D1); a bad clockRate rejects.
 export const createDaemon = async (opts: DaemonOptions): Promise<Daemon> =>
   startDaemon(opts, forkLaunch(undefined, opts.startMs, opts.clockRate));

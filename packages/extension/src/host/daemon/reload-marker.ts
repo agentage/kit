@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs';
 import { cp, mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { type Log } from '../../log/log.js';
+import { runDirOf } from './daemon-files.js';
 import { type Entry } from './supervisor.js';
 
 // D14 (revised): the child runs dist/; dist.next/ is the watcher's tree and stays; dist.prev/ is the last good.
@@ -9,7 +10,7 @@ const DIST = 'dist';
 const NEXT = 'dist.next';
 const PREV = 'dist.prev';
 
-const markerOf = (configDir: string, id: string) => join(configDir, 'run', id, 'reload.json');
+const markerOf = (configDir: string, id: string) => join(runDirOf(configDir, id), 'reload.json');
 
 const gone = (path: string) => rm(path, { recursive: true, force: true });
 

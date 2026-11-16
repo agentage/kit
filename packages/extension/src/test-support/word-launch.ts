@@ -31,8 +31,7 @@ export interface WordLaunch {
   events: string[];
 }
 
-// Each start reads dist/word.txt again (a fork would, an import cache would not); "throw" fails it.
-// exitMs: a child takes that long to exit after stop, like a store that drains.
+// Each start reads dist/word.txt again, as a fork would; "throw" fails it; exitMs: a draining stop.
 export const wordLaunch = (exitMs = 0): WordLaunch => {
   const children: WordChild[] = [];
   const events: string[] = [];

@@ -42,8 +42,7 @@ const installationOf = ({ invalid, unreadable, notJson }: DaemonInfo) => {
   return invalid || notJson ? { installation: 'invalid' } : {};
 };
 
-const sealMark = ({ seal, sealError }: DaemonInfo) =>
-  seal === 'off' ? { seal, sealError: sealError ?? 'seal off' } : {};
+const sealMark = ({ seal, sealError }: DaemonInfo) => (seal === 'off' ? { seal, sealError } : {});
 
 const statusOf = (deps: SupervisorDeps, entries: Entries, info: DaemonInfo) => {
   const settled = [...entries.values()].every((e) => ['running', 'disabled'].includes(e.state));
@@ -77,7 +76,7 @@ const discoveryOf = async (entries: Entries) => {
   return { host: 'local', extensions: await Promise.all(listed) };
 };
 
-export const HOST_DISCOVERY_PATH = '/.well-known/agentage-host.json';
+const HOST_DISCOVERY_PATH = '/.well-known/agentage-host.json';
 
 export const healthRoutes = (
   app: Express,

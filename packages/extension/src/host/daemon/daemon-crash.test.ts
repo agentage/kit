@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { setTimeout as pause } from 'node:timers/promises';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { startHarness, writeSecrets, type Harness } from '../../test-support/daemon-harness.js';
 import { hostedPackage, NO_STORE_MANIFEST } from '../../test-support/hosted-fixture.js';
@@ -24,7 +25,6 @@ const rowOf = async (id = 'word') =>
   (
     (await h!.call('GET', '/host/extensions')).body as { data: Record<string, unknown>[] }
   ).data.find((row) => row['id'] === id);
-const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const crashLast = () => w.children.at(-1)!.crash('crash on purpose');
 
 describe('a child that exits (C6)', () => {

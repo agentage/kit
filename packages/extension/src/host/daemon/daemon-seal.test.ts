@@ -1,14 +1,13 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { afterAll, beforeAll, describe, expect, it, vi } from 'vitest';
 import { startHarness, type Harness } from '../../test-support/daemon-harness.js';
 import { allPartsPackage } from '../../test-support/hosted-fixture.js';
 import { json, tempPackage } from '../../test-support/packages.js';
 import { forkLaunch } from './child.js';
 import { permissionFlag, sealOf } from './seal.js';
+import { BUILT_MAIN as MAIN } from '../../test-support/launch-spec.js';
 
-const MAIN = fileURLToPath(new URL('../../../dist/host/main.js', import.meta.url));
 const SEALED = sealOf(process.versions.node) === 'on';
 
 // GET /read?path=: the error code of a plain node:fs read (OK when it reads), never the bytes.

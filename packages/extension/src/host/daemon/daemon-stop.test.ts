@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { setTimeout as pause } from 'node:timers/promises';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { startHarness, writeSecrets } from '../../test-support/daemon-harness.js';
 import { inProcessLaunch } from '../../test-support/in-process-launch.js';
@@ -10,7 +11,6 @@ import { type Installer } from './supervisor.js';
 beforeEach(() => void vi.spyOn(process.stderr, 'write').mockImplementation(() => true));
 afterEach(() => void vi.restoreAllMocks());
 
-const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 const other = { ...NO_STORE_MANIFEST, agentage: { ...NO_STORE_MANIFEST.agentage, id: 'slow' } };
 
 describe('a daemon that stops while changes wait', () => {

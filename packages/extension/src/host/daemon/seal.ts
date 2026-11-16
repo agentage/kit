@@ -6,7 +6,7 @@ import { assertReach, real } from './seal-reach.js';
 export type Seal = 'on' | 'off';
 
 // C2: the permission model with the bypass fixes of D2; the same rule as e2e sealFloorMet.
-export const SEAL_FLOOR = 'Node 22.22.2 or 24.14.1';
+const SEAL_FLOOR = 'Node 22.22.2 or 24.14.1';
 
 const versionOf = (version: string) => version.split('.').map(Number) as [number, number, number];
 
@@ -68,7 +68,7 @@ export const kitReadDirs = (main: string): string[] => {
   return [...new Set([root, upward(root).find(hasWorkspaces) ?? root])];
 };
 
-export interface SealAt {
+interface SealAt {
   id: string;
   main: string;
   dir: string;

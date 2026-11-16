@@ -1,7 +1,7 @@
 import { type ExtensionPackage } from '../../manifest/manifest.schema.js';
 import { hostParts, mountedIn } from '../../manifest/parts.js';
 
-export const NEEDS_SECRET = 'NEEDS_SECRET';
+const NEEDS_SECRET = 'NEEDS_SECRET';
 
 // C6: a declared secret of a server part with no value; the daemon checks it before the fork.
 export const assertSecrets = (pkg: ExtensionPackage, secrets: Record<string, string>): void => {

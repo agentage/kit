@@ -1,5 +1,6 @@
 import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { setTimeout as pause } from 'node:timers/promises';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import {
   startHarness,
@@ -25,7 +26,6 @@ afterEach(async () => {
 });
 
 const withVersion = (version: string) => ({ ...HOSTED_MANIFEST, version });
-const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // 5 slow requests open on the old child, then 60 more, 5 ms apart, while the PATCH swaps it.
 const duringPatch = async (patch: object) => {

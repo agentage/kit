@@ -36,7 +36,7 @@ export const imageParts = (pkg: ExtensionPackage): ImagePartKind[] => {
 };
 
 // The parts one host process runs (the daemon's child, the one container); pages and ui wait for phase 2.
-export const HOST_PARTS = ['api', 'mcp', 'worker'] as const;
+const HOST_PARTS = ['api', 'mcp', 'worker'] as const;
 
 export type HostPartKind = (typeof HOST_PARTS)[number];
 

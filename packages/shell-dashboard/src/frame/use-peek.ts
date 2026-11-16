@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FocusEvent } from 'react';
+import { useRef, useState, type FocusEvent } from 'react';
 
 const PEEK_MS = 200;
 
@@ -6,10 +6,6 @@ const PEEK_MS = 200;
 export const usePeek = (navHidden: boolean) => {
   const [peek, setPeek] = useState(false);
   const timer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
-  useEffect(() => {
-    clearTimeout(timer.current);
-    setPeek(false);
-  }, [navHidden]);
   const on = () => {
     clearTimeout(timer.current);
     if (navHidden && !window.matchMedia('(max-width: 759px)').matches) setPeek(true);
@@ -28,5 +24,5 @@ export const usePeek = (navHidden: boolean) => {
       if (!zone) soon();
     },
   };
-  return { peek, handlers };
+  return { peek: peek && navHidden, handlers };
 };

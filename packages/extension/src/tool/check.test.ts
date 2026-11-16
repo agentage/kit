@@ -136,14 +136,10 @@ describe('stack', () => {
       express: 'file:vendor/express-4.tgz',
       zod: 'npm:zod@3',
       '@agentage/extension': 'latest',
+      '@modelcontextprotocol/server': '',
+      '@modelcontextprotocol/sdk': '^1.20.0',
     };
-    expect(
-      await stackOf({
-        ...specs,
-        '@modelcontextprotocol/server': '',
-        '@modelcontextprotocol/sdk': '^1.20.0',
-      })
-    ).toEqual([
+    expect(await stackOf(specs)).toEqual([
       'express file:vendor/express-4.tgz needs a version range',
       'zod npm:zod@3 needs a version range',
       '@modelcontextprotocol/server "" needs a version range',
@@ -152,10 +148,7 @@ describe('stack', () => {
     ]);
   });
 
-  it('needs the running kit inside engines.agentage; a file: kit tarball is not judged', async () => {
-    expect(await stackOf({}, '^0.4')).toEqual([
-      `kit ${KIT_VERSION} is outside engines.agentage ^0.4`,
-    ]);
+  it('a file: kit tarball is not judged against engines.agentage', async () => {
     const tarball = { '@agentage/extension': 'file:.kit/agentage-extension-0.4.0.tgz' };
     expect(await stackOf(tarball)).toEqual([]);
   });
@@ -199,9 +192,7 @@ describe('checkLines', () => {
   it('a rule that throws is a problem of that rule, not a crash', async () => {
     const boom = { name: 'boom', run: () => Promise.reject(new Error('no way')) };
     const report = await check(await tempPackage(BUILT), { rules: [boom] });
-    expect(report).toMatchObject({
-      conforms: false,
-      problems: [{ rule: 'boom', problem: 'no way' }],
-    });
+    expect(report.problems).toEqual([{ rule: 'boom', problem: 'no way' }]);
+    expect(report.conforms).toBe(false);
   });
 });

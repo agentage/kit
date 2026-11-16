@@ -6,11 +6,11 @@ import { callerOf, type Caller } from '../auth/token-check.js';
 import { type PartContext } from '../context/context.js';
 import { createTestContext } from '../context/test-context.js';
 import { type ExtensionPackage } from '../manifest/manifest.schema.js';
-import { createMcpApp } from '../mcp/mcp-app.js';
+import { mountWithConnector } from '../mcp/connector.js';
 import { callTool } from '../mcp/snapshot.js';
 import { createToolRegistry, prefixed, type McpContext } from '../mcp/tools.js';
 import { mountApi } from '../server/api-routes.js';
-import { createApiApp } from '../server/app.js';
+import { createApiApp, createPartApp } from '../server/app.js';
 import { type ApiCreate } from '../server/part.types.js';
 import { listen } from '../server/serve.js';
 import { KIT_VERSION } from '../tool/kit-version.js';
@@ -74,27 +74,24 @@ export const startTestServer = async <C extends PartContext = PartContext>(
     tokenCheck: callerCheck(ctx.extension.id, options.caller ?? null),
     openapi: generatedOpenapi(pkg, mounted.routes),
   };
-  const base = { pkg, build: TEST_BUILD, log: ctx.log, wellKnown: mounted.documents };
+  const { documents: wellKnown, git } = mounted;
+  const base = { pkg, build: TEST_BUILD, log: ctx.log, wellKnown, git };
   return startOn(
     createApiApp({ ...base, router: mounted.router, routes: mounted.routes, ...guard })
   );
 };
 
-// Runs an mcp part's create(ctx) inside the kit's real /mcp app: tools named {id}__{name}.
+// Runs an mcp part's create(ctx) inside the kit's real /mcp app: tools named {id}__{name}; connector tools at /connector.
 export const startTestMcp = async (options: TestMcpOptions): Promise<TestMcp> => {
   const ctx = options.ctx ?? createTestContext();
   const registry = createToolRegistry();
   const { tool, instructions, connector } = registry;
   await options.create({ ...ctx, tool, instructions, connector });
   const pkg = testPackage(ctx, { mcp: true });
-  const app = createMcpApp({
-    pkg,
-    build: TEST_BUILD,
-    log: ctx.log,
-    tools: registry.tools,
-    listing: 'open',
-    ...registry.served,
-  });
+  const base = { pkg, build: TEST_BUILD, log: ctx.log, tools: registry.tools };
+  const mcp = { ...base, listing: 'open' as const, ...registry.served };
+  const mount = (app: Express) => mountWithConnector(app, mcp, registry.connectors);
+  const app = createPartApp({ ...mcp, part: 'mcp', mount });
   const server = await startOn(app);
   const call = (name: string, args = {}) =>
     callTool(`${server.url}/mcp`, prefixed(ctx.extension.id, name), args);

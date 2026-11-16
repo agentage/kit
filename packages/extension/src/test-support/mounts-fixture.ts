@@ -1,3 +1,4 @@
+import { HOSTED_MANIFEST } from './hosted-fixture.js';
 import { linkModules } from './http.js';
 import { json, tempPackage } from './packages.js';
 
@@ -6,7 +7,7 @@ export const MOUNTS_MANIFEST = {
   name: '@agentage/extension-mem',
   version: '1.0.0',
   type: 'module',
-  engines: { agentage: '^0.15' },
+  engines: HOSTED_MANIFEST.engines,
   agentage: { id: 'mem', parts: { api: true, mcp: true } },
 };
 

@@ -10,7 +10,8 @@ import { type ExtensionPackage } from '../manifest/manifest.schema.js';
 import { hasStore, type HostPartKind } from '../manifest/parts.js';
 import { type ImagePartKind } from '../manifest/primitives.schema.js';
 import { createSpan } from '../log/span.js';
-import { mountMcp, type McpAppOptions } from '../mcp/mcp-app.js';
+import { mountWithConnector } from '../mcp/connector.js';
+import { type McpAppOptions } from '../mcp/mcp-app.js';
 import { createToolRegistry } from '../mcp/tools.js';
 import { mountApiRoutes, type PartAppBase } from '../server/app.js';
 import { mountApi } from '../server/api-routes.js';
@@ -70,15 +71,9 @@ const mcp = async (input: RunnerInput): Promise<PartMount> => {
   await callCreate(input, 'mcp', { ...ctx, tool, instructions, connector });
   const token = !input.openListing && ctx.settings['mcp.listing'] === 'token';
   const listing: McpAppOptions['listing'] = token ? 'token' : 'open';
-  const paths = input.mcpPaths ?? ['/mcp'];
+  const paths = input.mcpPaths;
   const options = { ...input.base, tools: registered, listing, paths, ...served };
-  // The connector profile beside it: /mcp{rest} becomes /connector{rest}, tools by their own name.
-  const atConnector = paths.map((path) => path.replace(/^\/mcp/, '/connector'));
-  const connectors = { ...options, tools: registry.connectors, paths: atConnector, bare: true };
-  const mount = (app: Express) => {
-    mountMcp(app, options);
-    if (registry.connectors.length > 0) mountMcp(app, { ...connectors, instructions: undefined });
-  };
+  const mount = (app: Express) => mountWithConnector(app, options, registry.connectors);
   // Connector tools stay out of the record: the record lists the {id}__{name} tools only.
   const tools = toolRecords(input.pkg.agentage.id, registry.tools);
   return { mount, record: tools.length ? { tools } : {} };

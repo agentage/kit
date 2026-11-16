@@ -48,10 +48,10 @@ never ship in an image.
 
 `build --container` runs the same first two steps, then builds one image, tagged
 `ghcr.io/agentage/{id}:{version}`. Its entry is the kit host `dist/host/main.js` on port `8080`
-(see [Host one extension](part-image.md#host-one-extension)). The host runs the api part only.
-A package without one is refused. The build prints one line for each other image part (pages, ui,
-mcp, worker), which the image does not run yet, and the result lists them in `container.skipped`.
-The `cli` part is not an image part, so it is not listed.
+(see [Host one extension](part-image.md#host-one-extension)). The host runs the api, mcp and
+worker parts in one process. A package with none of them is refused. The build prints one line,
+`runs: api, mcp, worker; skipped: pages, ui`, and the result has `container.runs` and
+`container.skipped`. The `cli` part is not an image part, so it is not listed.
 
 The image carries `dist/`, `openapi.json` and `migrations/`. Compiled tests, source maps and
 `dist/agentage-*.json` stay out. A postgres store adds PGlite and a `/data` volume. The PGlite

@@ -79,19 +79,22 @@ describe('build --container', () => {
 });
 
 describe('the parts of the one image', () => {
-  it('runs the api part and lists every other image part (not cli) as not run yet', async () => {
+  it('runs api, mcp and worker; lists pages and ui (not cli) as skipped', async () => {
     const pkg = validateManifest({
       ...API_MANIFEST,
       agentage: {
         ...API_MANIFEST.agentage,
-        parts: { api: true, mcp: true, worker: true, cli: true },
+        parts: { pages: true, ui: true, api: true, mcp: true, worker: true, cli: true },
         commands: [{ name: 'ping', summary: 'Answers pong' }],
       },
     });
     const files = {
       'dist/worker/index.js': 'export const create = () => null;',
     };
-    expect(containerParts(pkg)).toEqual({ runs: ['api'], skipped: ['mcp', 'worker'] });
+    expect(containerParts(pkg)).toEqual({
+      runs: ['api', 'mcp', 'worker'],
+      skipped: ['pages', 'ui'],
+    });
     const apiWorker = {
       ...pkg,
       agentage: {
@@ -102,13 +105,15 @@ describe('the parts of the one image', () => {
     };
     const dir = await packageDir(apiWorker, files);
     const result = await build({ dir, env: ENV, container: true }, { ...fakes(), tmpRoot: dir });
-    expect(result.container).toMatchObject({ runs: ['api'], skipped: ['worker'] });
+    expect(result.container).toMatchObject({ runs: ['api', 'worker'], skipped: [] });
+    const mcpOnly = { ...pkg, agentage: { ...pkg.agentage, parts: { mcp: true } } };
+    expect(containerParts(mcpOnly)).toEqual({ runs: ['mcp'], skipped: [] });
   });
 
-  it('refuses a package with no api part before any build step', async () => {
+  it('refuses a package with no server part (pages only) before any build step', async () => {
     const pkg = validateManifest({
       ...API_MANIFEST,
-      agentage: { ...API_MANIFEST.agentage, parts: { mcp: true } },
+      agentage: { ...API_MANIFEST.agentage, parts: { pages: true } },
     });
     const f = fakes();
     const dir = await packageDir(pkg);

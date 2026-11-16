@@ -7,13 +7,16 @@ const shortDigest = (digest: string): string => digest.slice(0, 'sha256:'.length
 
 const rowsOf = ({ images, container }: BuildResult) => [
   ...images.map(({ part, tag, digest }) => ({ label: part, tag, digest })),
-  ...(container ? [{ label: container.runs.join(','), ...container }] : []),
+  ...(container ? [{ label: 'image', ...container }] : []),
 ];
 
-const skippedLines = ({ container }: BuildResult): string[] =>
-  (container?.skipped ?? []).map((part) => `${part.padEnd(8)}not run by the one image yet`);
+const partsLine = ({ container }: BuildResult): string[] => {
+  if (!container) return [];
+  const skipped = container.skipped.length > 0 ? container.skipped.join(', ') : 'none';
+  return [`runs: ${container.runs.join(', ')}; skipped: ${skipped}`];
+};
 
-// One line per image (the one image under the parts it runs), skipped parts, then the record.
+// One line per image (the one image as "image"), the parts it runs and skips, then the record.
 export const buildLines = (result: BuildResult, cwd: string = process.cwd()): string[] => {
   const rows = rowsOf(result);
   const width = Math.max(...rows.map((row) => row.tag.length)) + 2;
@@ -21,7 +24,7 @@ export const buildLines = (result: BuildResult, cwd: string = process.cwd()): st
     const state = row.digest ? `${shortDigest(row.digest)} pushed` : 'built';
     return `${row.label.padEnd(8)}${row.tag.padEnd(width)}${state}`;
   });
-  lines.push(...skippedLines(result));
+  lines.push(...partsLine(result));
   if (result.recordFile) lines.push(`${'record'.padEnd(8)}${relative(cwd, result.recordFile)}`);
   return lines;
 };

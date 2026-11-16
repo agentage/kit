@@ -124,14 +124,4 @@ describe('hostExtension', () => {
     await expect(hostExtension(broken, opts)).rejects.toThrow('migration 001-bad.sql failed');
     await expect(readFile(`${data}.lock`)).rejects.toThrow('ENOENT');
   });
-
-  it('a package without an api part (mcp only) serves /health only, with no store check', async () => {
-    const manifest = { ...HOSTED_MANIFEST, agentage: { id: 'bare', parts: { mcp: true } } };
-    const h = await host(await tempPackage({ 'package.json': json(manifest) }), { dataDir: '' });
-    const server = await startOn(h.app);
-    expect((await server.fetch('/health')).status).toBe(200);
-    expect((await server.fetch('/api/bare/echo')).status).toBe(404);
-    expect((await h.health()).data.checks).toEqual({});
-    await server.close();
-  });
 });

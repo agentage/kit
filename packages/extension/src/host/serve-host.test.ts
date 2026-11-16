@@ -7,6 +7,7 @@ import {
   hostedPackage,
   NO_STORE_MANIFEST,
 } from '../test-support/hosted-fixture.js';
+import { rawRequest } from '../test-support/http.js';
 import { SHA, tempDir } from '../test-support/packages.js';
 import { BIND_REFUSED, hostEnvOf } from './host-env.js';
 import { announce, ORPHAN_MS, serveHost, type ServedHost } from './serve-host.js';
@@ -76,6 +77,21 @@ describe('serveHost', () => {
     expect((await fetch(`${url}/health`)).status).toBe(200);
     const echo = await (await fetch(`${url}/api/hosted/echo?msg=hi`)).json();
     expect(echo).toMatchObject({ data: { msg: 'hey hi', secret: 5, origin: 'http://127.0.0.1' } });
+  });
+
+  it('on loopback the guard holds: its own port and the daemon port of AGENTAGE_ORIGIN only', async () => {
+    const { port } = await start({ AGENTAGE_ORIGIN: 'http://127.0.0.1:4243' });
+    const status = async (headers: Record<string, string>) =>
+      (await rawRequest(port, headers, '/api/hosted/echo')).status;
+    expect(await status({ host: `127.0.0.1:${port}` })).toBe(200);
+    expect(await status({ host: '127.0.0.1:4243', origin: 'http://127.0.0.1:4243' })).toBe(200);
+    expect(await status({ host: 'localhost:4243' })).toBe(200);
+    expect(await status({ host: '127.0.0.1:4244' })).toBe(403);
+    expect(await status({ host: `127.0.0.1:${port}`, origin: 'https://evil.example' })).toBe(403);
+    const all = await start({ AGENTAGE_HOST_BIND: 'all', AGENTAGE_HOST_AUTH: 'off' });
+    expect((await rawRequest(all.port, { host: 'evil.example' }, '/api/hosted/echo')).status).toBe(
+      200
+    );
   });
 
   it('reports the image COMMIT_SHA and BUILD_TIME on /health', async () => {

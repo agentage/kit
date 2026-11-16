@@ -1,5 +1,5 @@
 import { type ExtensionPackage } from '../manifest/manifest.schema.js';
-import { imageParts } from '../manifest/parts.js';
+import { hostParts, imageParts } from '../manifest/parts.js';
 
 export interface ContainerParts {
   runs: string[];
@@ -7,11 +7,11 @@ export interface ContainerParts {
 }
 
 export const NO_API =
-  'build --container needs an api part: the one image runs only the api part today';
+  'build --container needs an api, mcp or worker part: the one image runs the server parts';
 
-// The kit host (host/host-extension.ts) serves the api part; other image parts come later.
+// The kit host (host/host-extension.ts) runs every server part; pages and ui come in phase 2.
 export const containerParts = (pkg: ExtensionPackage): ContainerParts => {
-  const parts = imageParts(pkg);
-  if (!parts.includes('api')) throw new Error(NO_API);
-  return { runs: ['api'], skipped: parts.filter((kind) => kind !== 'api') };
+  const runs: string[] = hostParts(pkg);
+  if (runs.length === 0) throw new Error(NO_API);
+  return { runs, skipped: imageParts(pkg).filter((kind) => !runs.includes(kind)) };
 };

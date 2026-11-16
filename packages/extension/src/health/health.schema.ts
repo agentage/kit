@@ -12,6 +12,8 @@ export const HealthSchema = z.strictObject({
     status: HealthStatusSchema,
     extension: ExtensionIdSchema,
     part: DeployedPartKindSchema,
+    // A host process that runs several parts (the daemon's child, the one container) lists them.
+    parts: z.array(DeployedPartKindSchema).optional(),
     version: VersionSchema,
     commit: z.string().regex(/^[0-9a-f]{7,40}$/),
     buildTime: z.iso.datetime(),

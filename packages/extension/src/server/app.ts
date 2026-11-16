@@ -40,6 +40,10 @@ export interface PartAppBase {
   startedAt?: number;
   // Run before every route, /health included (the host's localOnly option).
   guards?: RequestHandler[];
+  // The parts one host process runs, listed on /health; unset in a part image.
+  parts?: ImagePartKind[];
+  // The host's test clock, shown on /health when it is not 1.
+  clockRate?: number;
 }
 
 export interface PartAppOptions extends PartAppBase {
@@ -101,6 +105,8 @@ const healthHandler = (options: PartAppOptions): RequestHandler =>
     log: options.log,
     instance: options.instance,
     startedAt: options.startedAt,
+    parts: options.parts,
+    clockRate: options.clockRate,
   });
 
 // The kit app every part image runs: agcid, headers, /health, discovery, the part, the envelope.
@@ -160,19 +166,17 @@ const routeGuard = (options: ApiAppOptions): RequestHandler => {
   };
 };
 
+// The api routes on an app: the part's own (createApiApp) or the host's one app of all parts.
+export const mountApiRoutes = (app: Express, options: ApiAppOptions): void => {
+  const prefixes = [apiPrefix(options.pkg.agentage.id), ...(options.aliases ?? [])];
+  app.use(prefixes, cors(PUBLIC_CORS));
+  for (const { name, render } of options.wellKnown ?? [])
+    app.get(`/.well-known/${name}`, wellKnownHandler(render));
+  const { openapi } = options;
+  if (openapi) for (const at of prefixes) app.get(`${at}/openapi.json`, openapiHandler(openapi));
+  const json = express.json({ limit: BODY_LIMIT });
+  app.use(prefixes, routeGuard(options), json, options.router);
+};
+
 export const createApiApp = (options: ApiAppOptions): Express =>
-  createPartApp({
-    ...options,
-    part: 'api',
-    mount: (app) => {
-      const prefixes = [apiPrefix(options.pkg.agentage.id), ...(options.aliases ?? [])];
-      app.use(prefixes, cors(PUBLIC_CORS));
-      for (const { name, render } of options.wellKnown ?? [])
-        app.get(`/.well-known/${name}`, wellKnownHandler(render));
-      const { openapi } = options;
-      if (openapi)
-        for (const at of prefixes) app.get(`${at}/openapi.json`, openapiHandler(openapi));
-      const json = express.json({ limit: BODY_LIMIT });
-      app.use(prefixes, routeGuard(options), json, options.router);
-    },
-  });
+  createPartApp({ ...options, part: 'api', mount: (app) => mountApiRoutes(app, options) });

@@ -275,12 +275,22 @@ Statuses, not codes, tell a retry: 503 `UNAVAILABLE` is worth a retry after `Ret
 
 ## The daemon: routes, host token, seal
 
-| Route                                 | Answer                                                                                                                                    |
-| ------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------- |
-| `ANY /api/{id}/*`, `ANY /mcp/{id}`    | the child of that id, path kept; 404 envelope not installed or disabled; 503 `Retry-After: 5` not running                                 |
-| `GET /.well-known/agentage-host.json` | `{ host: "local", extensions: [{ id, version, parts }] }` of the running extensions; anonymous                                            |
-| `GET /health`                         | each entry adds `parts`, `seal` (`on`/`partial`/`off`), `restarts`; below the Node floor `seal: "off"`, `sealError`, `status: "degraded"` |
-| `/host/*`                             | `Authorization: Bearer <hostToken>`: 401 `UNAUTHORIZED` with none, 403 `FORBIDDEN` with another                                           |
+| Route                                 | Answer                                                                                                                                                                                                           |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ANY /api/{id}/*`, `ANY /mcp/{id}`    | the child of that id, path kept; 404 envelope not installed or disabled; 503 `Retry-After: 5` not running                                                                                                        |
+| `GET /.well-known/agentage-host.json` | `{ host: "local", shell?: { package, version }, extensions: [{ id, version, parts, app? }] }` of the running extensions; `app` = `{ title, icon?, order?, entry, css }` of an enabled, built app part; anonymous |
+| `GET /health`                         | each entry adds `parts`, `seal` (`on`/`partial`/`off`), `restarts`; below the Node floor `seal: "off"`, `sealError`, `status: "degraded"`                                                                        |
+| `/host/*`                             | `Authorization: Bearer <hostToken>`: 401 `UNAUTHORIZED` with none, 403 `FORBIDDEN` with another                                                                                                                  |
+
+| `GET /`, `GET /{id}/*` | for a client that prefers HTML: the shell `index.html` (`no-cache`), 404 when `id` has no app; others get the JSON 404 |
+| `GET /shell/*` | the `dist/` of the shell package (`shellDir` option); no shellDir, no page and no `shell` key |
+| `GET /shell/session` | `{ user: { id, email, name? } \| null, host: "local" }` from `auth.json`; never a token |
+| `GET /shell/events` | server-sent events: `extensions` after each change, `app { id, entry, css }` after an app reload |
+| `GET /app/{id}/*` | the package's `dist/app`, also while the child is down; hashed files `immutable`, `index.js` and `app.json` `no-cache` |
+
+`X-Agentage-App: <id>` on `/api/{other}/*` is 403 `FORBIDDEN`: an app calls only its own
+extension. A request with no header is not stopped. `POST /host/extensions/{id}/reload` with body
+`{ "part": "app" }` restarts no child: it reads `dist/app/app.json` and sends the `app` event.
 
 `hostToken` is new at each daemon start and is only in `daemon.json` (0600). The proxy drops an
 `Authorization` that carries it, so no child sees it.

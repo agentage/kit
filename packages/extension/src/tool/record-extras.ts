@@ -40,7 +40,8 @@ export const registeredTools = async (
   pkg: ExtensionPackage
 ) => {
   const registry = createToolRegistry();
-  await create({ ...recordingContext(pkg, 'mcp'), tool: registry.tool });
+  const { tool, instructions } = registry;
+  await create({ ...recordingContext(pkg, 'mcp'), tool, instructions });
   return registry.tools;
 };
 

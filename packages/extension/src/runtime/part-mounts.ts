@@ -65,10 +65,12 @@ const api = async (input: RunnerInput): Promise<PartMount> => {
 const mcp = async (input: RunnerInput): Promise<PartMount> => {
   const registry = createToolRegistry();
   const ctx = input.ctx();
-  await callCreate(input, 'mcp', { ...ctx, tool: registry.tool });
+  const { tool, instructions, tools: registered, served } = registry;
+  await callCreate(input, 'mcp', { ...ctx, tool, instructions });
   const token = !input.openListing && ctx.settings['mcp.listing'] === 'token';
   const listing: McpAppOptions['listing'] = token ? 'token' : 'open';
-  const options = { ...input.base, tools: registry.tools, listing, paths: input.mcpPaths };
+  const paths = input.mcpPaths;
+  const options = { ...input.base, tools: registered, listing, paths, ...served };
   const tools = toolRecords(input.pkg.agentage.id, registry.tools);
   return { mount: (app) => mountMcp(app, options), record: tools.length ? { tools } : {} };
 };

@@ -1,9 +1,10 @@
-import { McpServer } from '@modelcontextprotocol/server';
+import { McpServer, type AuthInfo, type McpRequestContext } from '@modelcontextprotocol/server';
 import { agcidOf } from '../agcid/agcid.js';
+import { type Caller } from '../auth/token-check.js';
 import { currentAgcid } from '../agcid/current.js';
 import { fail, isFailure, type Failure } from '../envelope/envelope.js';
 import { type Log } from '../log/log.js';
-import { prefixed, type ToolEntry } from './tools.js';
+import { prefixed, type Instructions, type ToolEntry } from './tools.js';
 
 export interface ServerIdentity {
   id: string;
@@ -32,15 +33,25 @@ const argsOf = (entry: ToolEntry, args: Record<string, unknown>) => {
   throw fail('VALIDATION_ERROR', `Invalid arguments: ${[...fields].join(', ')}`);
 };
 
+// No output schema: the answer is text only, as a client of a tool with no outputSchema expects.
+const resultOf = (entry: ToolEntry, value: unknown) => {
+  if (!entry.spec.output) return { content: text(JSON.stringify(value ?? null)) };
+  const output = entry.spec.output.parse(value);
+  return {
+    content: text(JSON.stringify(output)),
+    structuredContent: output as Record<string, unknown>,
+  };
+};
+
 const callback =
-  (entry: ToolEntry, log: Log, tool: string) => async (args: Record<string, unknown>) => {
+  (entry: ToolEntry, log: Log, tool: string, caller: Caller | null) =>
+  async (args: Record<string, unknown>) => {
     const start = performance.now();
     const ms = () => Math.round(performance.now() - start);
     try {
-      const output = entry.spec.output.parse(await entry.handler(argsOf(entry, args)));
+      const result = resultOf(entry, await entry.handler(argsOf(entry, args), caller));
       log.mcp({ tool, ms: ms() });
-      const content = text(JSON.stringify(output));
-      return { content, structuredContent: output as Record<string, unknown> };
+      return result;
     } catch (err) {
       // A 4xx is a rejection, not a failure: the row stays info.
       log.mcp({ tool, ms: ms(), ...(isFailure(err) && err.status < 500 ? {} : { error: err }) });
@@ -48,17 +59,39 @@ const callback =
     }
   };
 
+// The caller the guard checked rides in authInfo, the SDK's own path to a per-request server.
+export const authInfoOf = (caller: Caller): AuthInfo => ({
+  token: '',
+  clientId: caller.sub,
+  scopes: [...caller.scopes],
+  extra: { caller },
+});
+
+const callerOf = (ctx?: McpRequestContext): Caller | null =>
+  (ctx?.authInfo?.extra?.['caller'] as Caller | undefined) ?? null;
+
+// Unset fields stay off the listing, so a tool that sets none lists as before.
+const configOf = (spec: ToolEntry['spec']) => ({
+  description: spec.description,
+  inputSchema: listedOnly(spec.input),
+  ...(spec.output && { outputSchema: spec.output }),
+  ...(spec.title !== undefined && { title: spec.title }),
+  ...(spec.annotations && { annotations: spec.annotations }),
+});
+
+const textOf = async (instructions: Instructions | undefined, caller: Caller | null) =>
+  typeof instructions === 'function' ? instructions(caller) : instructions;
+
 // One fresh server per request (stateless); serverInfo agentage-{id} at the package version.
-export const serverFactory = (identity: ServerIdentity, tools: ToolEntry[], log: Log) => () => {
-  const server = new McpServer({ name: `agentage-${identity.id}`, version: identity.version });
-  for (const entry of tools) {
-    const config = {
-      description: entry.spec.description,
-      inputSchema: listedOnly(entry.spec.input),
-      outputSchema: entry.spec.output,
-    };
-    const tool = prefixed(identity.id, entry.name);
-    server.registerTool(tool, config, callback(entry, log, tool));
-  }
-  return server;
-};
+export const serverFactory =
+  (identity: ServerIdentity, tools: ToolEntry[], log: Log, instructions?: Instructions) =>
+  async (ctx?: McpRequestContext) => {
+    const caller = callerOf(ctx);
+    const info = { name: `agentage-${identity.id}`, version: identity.version };
+    const server = new McpServer(info, { instructions: await textOf(instructions, caller) });
+    for (const entry of tools) {
+      const tool = prefixed(identity.id, entry.name);
+      server.registerTool(tool, configOf(entry.spec), callback(entry, log, tool, caller));
+    }
+    return server;
+  };

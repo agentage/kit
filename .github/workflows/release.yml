@@ -121,3 +121,19 @@ jobs:
             echo "Approve or publish what is held, then re-run this tag run (a dispatch runs master HEAD, not the tag)." >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
+
+      # The kit just published is gated by e2e at once; it never fails a release (the input may not exist yet).
+      - name: Dispatch the e2e nightly local gate for this kit
+        if: github.ref_type == 'tag'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.PAT_TOKEN }}
+        run: |
+          version=$(node -p "require('./packages/extension/package.json').version")
+          if [ "$GITHUB_REF_NAME" != "v${version}" ]; then echo "tag $GITHUB_REF_NAME is not the kit: no dispatch"; exit 0; fi
+          if [ -z "$GH_TOKEN" ]; then echo "::warning::no PAT_TOKEN: e2e not dispatched"; exit 0; fi
+          if gh workflow run nightly-local.yml -R agentage/e2e -f "kit=${version}"; then
+            echo "dispatched e2e nightly-local.yml kit=${version}" >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "::warning::e2e nightly-local.yml did not accept kit=${version} (no kit input yet, or the token cannot dispatch)"
+          fi

@@ -33,8 +33,8 @@ jobs:
   verify:
     name: Verify
     runs-on: ubuntu-latest
-    # The gate stays under 10 minutes (about 3 on 2026-11-07); slower is a regression.
-    timeout-minutes: 10
+    # Each CI job stays well under 8 minutes (the Docker smokes run in the Image smokes job); slower is a regression.
+    timeout-minutes: 8
     steps:
       - name: Checkout
         uses: actions/checkout@v7
@@ -113,6 +113,27 @@ jobs:
           grep -qx 'package/dist/index.js' /tmp/pack/shell-files.txt
           grep -qx 'package/dist/mount-widgets.js' /tmp/pack/shell-files.txt
           if grep -Eq '\.test\.|test-support' /tmp/pack/shell-files.txt; then echo 'test files in the shell tarball'; exit 1; fi
+
+  smokes:
+    name: Image smokes
+    runs-on: ubuntu-latest
+    # The Docker smokes alone, in parallel with Verify; they pack and build the kit themselves.
+    timeout-minutes: 8
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npm run build
 
       - name: Image smoke - extension-probe on this kit, every part through up
         env:

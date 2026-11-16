@@ -2,6 +2,7 @@ import { uuidv7 } from '../agcid/agcid.js';
 import { requestScope } from '../agcid/current.js';
 import { type HealthCheck } from '../health/health.js';
 import { type Log } from '../log/log.js';
+import { hostClockRate, parseClockRate, scaledNow } from './clock.js';
 import { nextRun, parseCron, type Cron } from './cron.js';
 import { JobNameSchema, JobOptionsSchema, toMs, type JobOptions } from './job-options.js';
 import { withRunBuffer, type RunBuffer } from './run-log.js';
@@ -29,6 +30,8 @@ export interface SchedulerDeps {
   runs: RunStore;
   log: Log;
   now?: () => Date;
+  // The test clock; the default is what the kit host set at boot, else 1. Never read from env here.
+  clockRate?: number;
 }
 
 export interface Scheduler {
@@ -42,6 +45,7 @@ export interface Scheduler {
 interface State {
   deps: SchedulerDeps;
   now: () => Date;
+  rate: number;
   entries: Map<string, Entry>;
   started: boolean;
 }
@@ -51,7 +55,8 @@ export const LATE_MS = 60_000;
 const MAX_DELAY = 2 ** 31 - 1;
 
 const arm = (s: State, entry: Entry): void => {
-  const delay = Math.min(MAX_DELAY, Math.max(0, entry.nextAt.getTime() - s.now().getTime()));
+  const virtual = Math.max(0, entry.nextAt.getTime() - s.now().getTime());
+  const delay = Math.min(MAX_DELAY, Math.ceil(virtual / s.rate));
   entry.timer = setTimeout(() => void fire(s, entry), delay);
 };
 
@@ -152,9 +157,11 @@ const setStarted = (s: State, started: boolean): void => {
 };
 
 export const createScheduler = (deps: SchedulerDeps): Scheduler => {
+  const rate = parseClockRate(deps.clockRate ?? hostClockRate());
   const s: State = {
     deps,
-    now: deps.now ?? (() => new Date()),
+    now: deps.now ?? scaledNow(rate),
+    rate,
     entries: new Map(),
     started: false,
   };

@@ -27,6 +27,8 @@ interface DaemonInfo {
   unreadable?: string;
   // The last change found installation.json not JSON (after boot); the next one that reads it clears it.
   notJson?: boolean;
+  // The test clock, set only when it is not 1.
+  clockRate?: number;
 }
 
 const installationOf = ({ invalid, unreadable, notJson }: DaemonInfo) => {
@@ -58,6 +60,7 @@ const healthOf = (deps: SupervisorDeps, entries: Entries, info: DaemonInfo) => {
   const busy = changing.length ? { pending: changing } : {};
   const marks = {
     ...busy,
+    ...(info.clockRate && { clockRate: info.clockRate }),
     ...(!synced && { unsynced: [...deps.unsynced] }),
     ...installationOf(info),
   };

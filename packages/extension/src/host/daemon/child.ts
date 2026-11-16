@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SecretNameSchema } from '../../manifest/primitives.schema.js';
+import { CLOCK_RATE_ENV, parseClockRate } from '../../worker/clock.js';
 import { LIMITS } from './limits.js';
 
 interface LaunchSpec {
@@ -30,7 +31,8 @@ export interface Child {
   stop(): Promise<void>;
 }
 
-export type Launch = (spec: LaunchSpec) => Promise<Child>;
+// clockRate: the test clock every child gets (C5); /health of the daemon shows the same value.
+export type Launch = ((spec: LaunchSpec) => Promise<Child>) & { clockRate?: number };
 
 const HOST_MAIN = fileURLToPath(new URL('../main.js', import.meta.url));
 const STOP_MS = 5_000;
@@ -118,13 +120,14 @@ const stopOf = (child: ChildProcess, exited: Promise<Exit>) => async () => {
 };
 
 // One child process per extension: node dist/host/main.js on a port the OS picks.
-export const forkLaunch =
-  (main = HOST_MAIN, startMs = LIMITS.startMs): Launch =>
-  async (spec) => {
+export const forkLaunch = (main = HOST_MAIN, startMs = LIMITS.startMs, rate?: number): Launch => {
+  const clockRate = parseClockRate(rate);
+  const launch = async (spec: LaunchSpec): Promise<Child> => {
     const secretsDir = await secretFiles(spec);
     const stdio = ['ignore', 'pipe', 'pipe', 'ipc'] as const;
     // execArgv []: the daemon's own node flags (a loader, --input-type) are not the child's.
-    const env = { ...passedEnv(), ...childEnv(spec, secretsDir) };
+    const clock = clockRate === 1 ? {} : { [CLOCK_RATE_ENV]: String(clockRate) };
+    const env = { ...passedEnv(), ...childEnv(spec, secretsDir), ...clock };
     const child = fork(main, [], { env, execArgv: [], stdio: [...stdio] });
     const exited = new Promise<Exit>((resolve) =>
       child.once('exit', (code, signal) => resolve({ code, signal }))
@@ -136,3 +139,5 @@ export const forkLaunch =
       await rm(secretsDir, { recursive: true, force: true });
     }
   };
+  return Object.assign(launch, { clockRate });
+};

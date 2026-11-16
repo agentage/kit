@@ -2,6 +2,7 @@ import { fail } from '../../envelope/envelope.js';
 import { type Log } from '../../log/log.js';
 import { readManifest } from '../../manifest/read-manifest.js';
 import { type Exit, type Launch } from './child.js';
+import { type CliUser } from './cli-user-watch.js';
 import { dataDirOf, readValues } from './daemon-files.js';
 import { type InstallEntry } from './installation.js';
 import { halt } from './gate.js';
@@ -69,6 +70,8 @@ export interface SupervisorDeps extends Limits {
   stopping: Stopping;
   // The ids whose files a failed undo left unlike the list.
   unsynced: Set<string>;
+  // The signed-in cli user each child starts with (cli-user-watch.ts).
+  user: CliUser;
 }
 
 export const valuesOf = async (configDir: string, id: string): Promise<Values> => ({
@@ -91,7 +94,7 @@ const launchFor = async (deps: SupervisorDeps, entry: Entry, to: Next, fresh: bo
   assertSecrets(pkg, to.values.secrets);
   const spec = { id: entry.id, dir, dataDir: dataDirOf(deps.configDir, entry.id), ...to.values };
   const child = await deps
-    .launch({ ...spec, origin: deps.origin(), storeOpenMs: deps.healthMs })
+    .launch({ ...spec, origin: deps.origin(), storeOpenMs: deps.healthMs, userSub: deps.user.sub })
     .catch((err: Error) =>
       Promise.reject(Object.assign(err, { message: redact(err.message, to.values.secrets) }))
     );

@@ -18,6 +18,8 @@ interface LaunchSpec {
   origin: string;
   // The daemon's own health limit (healthMs), so one rule bounds the child's store open.
   storeOpenMs?: number;
+  // The signed-in cli user: the caller of every request to this loopback child.
+  userSub?: string;
 }
 
 export interface Exit {
@@ -60,6 +62,7 @@ export const childEnv = (
   AGENTAGE_ORIGIN: spec.origin,
   ...(runDir && { AGENTAGE_RUN_DIR: runDir }),
   ...(spec.storeOpenMs && { AGENTAGE_STORE_OPEN_MS: String(spec.storeOpenMs) }),
+  ...(spec.userSub && { AGENTAGE_USER_SUB: spec.userSub }),
 });
 
 const passedEnv = () =>

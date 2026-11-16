@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { type Log } from '../log/log.js';
 import { type ExtensionPackage } from '../manifest/manifest.schema.js';
 import { hasStore } from '../manifest/parts.js';
+import { gitAccessOf } from '../store/git-env.js';
 import { readStoreUrl } from '../store/store-url.js';
 import { lockOf, lockWithin } from './host-store.js';
 import { type HostStore } from './host-url-store.js';
@@ -39,7 +40,7 @@ export const openGitStore = async (
   log: Log
 ): Promise<HostStore | undefined> => {
   if (!hasStore(pkg, 'git')) return undefined;
-  const gitRemote = at.file ? await readStoreUrl(at.file, 'git') : undefined;
+  const url = at.file ? await readStoreUrl(at.file, 'git') : undefined;
   const gitRoot = await rootOf(at.dataDir, log);
   await mkdir(gitRoot, { recursive: true });
   const close = await lockWithin(
@@ -47,7 +48,7 @@ export const openGitStore = async (
     at.openMs,
     lockOf({ dataDir: gitRoot, runDir: at.runDir })
   );
-  log.info('git store opened', { remote: gitRemote ? 'set' : 'none' });
-  const remote = gitRemote ? { gitRemote } : {};
-  return { kind: 'git', query: NO_QUERY, gitRoot, ...remote, close, probe: writable(gitRoot) };
+  log.info('git store opened', { remote: url ? 'set' : 'none' });
+  const git = gitAccessOf(gitRoot, url);
+  return { kind: 'git', query: NO_QUERY, gitRoot, git, close, probe: writable(gitRoot) };
 };

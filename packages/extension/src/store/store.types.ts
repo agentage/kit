@@ -1,3 +1,5 @@
+import { type GitAccess } from './git-env.js';
+
 export type Row = Record<string, unknown>;
 
 export interface QueryResult<R extends Row = Row> {
@@ -9,6 +11,6 @@ export interface Store {
   query<R extends Row = Row>(text: string, params?: unknown[]): Promise<QueryResult<R>>;
   // A git store only: the folder that holds its repos (data/{id}), the part's to lay out.
   readonly gitRoot?: string;
-  // A git store in the cloud only: the store-git remote to push to. It holds a credential: never log it.
-  readonly gitRemote?: string;
+  // A git store only: spawn git with git.cwd and git.env; git.remote (cloud) has no credential.
+  readonly git?: GitAccess;
 }

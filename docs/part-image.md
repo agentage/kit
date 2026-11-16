@@ -66,11 +66,11 @@ docker run -p 8080:8080 -e AGENTAGE_HOST_AUTH=off -v probe-data:/data ghcr.io/ag
 With `AGENTAGE_STORE_URL_FILE` set, the host (the one container, `serveHost`, `hostExtension(dir, {
 storeUrlFile })`) opens the store of the estate:
 
-| Store kind   | The file holds                    | The host                                                                                                               |
-| ------------ | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
-| `postgres`   | `postgres://user:pw@host:5432/db` | a `pg` pool as `ctx.store`; it never migrates: `checks["store:migrations"]` is `unavailable` until the migrate job ran |
-| `clickhouse` | `http://user:pw@host:8123/db`     | a client over the HTTP interface as `ctx.store`; `clickhouseOf(ctx)` gives `query`, `command`, `insert`, `ping`        |
-| `git`        | `http://root:pw@host:8080/root/`  | the repos stay in `AGENTAGE_DATA_DIR` (`ctx.store.gitRoot`); the URL is `ctx.store.gitRemote`, the part pushes to it   |
+| Store kind   | The file holds                    | The host                                                                                                                                                                  |
+| ------------ | --------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `postgres`   | `postgres://user:pw@host:5432/db` | a `pg` pool as `ctx.store`; it never migrates: `checks["store:migrations"]` is `unavailable` until the migrate job ran                                                    |
+| `clickhouse` | `http://user:pw@host:8123/db`     | a client over the HTTP interface as `ctx.store`; `clickhouseOf(ctx)` gives `query`, `command`, `insert`, `ping`                                                           |
+| `git`        | `http://root:pw@host:8080/root/`  | the repos stay in `AGENTAGE_DATA_DIR` (`ctx.store.gitRoot`); `ctx.store.git.remote` (no credential) is the push remote, the credential is a header in `ctx.store.git.env` |
 
 - Unset: a postgres store is PGlite in `AGENTAGE_DATA_DIR`, as before. The daemon does not pass the
   variable to its children.
@@ -289,7 +289,11 @@ that holds the kit and the tree of its package (a folder row: the folder). It ma
 `run/{id}` and `data/{id}`. It gets no child-process, worker, addon or WASI grant, with one
 exception: a package with `store: git` gets `--allow-child-process`, because its part runs `git`
 (PD2). Its entry in `/health` says `seal: "partial"`; the daemon status stays `ok`. The `git`
-process runs outside the permission model: it can read and write any path the user can. A symlinked
+process runs outside the permission model: it can read and write any path the user can. The grant
+is not limited to `git`: the child may start any program (`sh`, `cat`), so for code the seal of this
+child is off. This is accepted for first-party extensions only (memory). Before a third-party
+extension installs from the market, the grant gets an allowlist (an installation flag or host
+config) and the install shows `seal: partial`. A symlinked
 path is granted as given and as its real path. A kit checkout grants its package and its workspace
 root, never a folder above the user's home.
 

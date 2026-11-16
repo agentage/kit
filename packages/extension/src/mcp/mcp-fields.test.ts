@@ -113,6 +113,40 @@ describe('the caller in the tool handler', () => {
   });
 });
 
+// A 2026-07-28 client: the method in a header, the client facts in _meta, no initialize.
+const MODERN_META = {
+  'io.modelcontextprotocol/protocolVersion': '2026-07-28',
+  'io.modelcontextprotocol/clientInfo': CLIENT,
+  'io.modelcontextprotocol/clientCapabilities': {},
+};
+const modern = async (url: string, method: string, params: object, bearer: string) => {
+  const headers = {
+    ...HEADERS,
+    'mcp-protocol-version': '2026-07-28',
+    'mcp-method': method,
+    ...('name' in params && { 'mcp-name': String(params.name) }),
+    authorization: `Bearer ${bearer}`,
+  };
+  const body = JSON.stringify({
+    jsonrpc: '2.0',
+    id: 3,
+    method,
+    params: { ...params, _meta: MODERN_META },
+  });
+  return (await dataOf(await fetch(url, { method: 'POST', headers, body }))).result;
+};
+
+describe('the 2026-07-28 era', () => {
+  it('a tools/call handler gets the caller; server/discover gets the per-caller instructions', async () => {
+    const per = (caller: Caller | null) => `vaults of ${caller?.sub ?? 'nobody'}`;
+    const url = await start(per, byBearer);
+    const call = await modern(url, 'tools/call', { name: 'memory__write', arguments: {} }, 'u_eve');
+    expect(call['structuredContent']).toEqual({ sub: 'u_eve' });
+    const found = await modern(url, 'server/discover', {}, 'u_eve');
+    expect(JSON.stringify(found)).toContain('vaults of u_eve');
+  });
+});
+
 describe('server instructions', () => {
   it('a text goes to initialize as it is', async () => {
     expect(await initialize(await start('Use memory__write to save.'))).toBe(

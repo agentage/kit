@@ -1,6 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import type {
   AppContextValue,
+  AppRoute,
   AppUser,
   AsideKey,
   HostAdapter,
@@ -37,11 +38,13 @@ export interface TestHostProps {
   reply?: (call: TestCall) => unknown;
   record?: TestRecord;
   store?: StateStore;
+  route?: AppRoute;
 }
 
 const REGIONS: RegionName[] = ['actions', 'aside', 'notices', 'bottom', 'side'];
 const TEST_USER: AppUser = { id: 'u-test', name: 'Test User' };
 const NO_SCOPES: string[] = [];
+const HOME: AppRoute = { path: '', query: {} };
 const echo = (call: TestCall): unknown => ({ path: call.path });
 
 export const createTestRecord = (): TestRecord => ({
@@ -93,16 +96,17 @@ export const TestHost = (props: TestHostProps) => {
   const [record] = useState(() => props.record ?? createTestRecord());
   const [store] = useState(() => props.store ?? createStateStore());
   const [regions, regionRef] = useRegionHost();
-  const { id, user = TEST_USER, scopes = NO_SCOPES, reply = echo } = props;
+  const { id, user = TEST_USER, scopes = NO_SCOPES, reply = echo, route = HOME } = props;
   const value = useMemo<AppContextValue>(
     () => ({
       id,
+      route,
       store,
       regions,
       host: { user, scopes, request: testRequest(record, reply) },
       shell: testShell(record),
     }),
-    [id, store, regions, user, scopes, record, reply]
+    [id, route, store, regions, user, scopes, record, reply]
   );
   return (
     <AppContext.Provider value={value}>

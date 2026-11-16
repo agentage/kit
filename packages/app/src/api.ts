@@ -11,7 +11,7 @@ export class AppApiError extends Error {
   }
 }
 
-// One path under the app's own api: no scheme, no `//`, no `..` (also encoded), no backslash.
+// One path under the app's own api: no scheme, `//`, backslash, or `..` in the path (also encoded).
 export const checkApiPath = (path: string): string => {
   let decoded = path;
   try {
@@ -24,7 +24,9 @@ export const checkApiPath = (path: string): string => {
     decoded.startsWith('//') ||
     decoded.includes('\\') ||
     /^[a-z][a-z0-9+.-]*:/i.test(decoded) ||
-    decoded.split(/[/?#]/).some((segment) => segment === '..' || segment === '.');
+    (decoded.split(/[?#]/)[0] ?? '')
+      .split('/')
+      .some((segment) => segment === '..' || segment === '.');
   if (bad) throw new AppApiError('FORBIDDEN', `api path refused: ${path}`, 403);
   return path;
 };

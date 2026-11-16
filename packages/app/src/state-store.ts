@@ -1,4 +1,4 @@
-import { useCallback, useSyncExternalStore } from 'react';
+import { useCallback, useState, useSyncExternalStore } from 'react';
 import type { StateStore } from './app.types.js';
 import { useAppContext } from './context.js';
 
@@ -26,9 +26,11 @@ export const createStateStore = (): StateStore => {
 // `state(key)` of the sheet: kept by the shell across a remount; every reader of a key sees one value.
 export const useAppState = <T>(key: string, init: T): [T, (value: T) => void] => {
   const { id, store } = useAppContext();
+  // The first init only: a new `[]` or `{}` each render must not be a new snapshot.
+  const [first] = useState(() => init);
   const full = `${id}:${key}`;
   const subscribe = useCallback((fn: () => void) => store.subscribe(full, fn), [store, full]);
-  const read = () => (store.has(full) ? (store.get(full) as T) : init);
+  const read = () => (store.has(full) ? (store.get(full) as T) : first);
   const value = useSyncExternalStore(subscribe, read, read);
   const set = useCallback((next: T) => store.set(full, next), [store, full]);
   return [value, set];

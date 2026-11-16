@@ -26,8 +26,15 @@ export interface ShellPort {
   navigate: (page: string) => void;
 }
 
+// Where the app is: `/{id}/runs/7?details=1` -> `{ path: 'runs/7', query: { details: '1' } }`.
+export interface AppRoute {
+  path: string;
+  query: Readonly<Record<string, string>>;
+}
+
 export interface AppShell extends ShellPort {
   id: string;
+  route: AppRoute;
 }
 
 // One per host kind: local (the daemon) now, cloud later. `path` is already checked.
@@ -61,6 +68,7 @@ export interface RegionHost {
 
 export interface AppContextValue {
   id: string;
+  route: AppRoute;
   shell: ShellPort;
   host: HostAdapter;
   store: StateStore;

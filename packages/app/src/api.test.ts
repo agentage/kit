@@ -14,9 +14,12 @@ const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { 'Content-Type': 'application/json' } });
 
 describe('checkApiPath', () => {
-  it.each(['/echo', '/echo?msg=hi', '/runs/7', '/a.b/c..d'])('keeps %s', (path) => {
-    expect(checkApiPath(path)).toBe(path);
-  });
+  it.each(['/echo', '/echo?msg=hi', '/runs/7', '/a.b/c..d', '/find?q=..', '/find?q=../x#..'])(
+    'keeps %s',
+    (path) => {
+      expect(checkApiPath(path)).toBe(path);
+    }
+  );
 
   it.each([
     '/../fixture/x',

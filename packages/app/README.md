@@ -9,23 +9,24 @@ The shell serves one copy of React and of this package through an import map: an
 
 ## The calls
 
-| Call                      | What it gives                                                                                                                            |
-| ------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| `useAppShell()`           | `{ id, notify({ text, kind }), openAside(key), closeAside(), navigate(page) }`                                                           |
-| `useAppHost()`            | `{ id, user, scopes, api(path, init?) }`; `api('/echo')` calls `/api/{id}/echo` and returns the envelope `data`                          |
-| `useAppState(key, init)`  | `[value, set]`, kept by the shell per app and key: a remount (a new build, an update) keeps it; every reader of a key sees one value     |
-| `<Region name>`           | renders its children into a frame region (`actions`, `aside`, `notices`, `bottom`, `side`) as a React portal, inside an error boundary   |
-| `<Split id init min max>` | two panes, the first one resizable (arrow keys 16 px, Shift 64 px, Home, End, drag); the size holds across a reload with no layout shift |
-| `AppBoundary`             | the error boundary the shell puts around each app root and `Region`                                                                      |
-| `AppApiError`             | what `api` throws: `code` (the envelope code, `FORBIDDEN` for a refused path, else `HTTP_<status>`), `status`                            |
+| Call                      | What it gives                                                                                                                                   |
+| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
+| `useAppShell()`           | `{ id, route: { path, query }, notify({ text, kind }), openAside(key), closeAside(), navigate(page) }`; `route.path` is the page after `/{id}/` |
+| `useAppHost()`            | `{ id, user, scopes, api(path, init?) }`; `api('/echo')` calls `/api/{id}/echo` and returns the envelope `data`                                 |
+| `useAppState(key, init)`  | `[value, set]`, kept by the shell per app and key: a remount (a new build, an update) keeps it; every reader of a key sees one value            |
+| `<Region name>`           | renders its children into a frame region (`actions`, `aside`, `notices`, `bottom`, `side`) as a React portal, inside an error boundary          |
+| `<Split id init min max>` | two panes, the first one resizable (arrow keys 16 px, Shift 64 px, Home, End, drag); the size holds across a reload with no layout shift        |
+| `AppBoundary`             | the error boundary the shell puts around each app root and `Region`                                                                             |
+| `AppApiError`             | what `api` throws: `code` (the envelope code, `FORBIDDEN` for a refused path, else `HTTP_<status>`), `status`                                   |
 
 Keys of `openAside`: `inspect`, `details`, `inbox` (the shell puts the key in the URL, `?details=1`).
 
 ## Rules the code enforces
 
-- `api(path)` refuses a path that does not start with one `/`, has a scheme, `..` or `.` (also
-  URL-encoded) or a backslash: `AppApiError` `FORBIDDEN`, no request is sent. It sends
+- `api(path)` refuses a path that does not start with one `/`, has a scheme, a backslash, or `..` or
+  `.` as a path segment (also URL-encoded; the query may hold them): `AppApiError` `FORBIDDEN`, no request is sent. It sends
   `X-Agentage-App: {id}` and an `agcid`; the daemon refuses a request whose header names another id.
+  The header is declared by the app itself: a guard against mistakes, not a boundary (K10).
 - Limit: an app runs in the same JavaScript realm as the shell. A raw `fetch` with no header is not
   stopped on the machine; `extension check` warns on `fetch(` in `src/app`.
 - A `Split` size is the CSS variable `--split-{app}-{id}`, stored in `localStorage` key

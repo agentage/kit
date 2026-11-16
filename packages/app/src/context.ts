@@ -11,8 +11,8 @@ export const useAppContext = (): AppContextValue => {
 };
 
 export const useAppShell = (): AppShell => {
-  const { id, shell } = useAppContext();
-  return useMemo(() => ({ id, ...shell }), [id, shell]);
+  const { id, route, shell } = useAppContext();
+  return useMemo(() => ({ id, route, ...shell }), [id, route, shell]);
 };
 
 export const useAppHost = (): AppHost => {

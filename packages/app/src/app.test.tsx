@@ -166,4 +166,47 @@ describe('an app in the test host', () => {
     expect(el.querySelector('em')?.textContent).toBe('custom x');
     spy.mockRestore();
   });
+
+  it('useAppState with an object or array init gives one value across renders', async () => {
+    const seen: unknown[] = [];
+    const Items = ({ tick }: { tick: number }) => {
+      const [items] = useAppState<string[]>('items', []);
+      seen.push(items);
+      return <span>{`${items.length} ${tick}`}</span>;
+    };
+    const el = await mount(
+      <TestHost id="probe">
+        <Items tick={1} />
+      </TestHost>
+    );
+    await act(async () =>
+      root?.render(
+        <TestHost id="probe">
+          <Items tick={2} />
+        </TestHost>
+      )
+    );
+    expect(el.textContent).toContain('0 2');
+    expect(new Set(seen).size).toBe(1);
+  });
+
+  it('useAppShell gives the route: path after /{id}/ and the query', async () => {
+    const Where = () => {
+      const { route } = useAppShell();
+      return <span>{`${route.path}|${route.query.details ?? '-'}`}</span>;
+    };
+    const el = await mount(
+      <TestHost id="memory" route={{ path: 'notes/a.md', query: { details: '1' } }}>
+        <Where />
+      </TestHost>
+    );
+    expect(el.textContent).toContain('notes/a.md|1');
+    act(() => root?.unmount());
+    const home = await mount(
+      <TestHost id="memory">
+        <Where />
+      </TestHost>
+    );
+    expect(home.textContent).toContain('|-');
+  });
 });

@@ -1,6 +1,7 @@
 export type {
   AppContextValue,
   AppHost,
+  AppRoute,
   AppShell,
   AppUser,
   AsideKey,

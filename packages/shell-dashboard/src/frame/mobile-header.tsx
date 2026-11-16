@@ -7,6 +7,7 @@ import { Brand } from './logo.js';
 interface Props {
   account: Account;
   version: string;
+  apps: { id: string; version: string }[];
   unread: number;
   onMenu: () => void;
   onInbox: () => void;
@@ -15,7 +16,7 @@ interface Props {
 }
 
 // Shown below 760 px instead of the docked nav; the nav opens as a drawer.
-export const MobileHeader = ({ account, version, unread, ...on }: Props) => (
+export const MobileHeader = ({ account, version, apps, unread, ...on }: Props) => (
   <header className="mh" data-region="mobile-header">
     <IconButton
       className="ib rounded-lg"
@@ -38,6 +39,7 @@ export const MobileHeader = ({ account, version, unread, ...on }: Props) => (
     <AccountMenu
       account={account}
       version={version}
+      apps={apps}
       compact
       onPalette={on.onPalette}
       onToggleNav={on.onMenu}

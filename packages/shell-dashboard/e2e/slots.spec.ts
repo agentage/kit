@@ -32,6 +32,9 @@ for (const width of [1280, 400]) {
     });
 
     test('with no extension, main says how to install one; axe 0', async ({ page }) => {
+      await page.route('**/.well-known/agentage-host.json', (r) =>
+        r.fulfill({ json: { host: 'local', extensions: [] } })
+      );
       await page.goto('/');
       await expect(page.locator('[data-page="empty"]')).toContainText('No extensions');
       expect(await axe(page)).toEqual([]);

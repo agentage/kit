@@ -25,6 +25,8 @@ export interface FrameProps {
   unread?: number;
   // The bottom region shows only when an app fills it (S1.4.1); closed by default.
   bottom?: BottomState | null;
+  // The installed apps and versions, listed in the account menu.
+  apps?: { id: string; version: string }[];
   regionRef: (name: RegionName) => (el: HTMLElement | null) => void;
   onNavigate: (href: string) => void;
   onInbox?: () => void;
@@ -61,6 +63,7 @@ export const Frame = (p: FrameProps) => {
         <MobileHeader
           account={p.account}
           version={p.version}
+          apps={p.apps ?? []}
           unread={p.unread ?? 0}
           onMenu={state.toggleNav}
           onInbox={onInbox}
@@ -71,6 +74,7 @@ export const Frame = (p: FrameProps) => {
           rows={p.rows}
           account={p.account}
           version={p.version}
+          apps={p.apps ?? []}
           unread={p.unread ?? 0}
           state={state}
           peek={peek}
@@ -129,7 +133,6 @@ export const Frame = (p: FrameProps) => {
         onClick={() => state.setDrawer(false)}
       />
       <CommandList open={state.palette} onOpenChange={state.setPalette} commands={commands} />
-      <div className="toasts" role="status" aria-live="polite" />
     </>
   );
 };

@@ -1,22 +1,13 @@
 import { createRoot } from 'react-dom/client';
-import { Frame } from './frame/frame.js';
-import { NoExtensions } from './frame/no-extensions.js';
-import { createRegionHost } from './frame/regions.js';
+import type { ShellDeps } from './host/host.types.js';
+import { ShellApp } from './shell-app.js';
 import { shellVersion } from './version.js';
 
-const regions = createRegionHost();
+const deps: ShellDeps = {
+  fetch: (input, init) => fetch(input, init),
+  events: (url) => new EventSource(url),
+  importModule: (url) => import(/* @vite-ignore */ url) as Promise<{ default?: unknown }>,
+};
+
 const root = document.getElementById('root');
-if (root)
-  createRoot(root).render(
-    <Frame
-      rows={[]}
-      account={{ label: null, initials: '?' }}
-      version={shellVersion()}
-      title="Home"
-      aside={null}
-      regionRef={regions.ref}
-      onNavigate={(href) => history.pushState(null, '', href)}
-    >
-      <NoExtensions />
-    </Frame>
-  );
+if (root) createRoot(root).render(<ShellApp deps={deps} version={shellVersion()} />);

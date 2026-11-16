@@ -21,7 +21,13 @@ export const Aside = ({ aside, regionRef, onWide }: Props) => {
   };
   const Icon = wide ? Minimize2 : Maximize2;
   return (
-    <aside className="insp" data-region="aside" id="aside" aria-label="Aside">
+    <aside
+      className="insp"
+      data-region="aside"
+      data-aside-key={aside?.key}
+      id="aside"
+      aria-label="Aside"
+    >
       <Splitter {...ASIDE_SPLIT} />
       <div className="ai">
         <div className="ahead">

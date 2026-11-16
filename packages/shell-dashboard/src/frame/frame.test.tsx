@@ -172,5 +172,8 @@ describe('Frame', () => {
     expect(el.querySelector('.acct')?.getAttribute('title')).toBe(
       'Not signed in, run agentage setup'
     );
+    expect(el.querySelector('[data-region="account"]')?.textContent).toContain(
+      'Not signed in, run agentage setup'
+    );
   });
 });

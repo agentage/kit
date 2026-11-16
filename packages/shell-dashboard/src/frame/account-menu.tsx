@@ -18,6 +18,7 @@ import type { Account } from './frame.types.js';
 interface Props {
   account: Account;
   version: string;
+  apps?: { id: string; version: string }[];
   // The mobile header shows the avatar alone, at the right edge.
   compact?: boolean;
   onPalette: () => void;
@@ -35,12 +36,22 @@ const trigger = ({ account, version, compact }: Pick<Props, 'account' | 'version
       {account.initials}
     </button>
   ) : (
-    <button className="acct" title={account.label ?? SIGNED_OUT} aria-label="Account menu">
+    <button
+      className={account.pending ? 'acct pending' : 'acct'}
+      title={account.label ?? SIGNED_OUT}
+      aria-label="Account menu"
+    >
       <span className="av" aria-hidden="true">
         {account.initials}
       </span>
       <span className="who">
-        <b>{account.label ?? 'Not signed in'}</b>
+        {account.label ? (
+          <b>{account.label}</b>
+        ) : (
+          <b>
+            Not signed in<span className="sr-only">, run agentage setup</span>
+          </b>
+        )}
         <span data-shell-version={version}>shell {version}</span>
       </span>
       <ChevronUp {...I} />
@@ -66,7 +77,7 @@ const links = (account: Account, go: (href: string) => void): ReactNode[] => {
 };
 
 // The account region: who is signed in, the shell version (`shell 0.1.0`), the account links.
-export const AccountMenu = ({ account, version, compact, ...on }: Props) => {
+export const AccountMenu = ({ account, version, apps = [], compact, ...on }: Props) => {
   const items = links(account, on.onNavigate);
   return (
     <DropdownMenu
@@ -77,6 +88,9 @@ export const AccountMenu = ({ account, version, compact, ...on }: Props) => {
       <DropdownMenuLabel>{account.label ?? SIGNED_OUT}</DropdownMenuLabel>
       <DropdownMenuSeparator />
       <DropdownMenuLabel>shell {version}</DropdownMenuLabel>
+      {apps.map((a) => (
+        <DropdownMenuLabel key={a.id}>{`${a.id} ${a.version}`}</DropdownMenuLabel>
+      ))}
       <DropdownMenuSeparator />
       <DropdownMenuItem onClick={on.onPalette}>
         <CommandIcon {...I} />

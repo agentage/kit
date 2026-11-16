@@ -37,15 +37,17 @@ const starter = (data: string, tries: string, n: number, at: number) =>
 describe('three processes on one stale data lock', () => {
   it('one takes it and holds it until the other two tried; they refuse; no file is left', async () => {
     if (!existsSync(LOCK)) throw new Error(`${LOCK} is missing: npm run build first`);
-    for (let round = 0; round < 3; round += 1) {
+    // Three rounds on three locks at one time: one node start for all, not three in a row.
+    const round = async (at: number) => {
       const data = join(await tempDir('agentage-lock3-'), 'hosted');
       await writeFile(`${data}.lock`, String(deadPid()));
       const tries = await tempDir('agentage-lock3-tries-');
-      const at = Date.now() + 1_000;
       const outs = await Promise.all([0, 1, 2].map((n) => starter(data, tries, n, at)));
       const said = outs.map((out) => out.stdout.trim()).sort();
       expect(said).toEqual(['DATA_DIR_LOCKED', 'DATA_DIR_LOCKED', 'took']);
       expect(await readdir(join(data, '..'))).toEqual([]);
-    }
+    };
+    const at = Date.now() + 1_000;
+    await Promise.all([round(at), round(at), round(at)]);
   }, 30_000);
 });

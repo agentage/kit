@@ -3,7 +3,6 @@ import { fail } from '../../envelope/envelope.js';
 import { parse } from '../../envelope/parse.js';
 import { entryOf, type Entries } from './entries.js';
 import { confirmReload, markReload, swapBack, swapIn, unmarkReload } from './reload-marker.js';
-import { resetRestarts } from './restart.js';
 import { halt, hold } from './gate.js';
 import { startEntry, type Entry, type SupervisorDeps } from './supervisor.js';
 
@@ -40,14 +39,13 @@ const settle = async (deps: SupervisorDeps, entry: Entry, dir: string) => {
   await confirmReload(deps.configDir, entry.id, dir).catch((err: Error) =>
     deps.log.warn('a reload left dist.prev or its marker', { id: entry.id, reason: err.message })
   );
-  resetRestarts(entry);
   return answer(entry);
 };
 
 const tryNew = async (deps: SupervisorDeps, entry: Entry, dir: string) => {
   await markReload(deps.configDir, entry.id, dir);
   const swapped = await swapIn(dir);
-  const err = await startEntry(deps, entry);
+  const err = await startEntry(deps, entry, true);
   if (!err) return settle(deps, entry, dir);
   await restoreLast(deps, entry, dir, swapped);
   return answer(entry, err.message.split('\n')[0]);

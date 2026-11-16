@@ -1,6 +1,7 @@
 import { randomBytes } from 'node:crypto';
 import { stat } from 'node:fs/promises';
 import { join } from 'node:path';
+import { setTimeout as sleep } from 'node:timers/promises';
 import { type Express } from 'express';
 import { type BuildInfo } from '../discovery/discovery.js';
 import { healthBody } from '../health/health.js';
@@ -71,6 +72,9 @@ const baseOf = async (h: Hosting): Promise<PartAppBase> => {
   return { pkg, log, build, onExit, guards, ...guard, checks, clockRate, ...resolved };
 };
 
+// A running job ends before the store closes, within the daemon's 5 s before SIGKILL.
+export const JOB_STOP_MS = 3_000;
+
 // The jobs stop before the store closes: a tick never writes to a closed store.
 const hostedOf = (h: Hosting, hosted: HostedParts, base: PartAppBase): HostedExtension => {
   const { id } = h.pkg.agentage;
@@ -81,7 +85,10 @@ const hostedOf = (h: Hosting, hosted: HostedParts, base: PartAppBase): HostedExt
   const health = () =>
     healthBody({ extension: id, part: 'api', parts, version, build, checks, ...at });
   let stopped: Promise<void> | undefined;
-  const close = () => (hosted.stop(), h.store ? h.store.close() : Promise.resolve());
+  const close = async () => {
+    await Promise.race([hosted.stop(), sleep(JOB_STOP_MS, undefined, { ref: false })]);
+    await h.store?.close();
+  };
   const stop = () => (stopped ??= close());
   return { id, version, parts, app, health, stop };
 };

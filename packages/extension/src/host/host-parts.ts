@@ -32,7 +32,8 @@ export interface HostedParts {
   app: Express;
   parts: HostPartKind[];
   start(): void;
-  stop(): void;
+  // Resolves once the jobs still running have ended.
+  stop(): Promise<void>;
 }
 
 const secretsOf = ({ pkg, opts, extras }: Hosting, part: HostPartKind) =>
@@ -88,7 +89,7 @@ const mountsOf = async (h: Hosting, parts: HostPartKind[], base: PartAppBase) =>
     for (const part of parts)
       mounts.push(await MOUNTS[part](await inputOf(h, part, base, reserved)));
   } catch (err) {
-    for (const m of mounts) m.stop?.();
+    for (const m of mounts) void m.stop?.();
     throw err;
   }
   return mounts;
@@ -108,6 +109,6 @@ export const hostPartsOf = async (h: Hosting, base: PartAppBase): Promise<Hosted
   const record = await recordOf(h, parts, mounts);
   const app = createPartApp({ ...base, parts, part: 'api', mount, record });
   const start = () => mounts.forEach((m) => m.start?.());
-  const stop = () => mounts.forEach((m) => m.stop?.());
+  const stop = async () => void (await Promise.all(mounts.map((m) => m.stop?.())));
   return { app, parts, start, stop };
 };

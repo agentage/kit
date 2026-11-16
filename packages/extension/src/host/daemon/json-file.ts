@@ -1,7 +1,8 @@
 import { randomBytes } from 'node:crypto';
-import { chmod, open, readFile, rename, stat } from 'node:fs/promises';
+import { chmod, open, readFile, rename, stat, unlink } from 'node:fs/promises';
 import { setTimeout as sleep } from 'node:timers/promises';
-import { basename } from 'node:path';
+import { constants } from 'node:os';
+import { basename, dirname } from 'node:path';
 import { fail } from '../../envelope/envelope.js';
 import { DATA_DIR_LOCKED, lockDataDir } from '../data-lock.js';
 
@@ -12,6 +13,28 @@ export const readJsonFile = async <T>(file: string, fallback: T): Promise<T> => 
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') return fallback;
     throw err;
   }
+};
+
+// Fixed words only: a parser message quotes the file, and secrets.json holds secrets.
+export const unreadableReason = (err: unknown): string =>
+  err instanceof SyntaxError
+    ? 'not JSON'
+    : String((err as NodeJS.ErrnoException).code ?? (err as Error).message);
+
+// The folder is full or not writable: the errno, the file and where to look, never a bare 500.
+const NOT_WRITABLE = ['ENOSPC', 'EDQUOT', 'EROFS', 'EACCES', 'EPERM'];
+
+// Node has no code name for EDQUOT on Linux ("Unknown system error -122"): read the errno too.
+const errnoName = (err: unknown): string => {
+  const { errno, code } = err as NodeJS.ErrnoException;
+  return errno === -constants.errno.EDQUOT ? 'EDQUOT' : (code ?? '');
+};
+
+export const unwritable = (file: string, err: unknown) => {
+  const code = errnoName(err);
+  if (!NOT_WRITABLE.includes(code)) return err;
+  const message = `${basename(file)} cannot be written (${code}): check the free space and rights of ${dirname(file)}; no change was made`;
+  return fail('UNAVAILABLE', message, { retryAfter: 30 });
 };
 
 // The mode of a file already there, narrowed by the default: a 0600 file is never widened.
@@ -25,15 +48,21 @@ const modeOf = (file: string, mode: number) =>
 export const writeJsonFile = async (file: string, value: unknown, given = 0o644): Promise<void> => {
   const mode = await modeOf(file, given);
   const tmp = `${file}.${process.pid}.${randomBytes(4).toString('hex')}.tmp`;
-  const handle = await open(tmp, 'w', mode);
   try {
-    await handle.writeFile(`${JSON.stringify(value, null, 2)}\n`);
-    await handle.sync();
-  } finally {
-    await handle.close();
+    const handle = await open(tmp, 'w', mode);
+    try {
+      await handle.writeFile(`${JSON.stringify(value, null, 2)}\n`);
+      await handle.sync();
+    } finally {
+      await handle.close();
+    }
+    await chmod(tmp, mode);
+    await rename(tmp, file);
+  } catch (err) {
+    // A full disk leaves no half tmp file beside the real one.
+    await unlink(tmp).catch(() => undefined);
+    throw unwritable(file, err);
   }
-  await chmod(tmp, mode);
-  await rename(tmp, file);
 };
 
 export const LOCK_WAIT_MS = 5_000;
@@ -66,7 +95,9 @@ export const withFileLock = async <T>(
   fn: () => T | Promise<T>,
   waitMs = LOCK_WAIT_MS
 ): Promise<T> => {
-  const release = await acquire(file, waitMs);
+  const release = await acquire(file, waitMs).catch((err: unknown) => {
+    throw unwritable(file, err);
+  });
   try {
     return await fn();
   } finally {

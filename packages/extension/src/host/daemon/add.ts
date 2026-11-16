@@ -21,11 +21,17 @@ const DIST_TAG = /^[A-Za-z][\w.-]*$/;
 const isVersionSpec = (spec: string): boolean =>
   !/\s/.test(spec) && (validRange(spec) !== null || DIST_TAG.test(spec));
 
+// POST and PATCH: the same rule, so no route hands the installer a path.
+export const VersionSpecSchema = z
+  .string()
+  .min(1)
+  .refine(isVersionSpec, 'a version, a range or a dist-tag');
+
 // enabled: false records the extension and never starts it (a profile "off" entry).
 const AddSchema = z.union([
   z.strictObject({
     id: ExtensionIdSchema,
-    version: z.string().min(1).refine(isVersionSpec, 'a version, a range or a dist-tag').optional(),
+    version: VersionSpecSchema.optional(),
     enabled: z.boolean().optional(),
   }),
   z.strictObject({

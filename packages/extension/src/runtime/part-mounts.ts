@@ -40,7 +40,7 @@ export interface PartMount {
   mount: (app: Express) => void;
   checks?: Record<string, HealthCheck>;
   start?: () => void;
-  stop?: () => void;
+  stop?: () => void | Promise<void>;
   // What this part adds to the record the kit host serves (openapi, tools).
   record?: RecordExtras;
 }

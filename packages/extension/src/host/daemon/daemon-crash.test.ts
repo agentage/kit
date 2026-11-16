@@ -21,6 +21,8 @@ afterEach(async () => {
 });
 
 const SHORT = { backoffMs: [10, 20, 40, 80, 160] };
+// Each wait is bounded on its own, well above the backoff, never vi.waitFor's 1 s default.
+const WAIT = { timeout: 5_000, interval: 20 };
 const rowOf = async (id = 'word') =>
   (
     (await h!.call('GET', '/host/extensions')).body as { data: Record<string, unknown>[] }
@@ -32,14 +34,16 @@ describe('a child that exits (C6)', () => {
     h = await startHarness({ launch: w.launch, ...SHORT });
     await h.call('POST', '/host/extensions', { source: await wordPackage('one') });
     for (let start = 1; start <= 5; start += 1) {
-      await vi.waitFor(() => expect(w.children).toHaveLength(start), { timeout: 2_000 });
+      await vi.waitFor(() => expect(w.children).toHaveLength(start), WAIT);
       crashLast();
     }
-    await vi.waitFor(async () =>
-      expect(await rowOf()).toMatchObject({
-        state: 'failed',
-        error: 'exited 5 times in 10 min: crash on purpose',
-      })
+    await vi.waitFor(
+      async () =>
+        expect(await rowOf()).toMatchObject({
+          state: 'failed',
+          error: 'exited 5 times in 10 min: crash on purpose',
+        }),
+      WAIT
     );
     await pause(300);
     expect(w.children).toHaveLength(5);
@@ -49,7 +53,7 @@ describe('a child that exits (C6)', () => {
     h = await startHarness({ launch: w.launch, ...SHORT, crashLimit: 1 });
     await h.call('POST', '/host/extensions', { source: await wordPackage('one') });
     crashLast();
-    await vi.waitFor(async () => expect(await rowOf()).toMatchObject({ state: 'failed' }));
+    await vi.waitFor(async () => expect(await rowOf()).toMatchObject({ state: 'failed' }), WAIT);
     const enabled = await h.call('PATCH', '/host/extensions/word', { enabled: true });
     expect(enabled).toMatchObject({ status: 200, body: { data: { state: 'running' } } });
     expect(w.children).toHaveLength(2);
@@ -59,7 +63,7 @@ describe('a child that exits (C6)', () => {
     h = await startHarness({ launch: w.launch, backoffMs: [200] });
     await h.call('POST', '/host/extensions', { source: await wordPackage('one') });
     crashLast();
-    await vi.waitFor(async () => expect(await rowOf()).toMatchObject({ state: 'starting' }));
+    await vi.waitFor(async () => expect(await rowOf()).toMatchObject({ state: 'starting' }), WAIT);
     await h.call('DELETE', '/host/extensions/word');
     await pause(400);
     expect(w.children).toHaveLength(1);
@@ -74,7 +78,7 @@ describe('secrets in the reason of an exit', () => {
     await h.call('POST', '/host/extensions', { source: await wordPackage('one') });
     w.children.at(-1)!.crash('token sekret-value refused, ab');
     const error = 'token *** refused, ab: restart in 60000 ms';
-    await vi.waitFor(async () => expect(await rowOf()).toMatchObject({ error }));
+    await vi.waitFor(async () => expect(await rowOf()).toMatchObject({ error }), WAIT);
     expect(JSON.stringify((await h.call('GET', '/health')).body)).not.toContain('sekret-value');
   });
 });

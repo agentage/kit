@@ -84,33 +84,28 @@ const dirOf = async (deps: SupervisorDeps, entry: Entry, install: InstallEntry, 
   return (await runInstaller(deps, { id: entry.id, version: install.version })).dir;
 };
 
-// A new child for install with values, healthy; the entry learns the version the package has.
-const launchFor = async (
-  deps: SupervisorDeps,
-  entry: Entry,
-  install: InstallEntry,
-  values: Values,
-  given?: string
-): Promise<Lane> => {
-  const dir = await dirOf(deps, entry, install, given);
+// A new child for to, healthy, then the route; fresh: a start the owner asked for (restarts reset).
+const launchFor = async (deps: SupervisorDeps, entry: Entry, to: Next, fresh: boolean) => {
+  const dir = await dirOf(deps, entry, to.install, to.dir);
   const pkg = await readManifest(dir);
-  assertSecrets(pkg, values.secrets);
-  const spec = { id: entry.id, dir, dataDir: dataDirOf(deps.configDir, entry.id), ...values };
+  assertSecrets(pkg, to.values.secrets);
+  const spec = { id: entry.id, dir, dataDir: dataDirOf(deps.configDir, entry.id), ...to.values };
   const child = await deps
     .launch({ ...spec, origin: deps.origin(), storeOpenMs: deps.healthMs })
     .catch((err: Error) =>
-      Promise.reject(Object.assign(err, { message: redact(err.message, values.secrets) }))
+      Promise.reject(Object.assign(err, { message: redact(err.message, to.values.secrets) }))
     );
   await healthy(child.port, deps.healthMs).catch(async (err: unknown) => {
     await child.stop();
     throw err;
   });
-  Object.assign(entry, { dir, version: pkg.version });
   const lane = laneOf(child);
-  const words = (how: Exit) => redact(reasonOf(how), values.secrets);
+  Object.assign(entry, { dir, version: pkg.version, lane, state: 'running', error: undefined });
+  if (fresh) resetRestarts(entry);
+  // Watched only once it is the route: an exit that came before this line is seen, not lost.
+  const words = (how: Exit) => redact(reasonOf(how), to.values.secrets);
   void child.exited.then((how) => exitedEarly(deps, entry, lane, words(how)));
   healthyFor(deps, entry, lane);
-  return lane;
 };
 
 // A child that exits while it is the route restarts (C6); a retired one was detached first.
@@ -128,13 +123,13 @@ const failed = (deps: SupervisorDeps, entry: Entry, err: unknown): void => {
 // The install and values of installation.json, as they are on disk; the error when it failed.
 export const startEntry = async (
   deps: SupervisorDeps,
-  entry: Entry
+  entry: Entry,
+  fresh = false
 ): Promise<Error | undefined> => {
   entry.state = 'starting';
   try {
     const values = await valuesOf(deps.configDir, entry.id);
-    entry.lane = await launchFor(deps, entry, entry.install, values);
-    Object.assign(entry, { state: 'running', error: undefined });
+    await launchFor(deps, entry, { install: entry.install, values }, fresh);
     return undefined;
   } catch (err) {
     failed(deps, entry, err);
@@ -170,9 +165,7 @@ export const swap = async (
 ) => {
   try {
     await halt(entry, deps.drainMs);
-    entry.lane = await launchFor(deps, entry, to.install, to.values, to.dir);
-    Object.assign(entry, { state: 'running', error: undefined });
-    resetRestarts(entry);
+    await launchFor(deps, entry, to, true);
   } catch (err) {
     await undo();
     await restore(deps, entry);

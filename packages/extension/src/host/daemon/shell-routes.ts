@@ -48,7 +48,7 @@ const page =
   (shell: Shell, entries: Entries): RequestHandler =>
   async (req, res, next) => {
     const id = req.path.split('/')[1] ?? '';
-    if (req.method !== 'GET' || OWN.has(id) || req.accepts(['json', 'html']) !== 'html')
+    if (req.method !== 'GET' || OWN.has(id) || req.accepts(['html', 'json']) !== 'html')
       return next();
     const known = id === '' || (await hasApp(entries, id));
     res.status(known ? 200 : 404).set('Cache-Control', 'no-cache');

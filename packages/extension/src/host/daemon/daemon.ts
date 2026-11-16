@@ -126,6 +126,13 @@ const depsOf = (opts: DaemonOptions, launch: Launch, origin: () => string, stopp
     user: {},
   }) satisfies SupervisorDeps;
 
+// A broken shell install costs the page, never the extensions.
+const shellOf = (deps: SupervisorDeps, dir: string) =>
+  readShell(dir).catch((err: Error) => {
+    deps.log.warn('the shell package is not readable: no page at /', { reason: err.message });
+    return undefined;
+  });
+
 // No other daemon, read and check the file, listen, write daemon.json, start the children; a failed boot undoes it.
 export const startDaemon = async (opts: DaemonOptions, launch: Launch): Promise<Daemon> => {
   await mkdir(opts.configDir, { recursive: true });
@@ -136,7 +143,7 @@ export const startDaemon = async (opts: DaemonOptions, launch: Launch): Promise<
   const deps = depsOf(opts, launch, () => `http://127.0.0.1:${port}`, stoppingOf(life.signal));
   const { entries, ...file } = await loadEntries(deps);
   const self = { version: opts.version, pid: process.pid, protocol: DAEMON_PROTOCOL };
-  const shell = opts.shellDir ? { shell: await readShell(opts.shellDir) } : {};
+  const shell = opts.shellDir ? { shell: await shellOf(deps, opts.shellDir) } : {};
   const info = { ...launchMarks(launch), ...self, ...file, ...shell };
   const hostToken = newHostToken();
   const app = daemonApp(deps, entries, () => port, info, hostToken);

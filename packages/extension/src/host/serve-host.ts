@@ -2,11 +2,11 @@ import { type Server } from 'node:http';
 import { type AddressInfo } from 'node:net';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { createLog } from '../log/log.js';
-import { buildInfoFromEnv, type Env } from '../runtime/build-info.js';
+import { type Env } from '../runtime/build-info.js';
 import { listen, shutdownOn } from '../server/serve.js';
 import { loopbackPorts } from './daemon/guard.js';
 import { guardOf, hostEnvOf } from './host-env.js';
-import { hostWith, type HostedExtension } from './host-extension.js';
+import { hostBuildInfo, hostWith, type HostedExtension } from './host-extension.js';
 
 interface ServeHostDeps {
   exit?: (code: number) => void;
@@ -72,7 +72,8 @@ export const serveHost = async (env: Env, deps: ServeHostDeps = {}): Promise<Ser
   // C2: on loopback the child checks Host and Origin itself, for its own port and the daemon's.
   const local = { localOnly: at.bind === '127.0.0.1', localPorts: loopbackPorts(origin) };
   const opts = { dataDir, runDir, settings, origin, storeOpenMs, onExit: hook.onExit, ...local };
-  const host = await hostWith(at.dir, opts, { secretsDir, guard, build: buildInfoFromEnv(env) });
+  const build = await hostBuildInfo(env, at.dir);
+  const host = await hostWith(at.dir, opts, { secretsDir, guard, build });
   const server = await listen(host.app, at.port, at.bind);
   const { log, stop } = drainOn(server, host, deps, at.drainMs);
   const { port } = server.address() as AddressInfo;

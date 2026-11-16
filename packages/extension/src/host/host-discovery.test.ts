@@ -1,4 +1,4 @@
-import { writeFile } from 'node:fs/promises';
+import { utimes, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DiscoveryDocumentSchema } from '../discovery/discovery.schema.js';
@@ -65,5 +65,17 @@ describe('the kit host serves the full discovery record', () => {
     expect(doc).toMatchObject({ parts: { api: {} }, openapi: '/api/hosted/openapi.json' });
     expect((doc as { parts: object }).parts).toEqual({ api: {} });
     expect(DiscoveryDocumentSchema.safeParse(doc).error?.issues).toBeUndefined();
+  });
+
+  it('buildTime is the installed package time, the same after a restart; commit stays zeros', async () => {
+    const dir = await hostedPackage(NO_STORE_MANIFEST);
+    const at = new Date('2026-11-10T12:00:00Z');
+    await utimes(join(dir, 'package.json'), at, at);
+    const first = (await discoveryOf(dir, { 'api-token': 'tok-123' })).doc;
+    await Promise.all(hosted.splice(0).map((h) => h.stop()));
+    const again = (await discoveryOf(dir, { 'api-token': 'tok-123' })).doc;
+    const build = { commit: '0'.repeat(40), buildTime: '2026-11-10T12:00:00Z' };
+    expect(first).toMatchObject(build);
+    expect(again).toMatchObject(build);
   });
 });

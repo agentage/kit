@@ -24,9 +24,12 @@ export const healthy = async (port: number, ms: number): Promise<void> => {
   if (res.status !== 200) throw new Error(`health answered ${res.status}`);
 };
 
+// Each value raw and as it shows inside a JSON log row (quotes, backslashes escaped).
+export const maskedForms = (secrets: Record<string, string>): string[] =>
+  [...new Set(Object.values(secrets).flatMap((v) => [v, JSON.stringify(v).slice(1, -1)]))]
+    .filter((value) => value.length >= 4)
+    .sort((a, b) => b.length - a.length);
+
 // A secret value this child was given never reaches error, /health, the list or the log.
 export const redact = (text: string, secrets: Record<string, string>): string =>
-  Object.values(secrets)
-    .filter((value) => value.length >= 4)
-    .sort((a, b) => b.length - a.length)
-    .reduce((out, value) => out.split(value).join('***'), text);
+  maskedForms(secrets).reduce((out, value) => out.split(value).join('***'), text);

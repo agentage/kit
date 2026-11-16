@@ -6,7 +6,7 @@ import { CLOCK_RATE_ENV, parseClockRate } from '../../worker/clock.js';
 import { fillRun, makeRun, undoRun, type RunFolders } from './child-files.js';
 import { lastWords } from './last-words.js';
 import { LIMITS } from './limits.js';
-import { redactedLines } from './redact-stream.js';
+import { pipeRedacted } from './redact-stream.js';
 import { permissionFlag, sealFlags, sealOf, type Seal } from './seal.js';
 
 interface LaunchSpec {
@@ -69,13 +69,9 @@ const passedEnv = () =>
 
 const captured = (child: ChildProcess, secrets: Record<string, string>): (() => string) => {
   let tail = '';
-  const out = redactedLines((text) => process.stderr.write(text), secrets);
-  child.stdout?.pipe(process.stdout);
-  child.stderr?.on('data', (chunk: Buffer) => {
-    out(chunk.toString());
-    tail = (tail + chunk.toString()).slice(-4000);
-  });
-  child.stderr?.once('end', () => out());
+  pipeRedacted(child.stdout, process.stdout, secrets);
+  pipeRedacted(child.stderr, process.stderr, secrets);
+  child.stderr?.on('data', (chunk: Buffer) => (tail = (tail + chunk.toString()).slice(-4000)));
   return () => tail;
 };
 

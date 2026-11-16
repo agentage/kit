@@ -165,5 +165,12 @@ export const DiscoveryDocumentSchema = z
   .refine(imagesNameTheirExtension, IMAGE_RULE)
   .refine(openapiNamesItsExtension, OPENAPI_RULE);
 
+// The form the cloud serves: every part by its image, or the one image; never a part with no image.
+export const CloudDiscoveryDocumentSchema = z
+  .strictObject({ ...recordShape, host: OriginSchema })
+  .refine(oneImageForm, FORM_RULE)
+  .refine(imagesNameTheirExtension, IMAGE_RULE)
+  .refine(openapiNamesItsExtension, OPENAPI_RULE);
+
 export type ExtensionRecord = z.infer<typeof ExtensionRecordSchema>;
 export type DiscoveryDocument = z.infer<typeof DiscoveryDocumentSchema>;

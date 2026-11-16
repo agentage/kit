@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest';
 import { validateManifest } from '../manifest/read-manifest.js';
 import { DIGEST, SHA, SPEC_MANIFEST } from '../test-support/packages.js';
 import { discoveryDocument, hostedRecordOf } from './discovery.js';
-import { DiscoveryDocumentSchema, ExtensionRecordSchema } from './discovery.schema.js';
+import {
+  CloudDiscoveryDocumentSchema,
+  DiscoveryDocumentSchema,
+  ExtensionRecordSchema,
+} from './discovery.schema.js';
 
 const BUILD = { commit: SHA, buildTime: '2026-11-16T10:00:00Z' };
 const HOST = 'http://127.0.0.1:4243';
@@ -33,5 +37,14 @@ describe('the kit host record', () => {
     expect(valid({ ...doc, parts: { api: {}, mcp: { image } } })).toBe(false);
     expect(valid({ ...doc, image: `ghcr.io/agentage/probe@${DIGEST}` })).toBe(false);
     expect(valid({ ...doc, parts: { pages: {}, api: {} } })).toBe(false);
+  });
+
+  it('the cloud form refuses a part with no image; it takes a part by its image', () => {
+    const doc = discoveryDocument(hostedRecordOf(PKG, BUILD, ['api'], {}), HOST);
+    expect(CloudDiscoveryDocumentSchema.safeParse(doc).success).toBe(false);
+    const api = { image: `ghcr.io/agentage/probe-api@${DIGEST}` };
+    const cloud = { ...doc, parts: { api, mcp: {} } };
+    expect(CloudDiscoveryDocumentSchema.safeParse(cloud).success).toBe(false);
+    expect(CloudDiscoveryDocumentSchema.safeParse({ ...doc, parts: { api } }).success).toBe(true);
   });
 });

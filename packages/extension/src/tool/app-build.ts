@@ -4,7 +4,7 @@ import { join, resolve } from 'node:path';
 import type * as Esbuild from 'esbuild';
 import { APP_DIR, APP_META_FILE } from '../manifest/parts.js';
 import { exists } from './stage.js';
-import { loadFrom, packageDir, resolveFrom } from './app-load.js';
+import { loadFrom, packageDir, requireBuildDeps, resolveFrom } from './app-load.js';
 
 // K4: one React and one @agentage/app for the shell and every app, given by the import map.
 export const APP_EXTERNALS = [
@@ -114,6 +114,7 @@ const writeApp = async (dir: string, code: Uint8Array, css: string): Promise<App
 // A warm esbuild context: `up` calls rebuild() on each save; dispose() when it stops.
 export const appBuilder = async (at: string): Promise<AppBuilder> => {
   const dir = resolve(at);
+  requireBuildDeps(dir);
   const esbuild = await loadFrom<typeof Esbuild>(dir, 'esbuild');
   const ctx = await esbuild.context(esbuildOptions(dir, await sourceOf(dir)));
   const rebuild = async () => {

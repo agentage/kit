@@ -72,7 +72,7 @@ describe('manifest schema', () => {
 
   it('refuses reserved ids, no routed part and duplicate commands', () => {
     const owned = ['lowercase id, never a name the platform owns'];
-    for (const id of ['auth', 'Probe', 'extension', 'com1'])
+    for (const id of ['auth', 'health', 'Probe', 'extension', 'com1'])
       expect(issuesOf(withAgentage({ id }))).toEqual(owned);
     expect(issuesOf(withAgentage({ id: 'x'.repeat(33) }))).toEqual([expect.stringMatching(/<=32/)]);
     expect(issuesOf(withAgentage({ id: 'authors' }))).toEqual([]);

@@ -96,8 +96,9 @@ compiles its Tailwind classes. It writes four kinds of file to `dist/app`:
 | `app.json`       | `{ "entry": "app-<hash>.js", "css": "app-<hash>.css" }`, read by the host                                       | no-cache  |
 
 - The build keeps the files of the previous build: an open page can still import them.
-- `esbuild`, `postcss`, `@tailwindcss/postcss` and `tailwindcss` are optional peers. The tool takes
-  the extension's own copy first, then the copy beside the kit.
+- `esbuild`, `postcss`, `@tailwindcss/postcss` and `tailwindcss` are required for an app part (the
+  extension template adds them as dev dependencies). The tool takes the extension's own copy first,
+  then the copy beside the kit. If one is missing, the build stops at once and names it.
 - When `@agentage/app/theme.css` resolves, its `@theme` names (the shell's tokens) give utilities
   such as `bg-primary`. They read the shell's variables.
 - `appBuilder(dir)` from `@agentage/extension/tool` keeps esbuild warm: `rebuild()` on each save,

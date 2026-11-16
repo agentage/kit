@@ -28,3 +28,14 @@ export const loadFrom = async <T>(dir: string, name: string): Promise<T> => {
 
 export const packageDir = (dir: string, name: string): string =>
   dirname(needed(dir, `${name}/package.json`));
+
+const BUILD_DEPS = ['esbuild', 'postcss', '@tailwindcss/postcss', 'tailwindcss'];
+
+// One clear error, before any work, for the build tools the extension did not install.
+export const requireBuildDeps = (dir: string, find = resolveFrom): void => {
+  const missing = BUILD_DEPS.filter((name) => !find(dir, name));
+  if (missing.length)
+    throw new Error(
+      `the app build needs ${missing.join(', ')}: npm install --save-dev ${missing.join(' ')}`
+    );
+};

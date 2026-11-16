@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 // Platform names, the daemon's first path segments and cli verbs, plus Windows device names: an id is a folder name on machines.
 const RESERVED_IDS =
-  'auth|www|api|sync|mail|mcp|ui|app|shell|host|git|setup|status|update|extension|add|remove|help|con|prn|aux|nul|com[0-9]|lpt[0-9]';
+  'auth|www|api|sync|mail|mcp|ui|app|shell|host|health|git|setup|status|update|extension|add|remove|help|con|prn|aux|nul|com[0-9]|lpt[0-9]';
 
 export const ExtensionIdSchema = z
   .string()

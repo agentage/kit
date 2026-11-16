@@ -2,6 +2,7 @@ import { mkdir, readdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { API_MANIFEST, json, tempPackage } from '../test-support/packages.js';
+import { requireBuildDeps } from './app-load.js';
 import { APP_EXTERNALS, appBuilder, buildApp } from './app-build.js';
 import { check, RULES } from './check.js';
 
@@ -103,5 +104,15 @@ describe('check of the app part', () => {
     expect(report.problems.map((p) => p.problem)).toEqual([
       'imports ../api/index.js: a part imports only its own folder and src/lib',
     ]);
+  });
+});
+
+describe('the build tools (S1.2.2 row 7)', () => {
+  it('a missing tool stops the build with one error naming every missing one', () => {
+    const find = (_dir: string, name: string) => (name === 'esbuild' ? 'x' : undefined);
+    expect(() => requireBuildDeps('/d', find)).toThrow(
+      'the app build needs postcss, @tailwindcss/postcss, tailwindcss: npm install --save-dev postcss @tailwindcss/postcss tailwindcss'
+    );
+    expect(() => requireBuildDeps('/d', () => 'x')).not.toThrow();
   });
 });

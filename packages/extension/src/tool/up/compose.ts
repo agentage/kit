@@ -5,6 +5,11 @@ import { DEV_AUDIENCE, DEV_ISSUER, UP_ISSUER } from './dev-issuer-app.js';
 import { GATEWAY_PORT, ISSUER_PORT, PART_PORT, TRAEFIK_COMMAND, TRAEFIK_IMAGE } from './gateway.js';
 
 export const STORE_IMAGE = 'postgres:18-alpine';
+// The estate's image (its src/store.ts); the host mounts the URL at /run/secrets/store-url the same way.
+export const CLICKHOUSE_IMAGE =
+  'clickhouse/clickhouse-server:26.8@sha256:d426d2f612e1e189c90f9a3f8dcd85a03c6851273833817a296bb327e63aa7a7';
+export const STORE_URL_SECRET = 'store-url';
+const STORE_URL_FILE = `/run/secrets/${STORE_URL_SECRET}`;
 const RECORD_TARGET = '/run/agentage/agentage-extension.json';
 const ISSUER_ENTRY = 'node_modules/@agentage/extension/dist/tool/up/dev-issuer.js';
 
@@ -26,6 +31,16 @@ const STORE_PASSWORD = 'agentage-local';
 
 const storeUrl = (id: string): string => `postgres://${id}:${STORE_PASSWORD}@store:5432/${id}`;
 
+// ClickHouse names its user and database with underscores; the id may hold a hyphen.
+const chName = (id: string): string => id.replaceAll('-', '_');
+export const clickhouseUrl = (id: string): string =>
+  `http://${chName(id)}:${STORE_PASSWORD}@store:8123/${chName(id)}`;
+
+// A part that serves reads a store: postgres by URL in the env, clickhouse by the URL file (G1, G2).
+export const runsStore = (pkg: ExtensionPackage) =>
+  hasStore(pkg, 'postgres') || hasStore(pkg, 'clickhouse');
+const servesStore = (pkg: ExtensionPackage, part: ImagePartKind) => runsStore(pkg) && part !== 'ui';
+
 // Only the ui under `up` names the dev issuer: its CSP then lets the harness ask it for a token.
 const partEnv = (pkg: ExtensionPackage, part: ImagePartKind | 'migrate') => ({
   AGENTAGE_ORIGIN: `http://localhost:${GATEWAY_PORT}`,
@@ -35,10 +50,30 @@ const partEnv = (pkg: ExtensionPackage, part: ImagePartKind | 'migrate') => ({
   ...(hasStore(pkg, 'postgres') && part !== 'ui'
     ? { AGENTAGE_STORE_URL: storeUrl(pkg.agentage.id) }
     : {}),
+  ...(hasStore(pkg, 'clickhouse') && part !== 'ui' && part !== 'migrate'
+    ? { AGENTAGE_STORE_URL_FILE: STORE_URL_FILE }
+    : {}),
   ...(part === 'ui' ? { AGENTAGE_DEV_ISSUER: DEV_ISSUER } : {}),
 });
 
 const QUICK_CHECK = { interval: '2s', timeout: '3s', retries: 30 };
+
+const clickhouseService = (id: string) => ({
+  image: CLICKHOUSE_IMAGE,
+  environment: {
+    CLICKHOUSE_USER: chName(id),
+    CLICKHOUSE_PASSWORD: STORE_PASSWORD,
+    CLICKHOUSE_DB: chName(id),
+  },
+  volumes: ['store:/var/lib/clickhouse'],
+  healthcheck: {
+    test: [
+      'CMD-SHELL',
+      `clickhouse-client --user ${chName(id)} --password ${STORE_PASSWORD} -q 'SELECT 1'`,
+    ],
+    ...QUICK_CHECK,
+  },
+});
 
 const storeService = (id: string) => ({
   image: STORE_IMAGE,
@@ -51,7 +86,7 @@ const HEALTHY = { condition: 'service_healthy' };
 
 // api and mcp read the issuer's keys and revoked list before they serve.
 const dependsOn = (pkg: ExtensionPackage, part: ImagePartKind) => ({
-  ...(hasStore(pkg, 'postgres') && part !== 'ui' ? { store: HEALTHY } : {}),
+  ...(servesStore(pkg, part) ? { store: HEALTHY } : {}),
   ...(part === 'api' || part === 'mcp' ? { issuer: HEALTHY } : {}),
 });
 
@@ -105,7 +140,9 @@ export const composeFile = (input: ComposeInput) => {
     services['store'] = storeService(input.pkg.agentage.id);
     if (input.tags['api']) services['migrate'] = migrateService(input);
   }
-  const volumes = hasStore(input.pkg, 'postgres') ? { store: {} } : {};
+  if (hasStore(input.pkg, 'clickhouse'))
+    services['store'] = clickhouseService(input.pkg.agentage.id);
+  const volumes = runsStore(input.pkg) ? { store: {} } : {};
   const secrets = input.secretFiles ? { secrets: secretsOf(input.secretFiles) } : {};
   return { name: input.project, services, volumes, ...secrets };
 };

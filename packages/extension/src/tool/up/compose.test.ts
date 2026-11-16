@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { validateManifest } from '../../manifest/read-manifest.js';
 import { API_MANIFEST, SPEC_MANIFEST } from '../../test-support/packages.js';
-import { composeFile, STORE_IMAGE } from './compose.js';
+import { CLICKHOUSE_IMAGE, clickhouseUrl, composeFile, STORE_IMAGE } from './compose.js';
 import { TRAEFIK_IMAGE } from './gateway.js';
 
 const FULL = validateManifest(SPEC_MANIFEST);
@@ -160,5 +160,54 @@ describe('composeFile', () => {
     const services = servicesOf(pkg, { mcp: TAGS['mcp'] ?? '' });
     expect(Object.keys(services).sort()).toEqual(['gateway', 'issuer', 'mcp', 'store']);
     expect(services['store']?.['image']).toBe(STORE_IMAGE);
+  });
+
+  describe('a clickhouse store', () => {
+    const pkg = validateManifest({
+      ...API_MANIFEST,
+      agentage: { id: 'probe-x', parts: { api: true, mcp: true, ui: true, store: 'clickhouse' } },
+    });
+    const tags = { api: 'a', mcp: 'm', ui: 'u' };
+    const files = { ...FILES, secretFiles: { 'store-url': '/x/.agentage/secrets/store-url' } };
+    const file = composeFile({ pkg, tags, ...files });
+    const services = file.services as Record<string, Service>;
+
+    it('has a pinned clickhouse container with a health check, no port, no migrate job', () => {
+      expect(services['store']).toEqual({
+        image: CLICKHOUSE_IMAGE,
+        environment: {
+          CLICKHOUSE_USER: 'probe_x',
+          CLICKHOUSE_PASSWORD: 'agentage-local',
+          CLICKHOUSE_DB: 'probe_x',
+        },
+        volumes: ['store:/var/lib/clickhouse'],
+        healthcheck: expect.objectContaining({
+          test: expect.arrayContaining([
+            expect.stringContaining('clickhouse-client --user probe_x'),
+          ]),
+        }),
+      });
+      expect(services).not.toHaveProperty('migrate');
+      expect(file.volumes).toEqual({ store: {} });
+      expect(CLICKHOUSE_IMAGE).toMatch(/@sha256:[0-9a-f]{64}$/);
+    });
+
+    it('mounts the URL file and names it in every part but ui, after the store is healthy', () => {
+      for (const part of ['api', 'mcp']) {
+        expect(services[part]?.['environment']).toMatchObject({
+          AGENTAGE_STORE_URL_FILE: '/run/secrets/store-url',
+        });
+        expect(services[part]?.['environment']).not.toHaveProperty('AGENTAGE_STORE_URL');
+        expect(services[part]?.['secrets']).toEqual(['store-url']);
+        expect(services[part]?.['depends_on']).toMatchObject({ store: HEALTHY });
+      }
+      expect(services['ui']?.['environment']).not.toHaveProperty('AGENTAGE_STORE_URL_FILE');
+      expect(services['ui']).not.toHaveProperty('secrets');
+      expect(file.secrets).toEqual({ 'store-url': { file: '/x/.agentage/secrets/store-url' } });
+    });
+
+    it('holds a URL of the estate form, user and database from the id', () => {
+      expect(clickhouseUrl('probe-x')).toBe('http://probe_x:agentage-local@store:8123/probe_x');
+    });
   });
 });

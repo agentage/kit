@@ -4,7 +4,7 @@ import { describe, expect, it } from 'vitest';
 import { validateManifest } from '../../manifest/read-manifest.js';
 import { API_MANIFEST, json, tempPackage } from '../../test-support/packages.js';
 import { ENV, fakeDocker, PROBE, probeDir } from '../../test-support/up-fixtures.js';
-import { secretEnvName, writeUpSecrets } from './secrets.js';
+import { secretEnvName, withStoreUrl, writeUpSecrets } from './secrets.js';
 import { up } from './up.js';
 
 const PKG = validateManifest({
@@ -77,5 +77,18 @@ describe('up secrets', () => {
       'up stopped: secret github-read has no value'
     );
     expect(docker.calls).toEqual([]);
+  });
+
+  it('adds the clickhouse store URL as the store-url file, keeps the declared ones, and adds nothing else', async () => {
+    const dir = await tempPackage({});
+    const ch = validateManifest({
+      ...API_MANIFEST,
+      agentage: { id: 'probe', parts: { api: true, store: 'clickhouse' } },
+    });
+    const out = await withStoreUrl(dir, ch, { a: '/a' });
+    const path = join(dir, '.agentage/secrets/store-url');
+    expect(out).toEqual({ a: '/a', 'store-url': path });
+    expect(await readFile(path, 'utf8')).toBe('http://probe:agentage-local@store:8123/probe');
+    expect(await withStoreUrl(dir, PKG, undefined)).toBeUndefined();
   });
 });

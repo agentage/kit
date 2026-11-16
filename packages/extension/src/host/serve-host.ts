@@ -68,10 +68,11 @@ export const serveHost = async (env: Env, deps: ServeHostDeps = {}): Promise<Ser
   const at = hostEnvOf(env);
   const guard = guardOf(env, at);
   const hook = exitHook();
-  const { dataDir, runDir, settings, origin, secretsDir, storeOpenMs } = at;
+  const { dataDir, runDir, settings, origin, secretsDir, storeOpenMs, storeUrlFile } = at;
   // C2: on loopback the child checks Host and Origin itself, for its own port and the daemon's.
   const local = { localOnly: at.bind === '127.0.0.1', localPorts: loopbackPorts(origin) };
-  const opts = { dataDir, runDir, settings, origin, storeOpenMs, onExit: hook.onExit, ...local };
+  const store = { storeOpenMs, storeUrlFile };
+  const opts = { dataDir, runDir, settings, origin, ...store, onExit: hook.onExit, ...local };
   const build = await hostBuildInfo(env, at.dir);
   const host = await hostWith(at.dir, opts, { secretsDir, guard, build });
   const server = await listen(host.app, at.port, at.bind);

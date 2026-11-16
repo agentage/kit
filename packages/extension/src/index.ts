@@ -74,6 +74,13 @@ export {
 export { versionPage, type PagesContext, type PagesEntry, type PagesSite } from './pages/pages.js';
 export { siteFromDir, type SiteFromDirOptions } from './pages/site-from-dir.js';
 export { type ApiCreate, type ApiHandler, type ApiPart } from './server/part.types.js';
+export {
+  clickhouseOf,
+  createClickhouseStore,
+  isClickhouseOutage,
+  type ClickhouseOptions,
+  type ClickhouseStore,
+} from './store/clickhouse-store.js';
 export { type QueryResult, type Row, type Store } from './store/store.types.js';
 export {
   startTestMcp,

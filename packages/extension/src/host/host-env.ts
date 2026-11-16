@@ -34,6 +34,8 @@ export const hostEnvOf = (env: Env) => {
     origin: env['AGENTAGE_ORIGIN'] || `http://127.0.0.1${port ? `:${port}` : ''}`,
     drainMs: msOf(env['AGENTAGE_DRAIN_MS'], GRACE_MS),
     storeOpenMs: msOf(env['AGENTAGE_STORE_OPEN_MS'], STORE_OPEN_MS),
+    // G1, G2: the estate's postgres or clickhouse; unset keeps PGlite in dataDir.
+    storeUrlFile: env['AGENTAGE_STORE_URL_FILE'] || undefined,
   };
 };
 

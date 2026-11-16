@@ -63,6 +63,11 @@ A postgres store adds two folders:
 `ctx.store` is a ready connection pool. A query gets 10 s. A connection gets 5 s. A store that
 cannot answer gives `UNAVAILABLE` (503, with `Retry-After`), never a 500.
 
+A clickhouse store has no migrations. In the host, with `AGENTAGE_STORE_URL_FILE` set,
+`clickhouseOf(ctx)` gives `query` (named `{name:Type}` parameters), `command`, `insert` and `ping`;
+elsewhere its calls say the store is missing. See
+[Estate stores in the host](part-image.md#estate-stores-in-the-host).
+
 ## Workers and commands
 
 - Each worker run is saved in the table `agentage_job_runs`. A row holds the job, start, end,

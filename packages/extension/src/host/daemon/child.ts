@@ -4,6 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { SecretNameSchema } from '../../manifest/primitives.schema.js';
+import { CLOCK_RATE_ENV } from '../../worker/clock.js';
 import { LIMITS } from './limits.js';
 
 interface LaunchSpec {
@@ -119,12 +120,13 @@ const stopOf = (child: ChildProcess, exited: Promise<Exit>) => async () => {
 
 // One child process per extension: node dist/host/main.js on a port the OS picks.
 export const forkLaunch =
-  (main = HOST_MAIN, startMs = LIMITS.startMs): Launch =>
+  (main = HOST_MAIN, startMs = LIMITS.startMs, clockRate = 1): Launch =>
   async (spec) => {
     const secretsDir = await secretFiles(spec);
     const stdio = ['ignore', 'pipe', 'pipe', 'ipc'] as const;
     // execArgv []: the daemon's own node flags (a loader, --input-type) are not the child's.
-    const env = { ...passedEnv(), ...childEnv(spec, secretsDir) };
+    const clock = clockRate === 1 ? {} : { [CLOCK_RATE_ENV]: String(clockRate) };
+    const env = { ...passedEnv(), ...childEnv(spec, secretsDir), ...clock };
     const child = fork(main, [], { env, execArgv: [], stdio: [...stdio] });
     const exited = new Promise<Exit>((resolve) =>
       child.once('exit', (code, signal) => resolve({ code, signal }))

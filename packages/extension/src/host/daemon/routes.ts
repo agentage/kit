@@ -11,6 +11,7 @@ import { changeExtension, removeExtension } from './ops.js';
 import { type Pending, type PendingChanges } from './pending.js';
 import { waitAtMost } from './queue.js';
 import { proxyTo } from './proxy.js';
+import { reloadRoute } from './reload-route.js';
 import { stopsNow } from './stopping.js';
 import { type SupervisorDeps } from './supervisor.js';
 
@@ -118,6 +119,7 @@ const hostRoutes = (
   app.post('/host/extensions', json, add);
   app.patch('/host/extensions/:id', json, change);
   app.delete('/host/extensions/:id', remove);
+  reloadRoute(app, deps, entries, () => checkReadable(deps, info));
 };
 
 // C5: /health, /host/extensions, and /api/{id}/* to the child of that id; Host and Origin first.

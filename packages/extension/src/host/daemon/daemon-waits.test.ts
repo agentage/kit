@@ -161,11 +161,11 @@ const unreachable: Launch = async () => ({
 });
 
 describe('a new child whose /health cannot be reached', () => {
-  it('fails with the cause, not with a timeout', async () => {
+  it('is refused with the cause, not with a timeout', async () => {
     h = await startHarness({ launch: unreachable });
+    await writeSecrets(h.configDir);
     const added = await h.call('POST', '/host/extensions', { source: await hostedPackage() });
-    expect(added.body).toMatchObject({
-      data: { state: 'failed', error: 'health could not be reached (ECONNREFUSED)' },
-    });
+    const reason = 'health could not be reached (ECONNREFUSED)';
+    expect(added).toMatchObject({ status: 400, body: { error: { details: { reason } } } });
   });
 });

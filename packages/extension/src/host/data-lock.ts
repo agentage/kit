@@ -1,5 +1,5 @@
 import { randomBytes } from 'node:crypto';
-import { rmSync } from 'node:fs';
+import { readFileSync, rmSync } from 'node:fs';
 import { link, readFile, unlink, writeFile } from 'node:fs/promises';
 import { setTimeout as sleep } from 'node:timers/promises';
 
@@ -8,9 +8,20 @@ export const DATA_DIR_LOCKED = 'DATA_DIR_LOCKED';
 // The locks of this process: our own pid in a lock not in here is stale (a container is pid 1 again).
 const held = new Set<string>();
 
+// Linux: an exited child not reaped yet (state Z) answers kill(0) but holds nothing.
+const zombie = (pid: number): boolean => {
+  if (process.platform !== 'linux') return false;
+  try {
+    const stat = readFileSync(`/proc/${pid}/stat`, 'utf8');
+    return stat.slice(stat.lastIndexOf(')') + 2).startsWith('Z');
+  } catch {
+    return false;
+  }
+};
+
 const alive = (pid: number): boolean => {
   try {
-    return process.kill(pid, 0);
+    return process.kill(pid, 0) && !zombie(pid);
   } catch (err) {
     return (err as NodeJS.ErrnoException).code === 'EPERM';
   }

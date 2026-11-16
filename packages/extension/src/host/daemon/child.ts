@@ -21,6 +21,8 @@ interface LaunchSpec {
 export interface Exit {
   code: number | null;
   signal: string | null;
+  // The last stderr line (its msg when a log row): the reason a restart and failed show.
+  words?: string;
 }
 
 // A started extension: its loopback port; stop drains it (SIGTERM) and waits for the exit.
@@ -60,19 +62,32 @@ export const childEnv = (spec: LaunchSpec, secretsDir: string): Record<string, s
 const passedEnv = () =>
   Object.fromEntries(PASSED.flatMap((k) => (process.env[k] ? [[k, process.env[k]]] : [])));
 
-// The child's last stderr line, its msg when it is a log row: why it did not start.
-const lastWords = (tail: string, how: Exit): string => {
-  const lines = tail
-    .trim()
-    .split('\n')
-    .filter((l) => !/^Node\.js v\d/.test(l));
-  const line = lines.at(-1) ?? '';
+// Lines that never say why: blanks, stack frames, error properties, the Node version, the hint.
+const NOISE = [
+  /^\s*$/,
+  /^\s+at /,
+  /^\s*[{}]\s*$/,
+  /^\s+[\w$'"]+: /,
+  /^Node\.js v\d/,
+  /^\(Use `node/,
+];
+// A log row below error (listening, a request, a warning) is not why a child exited.
+const QUIET = /^\{.*"level":"(warn|info|debug|trace)"/;
+
+const msgOf = (line: string): string => {
   try {
-    const msg = String((JSON.parse(line) as { msg?: unknown }).msg ?? line);
-    return msg.replace(/^[A-Za-z]*Error: /, '');
+    return String((JSON.parse(line) as { msg?: unknown }).msg ?? line);
   } catch {
-    return line || `exited with ${how.signal ? `signal ${how.signal}` : `code ${how.code}`}`;
+    return line;
   }
+};
+
+// The last line that says why (an error line, a log row's msg, or the thrown text): from stderr.
+export const lastWords = (tail: string, how: Exit): string => {
+  const lines = tail.split('\n').map((l) => l.trimEnd());
+  const line = lines.reverse().find((l) => !QUIET.test(l) && !NOISE.some((re) => re.test(l)));
+  if (line) return msgOf(line).replace(/^[A-Za-z]*Error(?: \[[A-Z_]+\])?: /, '');
+  return `exited with ${how.signal ? `signal ${how.signal}` : `code ${how.code}`}`;
 };
 
 const captured = (child: ChildProcess): (() => string) => {
@@ -84,6 +99,22 @@ const captured = (child: ChildProcess): (() => string) => {
   });
   return () => tail;
 };
+
+// 'exit' can come before the last stderr chunk: wait for the stream end, at most 500 ms.
+const flushed = (child: ChildProcess): Promise<void> =>
+  new Promise((resolve) => {
+    if (!child.stderr || child.stderr.readableEnded) return resolve();
+    child.stderr.once('end', resolve);
+    setTimeout(resolve, 500).unref();
+  });
+
+const exitOf = (child: ChildProcess, tail: () => string): Promise<Exit> =>
+  new Promise((resolve) =>
+    child.once('exit', (code, signal) => {
+      const how = { code, signal };
+      void flushed(child).then(() => resolve({ ...how, words: lastWords(tail(), how) }));
+    })
+  );
 
 const portOf = (msg: unknown): number | undefined => {
   const { type, port } = (msg ?? {}) as { type?: unknown; port?: unknown };
@@ -129,11 +160,10 @@ export const forkLaunch = (main = HOST_MAIN, startMs = LIMITS.startMs, rate?: nu
     const clock = clockRate === 1 ? {} : { [CLOCK_RATE_ENV]: String(clockRate) };
     const env = { ...passedEnv(), ...childEnv(spec, secretsDir), ...clock };
     const child = fork(main, [], { env, execArgv: [], stdio: [...stdio] });
-    const exited = new Promise<Exit>((resolve) =>
-      child.once('exit', (code, signal) => resolve({ code, signal }))
-    );
+    const tail = captured(child);
+    const exited = exitOf(child, tail);
     try {
-      const port = await readyOf(child, captured(child), startMs);
+      const port = await readyOf(child, tail, startMs);
       return { port, pid: child.pid ?? 0, exited, stop: stopOf(child, exited) };
     } finally {
       await rm(secretsDir, { recursive: true, force: true });

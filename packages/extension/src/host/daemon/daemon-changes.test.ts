@@ -54,7 +54,10 @@ describe('daemon changes', () => {
     const change = await h!.call('PATCH', '/host/extensions/hosted', {
       settings: { 'echo.prefix': 'hey' },
     });
-    expect(change).toMatchObject({ status: 400, body: { error: { code: 'START_FAILED' } } });
+    expect(change).toMatchObject({
+      status: 400,
+      body: { error: { code: 'VALIDATION_ERROR', details: { code: 'START_FAILED' } } },
+    });
     expect((change.body as { error: { message: string } }).error.message).toContain(
       'health did not answer in 200 ms'
     );
@@ -66,7 +69,10 @@ describe('daemon changes', () => {
     const change = await h!.call('PATCH', '/host/extensions/hosted', {
       settings: { 'echo.prefix': 'hey' },
     });
-    expect(change).toMatchObject({ status: 400, body: { error: { code: 'START_FAILED' } } });
+    expect(change).toMatchObject({
+      status: 400,
+      body: { error: { code: 'VALIDATION_ERROR', details: { code: 'START_FAILED' } } },
+    });
     expect((change.body as { error: { message: string } }).error.message).toContain(
       'health answered 503'
     );
@@ -123,7 +129,10 @@ describe('daemon changes', () => {
     const change = await h.call('PATCH', '/host/extensions/hosted', {
       settings: { 'echo.prefix': 'hey' },
     });
-    expect(change).toMatchObject({ status: 400, body: { error: { code: 'START_FAILED' } } });
+    expect(change).toMatchObject({
+      status: 400,
+      body: { error: { code: 'VALIDATION_ERROR', details: { code: 'START_FAILED' } } },
+    });
     const list = (await h.call('GET', '/host/extensions')).body;
     expect(list).toMatchObject({ data: [{ id: 'hosted', state: 'failed' }] });
   });
@@ -133,7 +142,10 @@ describe('daemon changes', () => {
     await h.call('POST', '/host/extensions', { source: await hostedPackage() });
     await h.call('PATCH', '/host/extensions/hosted', { enabled: false });
     const change = await h.call('PATCH', '/host/extensions/hosted', { enabled: true });
-    expect(change).toMatchObject({ status: 400, body: { error: { code: 'START_FAILED' } } });
+    expect(change).toMatchObject({
+      status: 400,
+      body: { error: { code: 'VALIDATION_ERROR', details: { code: 'START_FAILED' } } },
+    });
     const list = (await h.call('GET', '/host/extensions')).body;
     expect(list).toMatchObject({ data: [{ id: 'hosted', state: 'disabled', enabled: false }] });
   });

@@ -15,6 +15,13 @@ export const LIMITS = {
   // One Installer call (POST, PATCH, each entry at boot), and a change queued behind others:
   // above the cli's npm bound (10 min), below its client wait (12 min).
   installMs: 660_000,
+  // C6: the waits before each restart of a child that exited; the last one repeats.
+  backoffMs: [1_000, 2_000, 4_000, 8_000, 16_000],
+  // C6: this many exits inside crashWindowMs is failed, with no more restarts.
+  crashLimit: 5,
+  crashWindowMs: 600_000,
+  // A child healthy this long has its restart count and exits reset.
+  healthyResetMs: 600_000,
 };
 
 export type Limits = typeof LIMITS;

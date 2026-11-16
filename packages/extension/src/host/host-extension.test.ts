@@ -86,9 +86,9 @@ describe('hostExtension', () => {
     await b.close();
   });
 
-  it('a second host on an open dataDir fails fast with DATA_DIR_LOCKED; the lock names the pid', async () => {
+  it('a second host on an open dataDir fails with DATA_DIR_LOCKED after the open limit; the lock names the pid', async () => {
     const dir = await hostedPackage();
-    const opts = { dataDir: await dataDir(), secrets: SECRETS };
+    const opts = { dataDir: await dataDir(), secrets: SECRETS, storeOpenMs: 300 };
     await host(dir, opts);
     expect(await readFile(`${opts.dataDir}.lock`, 'utf8')).toBe(String(process.pid));
     await expect(hostExtension(dir, opts)).rejects.toMatchObject({ code: DATA_DIR_LOCKED });

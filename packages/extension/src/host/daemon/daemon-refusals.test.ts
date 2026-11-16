@@ -131,9 +131,9 @@ describe('daemon refusals', () => {
     expect(await h.call('GET', '/nowhere')).toMatchObject(code(404, 'NOT_FOUND'));
   });
 
-  it('a failed start is failed with its error in the list and in /health', async () => {
+  it('a missing secret keeps the install failed with its error in the list and in /health', async () => {
     await h.call('POST', '/host/extensions', { source: await hostedPackage() });
-    const error = 'api refused to start: secret api-token has no value';
+    const error = 'needs secret api-token';
     expect((await h.call('GET', '/host/extensions')).body).toMatchObject({
       data: [{ state: 'failed', error }],
     });

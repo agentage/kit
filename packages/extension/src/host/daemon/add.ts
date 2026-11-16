@@ -1,3 +1,5 @@
+import { existsSync } from 'node:fs';
+import { rm } from 'node:fs/promises';
 import { isAbsolute } from 'node:path';
 import { z } from 'zod';
 import { fail } from '../../envelope/envelope.js';
@@ -7,7 +9,9 @@ import { readManifest } from '../../manifest/read-manifest.js';
 import { persist, summary, type Entries } from './entries.js';
 import { runInstaller } from './installer-call.js';
 import { type InstallEntry } from './installation.js';
-import { startEntry, type Entry, type SupervisorDeps } from './supervisor.js';
+import { dataDirOf } from './daemon-files.js';
+import { needsSecret } from './start-checks.js';
+import { startEntry, startFailed, type Entry, type SupervisorDeps } from './supervisor.js';
 
 const RESERVED_ID = 'host';
 
@@ -55,7 +59,23 @@ const marketEntry = async (
   return { install: { id: got.id, version: got.version }, dir: got.dir, version: got.version };
 };
 
-// POST: installs (or links a folder), records it, then starts it; a failed start stays listed as failed.
+// C6: a new id that did not start leaves no row; only a data folder this start made goes too.
+const rollBack = async (deps: SupervisorDeps, entries: Entries, entry: Entry, fresh: boolean) => {
+  entries.delete(entry.id);
+  await persist(deps, entry.id);
+  if (fresh) await rm(dataDirOf(deps.configDir, entry.id), { recursive: true, force: true });
+};
+
+// The first start; refused and rolled back unless it waits for a secret or the daemon stops (kept).
+const firstStart = async (deps: SupervisorDeps, entries: Entries, entry: Entry) => {
+  const fresh = !existsSync(dataDirOf(deps.configDir, entry.id));
+  const err = await startEntry(deps, entry);
+  if (!err || needsSecret(err) || deps.stopping.signal.aborted) return;
+  await rollBack(deps, entries, entry, fresh);
+  throw startFailed(entry, err);
+};
+
+// POST: installs (or links a folder), records it, then starts it (C6: a failed start is refused).
 export const addExtension = async (deps: SupervisorDeps, entries: Entries, body: unknown) => {
   const spec = parse(AddSchema, body, 'Invalid body');
   const got =
@@ -68,6 +88,6 @@ export const addExtension = async (deps: SupervisorDeps, entries: Entries, body:
   await persist(deps, install.id, install);
   const entry: Entry = { ...got, id: install.id, install, state: 'disabled' };
   entries.set(entry.id, entry);
-  if (!off) await startEntry(deps, entry);
+  if (!off) await firstStart(deps, entries, entry);
   return summary(entry);
 };

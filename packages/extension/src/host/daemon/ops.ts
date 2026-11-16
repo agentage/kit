@@ -3,6 +3,7 @@ import { z } from 'zod';
 import { fail } from '../../envelope/envelope.js';
 import { parse } from '../../envelope/parse.js';
 import { SecretNameSchema } from '../../manifest/primitives.schema.js';
+import { VersionSpecSchema } from './add.js';
 import { clearRunDir, purgeData } from './daemon-files.js';
 import { unmarkReload } from './reload-marker.js';
 import { entryOf, summary, type Entries } from './entries.js';
@@ -21,7 +22,7 @@ import {
 } from './supervisor.js';
 
 const PatchSchema = z.strictObject({
-  version: z.string().min(1).optional(),
+  version: VersionSpecSchema.optional(),
   enabled: z.boolean().optional(),
   settings: z.record(z.string(), z.unknown()).optional(),
   secrets: z.record(SecretNameSchema, z.string()).optional(),

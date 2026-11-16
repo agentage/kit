@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { mkdir, readdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 import type * as Esbuild from 'esbuild';
+import { APP_DIR, APP_META_FILE } from '../manifest/parts.js';
 import { exists } from './stage.js';
 import { loadFrom, packageDir, resolveFrom } from './app-load.js';
 
@@ -13,11 +14,6 @@ export const APP_EXTERNALS = [
   'react-dom/client',
   '@agentage/app',
 ] as const;
-
-export const APP_DIR = join('dist', 'app');
-
-// The hashed file names of the last build: the host puts them in discovery and in the app event.
-export const APP_META_FILE = 'app.json';
 
 export interface AppFiles {
   entry: string;

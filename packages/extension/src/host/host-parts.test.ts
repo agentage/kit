@@ -131,7 +131,9 @@ describe('two parts, one check name; a stop while a job runs', () => {
     process.off('unhandledRejection', rejected);
     expect(rejected).not.toHaveBeenCalled();
     const { server } = await host({ dataDir: data, secrets: SECRETS }, dir);
-    expect((await server.fetch('/api/all/ticks')).status).toBe(200);
+    // The run that was going when stop() came wrote its row before the store closed.
+    const ticks = await server.fetch('/api/all/ticks');
+    expect(await ticks.json()).toMatchObject({ data: { total: 1 } });
     await server.close();
   });
 });

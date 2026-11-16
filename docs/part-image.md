@@ -68,8 +68,8 @@ the port of the socket. A client checks support with `capabilities` from `/tool`
 `container` (`build --container`), `localOnly`, `installDisabled` (`POST /host/extensions` takes
 `enabled: false`), `updateInstallation` and `withFileLock` (the exports below).
 
-On loopback there is no token check. SIGTERM drains the open requests, closes the store and
-exits 0. `ctx.exit()` does the same. The host brings `@electric-sql/pglite`; the package does not
+On loopback there is no token check. SIGTERM drains the open requests, waits for a job run still
+going (3 s at most), closes the store and exits 0. `ctx.exit()` does the same. The host brings `@electric-sql/pglite`; the package does not
 need it.
 
 The daemon (`createDaemon`) answers `/api/{id}/*` from the child of that extension. It answers 404

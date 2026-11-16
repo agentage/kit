@@ -37,7 +37,8 @@ export interface SchedulerDeps {
 export interface Scheduler {
   schedule: Schedule;
   start(): void;
-  stop(): void;
+  // No new run; resolves once the runs still going have ended (the caller bounds the wait).
+  stop(): Promise<void>;
   run(name: string): Promise<JobRun | undefined>;
   checks(): Record<string, HealthCheck>;
 }
@@ -48,6 +49,7 @@ interface State {
   rate: number;
   entries: Map<string, Entry>;
   started: boolean;
+  running: Set<Promise<JobRun>>;
 }
 
 // A timer overdue by this much means the process stalled: the job is late.
@@ -98,8 +100,13 @@ const runJob = async (entry: Entry, log: Log, buffer: RunBuffer) => {
 };
 
 // Never twice at once; every run saved with its log, a failed save is logged and the job goes on.
-const execute = (s: State, entry: Entry): Promise<JobRun> =>
-  requestScope.run({ agcid: uuidv7() }, () => executeScoped(s, entry));
+const execute = (s: State, entry: Entry): Promise<JobRun> => {
+  const run = requestScope.run({ agcid: uuidv7() }, () => executeScoped(s, entry));
+  s.running.add(run);
+  const gone = () => void s.running.delete(run);
+  run.then(gone, gone);
+  return run;
+};
 
 // Inside the run's scope: every log line of the job, its failure and its save share one agcid.
 const executeScoped = async (s: State, entry: Entry): Promise<JobRun> => {
@@ -164,11 +171,15 @@ export const createScheduler = (deps: SchedulerDeps): Scheduler => {
     rate,
     entries: new Map(),
     started: false,
+    running: new Set(),
   };
   return {
     schedule: scheduleOn(s),
     start: () => setStarted(s, true),
-    stop: () => setStarted(s, false),
+    stop: async () => {
+      setStarted(s, false);
+      await Promise.allSettled([...s.running]);
+    },
     run: async (name) => {
       const entry = s.entries.get(name);
       return entry && !entry.running ? execute(s, entry) : undefined;

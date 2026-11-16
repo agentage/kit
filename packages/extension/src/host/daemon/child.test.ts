@@ -117,12 +117,15 @@ describe('forkLaunch hand-over', () => {
       setInterval(() => undefined, 1000);
     `);
     process.env['S111_NOT_PASSED'] = 'x';
+    // G1: a daemon child stays on PGlite even when the daemon's own env names an estate store.
+    process.env['AGENTAGE_STORE_URL_FILE'] = '/run/secrets/store-url';
     try {
       const secrets = { 'api-token': 'tok', other: 'not declared' };
       const child = await forkLaunch(main, undefined, undefined, OFF)({ ...SPEC, secrets });
       await child.stop();
     } finally {
       delete process.env['S111_NOT_PASSED'];
+      delete process.env['AGENTAGE_STORE_URL_FILE'];
     }
     const seen = JSON.parse(await readFile(out, 'utf8')) as Record<string, unknown> & { d: string };
     const run = join(SPEC.configDir, 'run', 'probe');
@@ -136,5 +139,6 @@ describe('forkLaunch hand-over', () => {
     const allowed =
       /^(PORT|AGENTAGE_.*|NODE_CHANNEL_.*|PATH|HOME|TMPDIR|LANG|NODE_EXTRA_CA_CERTS)$/;
     expect((seen['keys'] as string[]).filter((k) => !allowed.test(k))).toEqual([]);
+    expect(seen['keys']).not.toContain('AGENTAGE_STORE_URL_FILE');
   });
 });

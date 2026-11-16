@@ -17,6 +17,8 @@ export interface StoreTimeouts {
 
 // A part's query is bounded by the server and, if the network itself hangs, by the client too.
 export const PART_TIMEOUTS: StoreTimeouts = { connectMs: 5_000, statementMs: 10_000 };
+// A migration may rewrite a table: minutes, not a request's seconds.
+export const MIGRATE_TIMEOUTS: StoreTimeouts = { connectMs: 10_000, statementMs: 300_000 };
 const CLIENT_SLACK_MS = 2_000;
 
 // The host sets the connection: AGENTAGE_STORE_URL, a secret file named by _FILE, else libpq PG* env.

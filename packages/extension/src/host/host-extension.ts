@@ -12,11 +12,11 @@ import { type HostPartKind } from '../manifest/parts.js';
 import { readManifest } from '../manifest/read-manifest.js';
 import { buildInfoFromEnv, type Env } from '../runtime/build-info.js';
 import { type PartAppBase } from '../server/app.js';
-import { storeCheck } from '../store/store.js';
 import { hostClockRate } from '../worker/clock.js';
 import { localOnly } from './daemon/guard.js';
 import { hostPartsOf, type HostedParts, type Hosting } from './host-parts.js';
 import { openHostStore, STORE_OPEN_MS } from './host-store.js';
+import { hostStoreChecks, openUrlStore } from './host-url-store.js';
 
 export interface HostOptions {
   dataDir: string;
@@ -33,6 +33,8 @@ export interface HostOptions {
   localPorts?: number[];
   // The wait for the store to open, STORE_OPEN_MS when left out; past it /health says unavailable.
   storeOpenMs?: number;
+  // AGENTAGE_STORE_URL_FILE: postgres or clickhouse from the estate in place of PGlite (G1, G2).
+  storeUrlFile?: string;
 }
 
 export interface HostedExtension {
@@ -64,7 +66,7 @@ const once = (fn: () => void): (() => void) => {
 
 const baseOf = async (h: Hosting): Promise<PartAppBase> => {
   const guard = (await h.extras.guard?.(h.pkg, h.log)) ?? {};
-  const checks = { ...(h.store && { store: storeCheck(h.store) }), ...guard.checks };
+  const checks = { ...hostStoreChecks(h.store), ...guard.checks };
   const resolved = { instance: randomBytes(4).toString('hex'), startedAt: Date.now() };
   const clockRate = hostClockRate();
   const guards = h.opts.localOnly ? [localOnly(undefined, h.opts.localPorts)] : undefined;
@@ -103,7 +105,8 @@ export const hostWith = async (dir: string, opts: HostOptions, extras: HostExtra
   const log = createLog({ extension: pkg.agentage.id, part: 'api', version: pkg.version });
   const openMs = opts.storeOpenMs ?? STORE_OPEN_MS;
   const at = { dir, dataDir: opts.dataDir, runDir: opts.runDir, openMs };
-  const store = await openHostStore(pkg, at, log);
+  const url = { dir, file: opts.storeUrlFile, openMs };
+  const store = (await openUrlStore(pkg, url, log)) ?? (await openHostStore(pkg, at, log));
   const onExit = once(opts.onExit ?? (() => undefined));
   const build = extras.build ?? (await hostBuildInfo({}, dir));
   const h: Hosting = { dir, pkg, log, opts, extras, store, onExit, build };

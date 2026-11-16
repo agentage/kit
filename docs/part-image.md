@@ -31,18 +31,19 @@ jobs start after every `create` and stop before the store closes. With no token 
 port or at the port of `AGENTAGE_ORIGIN`. The daemon child and the one container run the entry
 `node node_modules/@agentage/extension/dist/host/main.js`.
 
-| Env                      | Meaning                                                                                                                                                                                                                                                                         |
-| ------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `PORT`                   | the port, `8080` by default; `0` lets the OS pick, and the port goes to the parent over IPC                                                                                                                                                                                     |
-| `AGENTAGE_EXTENSION_DIR` | the package folder, the current folder by default                                                                                                                                                                                                                               |
-| `AGENTAGE_DATA_DIR`      | the PGlite folder of a postgres store; `<dir>.lock` holds the pid. Unset: in memory, a warn line                                                                                                                                                                                |
-| `AGENTAGE_RUN_DIR`       | the daemon's `run/{id}`: the store lock is `run/{id}/store.lock` there in place of `<dir>.lock`. Unset (the one container): `<dir>.lock`                                                                                                                                        |
-| `AGENTAGE_SETTINGS`      | JSON of setting values over the manifest defaults                                                                                                                                                                                                                               |
-| `AGENTAGE_SECRETS_DIR`   | one file per declared secret, `/run/secrets` by default                                                                                                                                                                                                                         |
-| `AGENTAGE_ORIGIN`        | `ctx.extension.origin`, `http://127.0.0.1:<PORT>` by default                                                                                                                                                                                                                    |
-| `AGENTAGE_DRAIN_MS`      | how long SIGTERM may drain before exit 1, `10000` by default                                                                                                                                                                                                                    |
-| `AGENTAGE_STORE_OPEN_MS` | how long the store may take to open (and to close), `120000` by default; then the api starts and `/health` says the store is `unavailable` until it opens. Under the daemon it is the daemon's `healthMs` (raise both with `createDaemon({ healthMs })`, and `startMs` with it) |
-| `AGENTAGE_HOST_BIND=all` | listen on every address. It needs a token check (`AGENTAGE_ISSUER`, `AGENTAGE_AUDIENCE`, `AGENTAGE_ORIGIN`) or `AGENTAGE_HOST_AUTH=off`                                                                                                                                         |
+| Env                       | Meaning                                                                                                                                                                                                                                                                         |
+| ------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `PORT`                    | the port, `8080` by default; `0` lets the OS pick, and the port goes to the parent over IPC                                                                                                                                                                                     |
+| `AGENTAGE_EXTENSION_DIR`  | the package folder, the current folder by default                                                                                                                                                                                                                               |
+| `AGENTAGE_DATA_DIR`       | the PGlite folder of a postgres store; `<dir>.lock` holds the pid. Unset: in memory, a warn line                                                                                                                                                                                |
+| `AGENTAGE_RUN_DIR`        | the daemon's `run/{id}`: the store lock is `run/{id}/store.lock` there in place of `<dir>.lock`. Unset (the one container): `<dir>.lock`                                                                                                                                        |
+| `AGENTAGE_SETTINGS`       | JSON of setting values over the manifest defaults                                                                                                                                                                                                                               |
+| `AGENTAGE_SECRETS_DIR`    | one file per declared secret, `/run/secrets` by default                                                                                                                                                                                                                         |
+| `AGENTAGE_ORIGIN`         | `ctx.extension.origin`, `http://127.0.0.1:<PORT>` by default                                                                                                                                                                                                                    |
+| `AGENTAGE_DRAIN_MS`       | how long SIGTERM may drain before exit 1, `10000` by default                                                                                                                                                                                                                    |
+| `AGENTAGE_STORE_OPEN_MS`  | how long the store may take to open (and to close), `120000` by default; then the api starts and `/health` says the store is `unavailable` until it opens. Under the daemon it is the daemon's `healthMs` (raise both with `createDaemon({ healthMs })`, and `startMs` with it) |
+| `AGENTAGE_STORE_URL_FILE` | the estate's store (G1, G2): a file with a `postgres://` URL for a postgres store, an `http://` URL for a clickhouse store. Set, the host opens it in place of PGlite (never both); see [Estate stores in the host](#estate-stores-in-the-host)                                 |
+| `AGENTAGE_HOST_BIND=all`  | listen on every address. It needs a token check (`AGENTAGE_ISSUER`, `AGENTAGE_AUDIENCE`, `AGENTAGE_ORIGIN`) or `AGENTAGE_HOST_AUTH=off`                                                                                                                                         |
 
 The one container (`build --container`) sets `AGENTAGE_HOST_BIND=all`, `PORT=8080` and
 `AGENTAGE_DRAIN_MS=8000`. With a postgres store it also sets `AGENTAGE_DATA_DIR=/data/store` on the
@@ -58,6 +59,74 @@ docker run -p 8080:8080 -e AGENTAGE_HOST_AUTH=off -v probe-data:/data ghcr.io/ag
 - The drain ends within 8 s, under the 10 s of `docker stop`. A longer drain needs both a higher
   `AGENTAGE_DRAIN_MS` and `docker run --stop-timeout <s>`.
 - `--read-only` works: only `/data` is written, and `/tmp` needs no tmpfs.
+
+### Estate stores in the host
+
+With `AGENTAGE_STORE_URL_FILE` set, the host (the one container, `serveHost`, `hostExtension(dir, {
+storeUrlFile })`) opens the store of the estate:
+
+| Store kind   | The file holds                    | The host                                                                                                               |
+| ------------ | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------- |
+| `postgres`   | `postgres://user:pw@host:5432/db` | a `pg` pool as `ctx.store`; it never migrates: `checks["store:migrations"]` is `unavailable` until the migrate job ran |
+| `clickhouse` | `http://user:pw@host:8123/db`     | a client over the HTTP interface as `ctx.store`; `clickhouseOf(ctx)` gives `query`, `command`, `insert`, `ping`        |
+
+- Unset: a postgres store is PGlite in `AGENTAGE_DATA_DIR`, as before. The daemon does not pass the
+  variable to its children.
+- A missing or empty file, or a URL of the wrong scheme, stops the start. The error names the
+  variable and the file, never the URL.
+- A store that is down does not stop the start: the host waits `AGENTAGE_STORE_OPEN_MS`, then
+  serves, and `/health` is 503 until the store answers.
+- `/health` keeps `checks.store` and adds `checks["store:postgres"]` or `checks["store:clickhouse"]`
+  (one probe answers both), so a reader sees which store answered. A PGlite store has
+  `checks.store` only.
+- A package with another store kind (or none) logs a warn and ignores the file.
+
+#### The migrate job (contract for the estate)
+
+The same image runs the migrations as a one-shot job, before the service update:
+
+|         |                                                                                                                                                                                                                 |
+| ------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Command | `node node_modules/@agentage/extension/dist/host/main.js migrate` (the image's `WORKDIR` is the package)                                                                                                        |
+| Env     | `AGENTAGE_STORE_URL_FILE` (the service's own file); `AGENTAGE_EXTENSION_DIR` only when the package is elsewhere                                                                                                 |
+| Exit 0  | the kit and package migrations, then the seeds once, are applied; stdout is one JSON line `{"migrations":n,"applied":n,"seeds":n,"seedsBefore":n}`. A package with no postgres store exits 0 with nothing to do |
+| Exit 1  | no variable, a bad file, a store that cannot be reached, or a failing migration (named in the JSON log on stderr). The URL is never printed                                                                     |
+| Limits  | 10 s to connect, 5 min a statement; no retry inside the job                                                                                                                                                     |
+| Run     | a Swarm `replicated-job` with one replica, then the service update; a rerun applies nothing new                                                                                                                 |
+
+The serving container does not migrate: until the job ran, `checks["store:migrations"]` is
+`unavailable` (503) and a warn line names the pending files. Once the ledger holds every file of
+the image, the check stays `ok`. The local daemon is not changed: its PGlite store migrates when it
+opens.
+
+```bash
+docker run --rm -e AGENTAGE_STORE_URL_FILE=/run/secrets/store-url \
+  -v ./store-url:/run/secrets/store-url:ro ghcr.io/agentage/probe:0.8.0 \
+  node node_modules/@agentage/extension/dist/host/main.js migrate
+```
+
+#### A clickhouse store
+
+```ts
+import { clickhouseOf, type ApiCreate } from '@agentage/extension';
+
+export const create: ApiCreate = (ctx) => {
+  const ch = clickhouseOf(ctx);
+  return async (req, res) => {
+    const { rows } = await ch.query('SELECT count() AS n FROM events WHERE kind = {kind:String}', {
+      kind: String(req.query.kind),
+    });
+    res.json(rows);
+  };
+};
+```
+
+A store that cannot be reached, a server timeout (`159`), too many queries (`202`), a proxy
+502-504 with no ClickHouse code and a socket closed mid-answer are `UNAVAILABLE` (503). Any other
+ClickHouse error keeps its own code on `err.code` (`60` no table, `243` no space). Pass `insert_deduplication_token` in `settings` so a
+retried batch is a no-op. A `Date` parameter goes as epoch seconds; one with milliseconds needs a `DateTime64(3)`
+parameter. A read waits for the whole answer (`wait_end_of_query`), so a late error is an error,
+not a row.
 
 `localOnly(port)` from `@agentage/extension/host` is the guard of the daemon, as Express middleware.
 A request needs the Host `127.0.0.1` or `localhost` at that port (`[::1]` is refused: nothing

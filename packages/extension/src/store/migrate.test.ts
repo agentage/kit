@@ -10,6 +10,7 @@ const pool = vi.hoisted(() => ({
 
 // The entry builds a pg pool from env; here that pool is an in-process store, booted in a hook.
 vi.mock('./store.js', () => ({
+  MIGRATE_TIMEOUTS: { connectMs: 10_000, statementMs: 300_000 },
   createStore: (_env: unknown, _log: unknown, timeouts: unknown) => {
     pool.opened.push(timeouts);
     return { query: pool.store?.query, end: async () => void (pool.ended += 1) };

@@ -64,6 +64,9 @@ describe('hostEnvOf', () => {
       storeOpenMs: 120_000,
     });
     expect(hostEnvOf({ AGENTAGE_STORE_OPEN_MS: '500' }).storeOpenMs).toBe(500);
+    expect(hostEnvOf({ AGENTAGE_STORE_URL_FILE: '/run/secrets/store-url' }).storeUrlFile).toBe(
+      '/run/secrets/store-url'
+    );
     expect(hostEnvOf({ AGENTAGE_DRAIN_MS: '8000' }).drainMs).toBe(8000);
     expect(hostEnvOf({ AGENTAGE_DRAIN_MS: '-1' }).drainMs).toBe(10_000);
   });

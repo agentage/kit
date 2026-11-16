@@ -101,11 +101,14 @@ const apiSurface = async ({ dir, pkg }: CheckInput): Promise<Finding[]> => {
   return found.map((problem) => ({ file: OPENAPI_FILE, problem }));
 };
 
+// As the server lists it: title, annotations and outputSchema only when set.
 const listed = (id: string, { name, spec }: ToolEntry): Json => ({
   name: prefixed(id, name),
+  ...(spec.title !== undefined && { title: spec.title }),
   description: spec.description,
   inputSchema: schemaOf(spec.input, 'input'),
-  outputSchema: schemaOf(spec.output, 'output'),
+  ...(spec.output && { outputSchema: schemaOf(spec.output, 'output') }),
+  ...(spec.annotations && { annotations: spec.annotations }),
 });
 
 const byName = ({ serverInfo, tools }: McpSnapshot): Json => ({

@@ -4,16 +4,17 @@ import cors from 'cors';
 import express, { type Express, type Request, type Response } from 'express';
 import { createMcpHandler, type McpHttpHandler } from '@modelcontextprotocol/server';
 import { requestScope } from '../agcid/current.js';
-import { setCaller, strongest, type Access } from '../auth/token-check.js';
+import { setCaller, strongest, type Access, type Caller } from '../auth/token-check.js';
 import { fail } from '../envelope/envelope.js';
 import { declaredType, printable } from '../log/who.js';
 import { BODY_LIMIT, createPartApp, PUBLIC_CORS, type PartAppBase } from '../server/app.js';
-import { serverFactory } from './server.js';
-import { prefixed, type ToolEntry } from './tools.js';
+import { authInfoOf, serverFactory } from './server.js';
+import { prefixed, type Instructions, type ToolEntry } from './tools.js';
 
 export interface McpAppOptions extends PartAppBase {
   tools: ToolEntry[];
   listing: 'open' | 'token';
+  instructions?: Instructions;
   // Where the endpoint is: /mcp in a part image, /mcp/{id} in a host process.
   paths?: string[];
 }
@@ -60,18 +61,30 @@ const callAccess = (options: McpAppOptions, body: unknown): Access[] =>
       return entry?.spec.scope ?? 'read';
     });
 
+const OPENING = new Set(['initialize', 'server/discover']);
+
+const isOpening = (body: unknown): boolean =>
+  messagesOf(body).some((message) => OPENING.has(String(message?.method)));
+
+// Instructions made per caller: the opening message reads a bearer when one is sent.
+const openingAccess = (options: McpAppOptions, body: unknown): Access[] =>
+  typeof options.instructions === 'function' && isOpening(body) ? ['optional'] : [];
+
 // Tokens off: calls stay anonymous and a closed listing refuses every tools/list (nothing can verify).
-const guard = async (options: McpAppOptions, req: Request, body: unknown): Promise<boolean> => {
+const guard = async (options: McpAppOptions, req: Request, body: unknown) => {
   const listing = options.listing === 'token' && isListing(body) ? (['read'] as Access[]) : [];
-  const needed = [...listing, ...callAccess(options, body)];
+  const needed = [...listing, ...callAccess(options, body), ...openingAccess(options, body)];
   if (!options.tokenCheck) {
     if (listing.length > 0) throw fail('UNAUTHORIZED', 'tools/list needs a token');
-    return false;
+    return null;
   }
-  if (needed.length === 0) return false;
-  const caller = await options.tokenCheck(req.get('authorization'), strongest(needed));
+  if (needed.length === 0) return null;
+  const caller: Caller | null = await options.tokenCheck(
+    req.get('authorization'),
+    strongest(needed)
+  );
   setCaller(req, caller);
-  return caller !== null;
+  return caller;
 };
 
 // A tools/call leaves its mcp row and no http row (Q1); initialize names the client (Q14).
@@ -120,9 +133,11 @@ const handle =
     const message = parsed(body);
     // The SDK reads a body again when given none (a BOM, say): it must only run what guard read.
     if (message === undefined) return void res.status(400).json(PARSE_ERROR);
-    const auth = await guard(options, req, message);
+    const caller = await guard(options, req, message);
     markRow(options, req, res, message);
-    await send(await handler.fetch(webRequest(req, body), { parsedBody: message }), res, auth);
+    const authInfo = authInfoOf(caller, isOpening(message));
+    const answer = await handler.fetch(webRequest(req, body), { parsedBody: message, authInfo });
+    await send(answer, res, caller !== null);
   };
 
 const methodNotAllowed = (_req: Request, res: Response): void => {
@@ -135,7 +150,8 @@ const methodNotAllowed = (_req: Request, res: Response): void => {
 // Stateless Streamable HTTP on SDK v2: POST only, GET and DELETE (sessions) answer 405.
 export const mountMcp = (app: Express, options: McpAppOptions): void => {
   const identity = { id: options.pkg.agentage.id, version: options.pkg.version };
-  const handler = createMcpHandler(serverFactory(identity, options.tools, options.log), {
+  const factory = serverFactory(identity, options.tools, options.log, options.instructions);
+  const handler = createMcpHandler(factory, {
     legacy: 'stateless',
     onerror: (err) => options.log.warn('mcp request refused', { reason: err.message }),
   });

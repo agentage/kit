@@ -1,19 +1,32 @@
 import { type z } from 'zod';
-import { ACCESS, badScope, type Access } from '../auth/token-check.js';
+import { ACCESS, badScope, type Access, type Caller } from '../auth/token-check.js';
 import { type PartContext } from '../context/context.js';
 
 type ObjectSchema = z.ZodObject;
 
+// The MCP tool hints, typed here: the tool entry (check) loads no server dependency.
+export interface ToolAnnotations {
+  readOnlyHint?: boolean;
+  destructiveHint?: boolean;
+  idempotentHint?: boolean;
+  openWorldHint?: boolean;
+}
+
 export interface ToolSpec<I extends ObjectSchema, O extends ObjectSchema> {
+  title?: string;
   description: string;
   input: I;
-  output: O;
+  // Left out: the result is text only, no structuredContent.
+  output?: O;
+  annotations?: ToolAnnotations;
   // What tools/call needs: {id}:{scope}, or public; read when left out (optional is routes only).
   scope?: Exclude<Access, 'optional'>;
 }
 
+// The caller is null with no token check (a daemon child) or on a public tool.
 export type ToolHandler<I extends ObjectSchema, O extends ObjectSchema> = (
-  args: z.output<I>
+  args: z.output<I>,
+  caller: Caller | null
 ) => z.input<O> | Promise<z.input<O>>;
 
 // Registers a tool under its own name; the kit serves it as {id}__{name}.
@@ -23,14 +36,18 @@ export type ToolRegistrar = <I extends ObjectSchema, O extends ObjectSchema>(
   handler: ToolHandler<I, O>
 ) => void;
 
+// What initialize tells the model: one text, or one per caller (production names the caller's vaults).
+export type Instructions = string | ((caller: Caller | null) => string | Promise<string>);
+
 export interface McpContext extends PartContext {
   readonly tool: ToolRegistrar;
+  readonly instructions: (instructions: Instructions) => void;
 }
 
 export interface ToolEntry {
   name: string;
   spec: ToolSpec<ObjectSchema, ObjectSchema>;
-  handler: (args: Record<string, unknown>) => unknown;
+  handler: (args: Record<string, unknown>, caller: Caller | null) => unknown;
 }
 
 const TOOL_NAME = /^[a-z][a-z0-9_-]*$/;
@@ -47,7 +64,12 @@ export const createToolRegistry = () => {
     if (bad) throw new Error(`tool ${name} ${bad}`);
     tools.push({ name, spec, handler: handler as ToolEntry['handler'] });
   };
-  return { tool, tools };
+  const served: { instructions?: Instructions } = {};
+  const instructions = (value: Instructions) => {
+    if (served.instructions !== undefined) throw new Error('instructions are set twice');
+    served.instructions = value;
+  };
+  return { tool, tools, instructions, served };
 };
 
 export const prefixed = (id: string, name: string): string => `${id}__${name}`;

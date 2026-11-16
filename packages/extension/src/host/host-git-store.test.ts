@@ -174,9 +174,12 @@ describe('the push remote from AGENTAGE_STORE_URL_FILE (cloud)', () => {
     );
     server.close();
     expect(out.status).not.toBe(0);
-    expect(seen[0]).toBe(`Basic ${Buffer.from('gitter:s3cret-pw').toString('base64')}`);
-    for (const shown of [args.join(' '), out.stdout, out.stderr, lines.join('')])
+    const basic = Buffer.from('gitter:s3cret-pw').toString('base64');
+    expect(seen[0]).toBe(`Basic ${basic}`);
+    for (const shown of [args.join(' '), out.stdout, out.stderr, lines.join('')]) {
       expect(shown).not.toContain('s3cret-pw');
+      expect(shown).not.toContain(basic);
+    }
     await store?.close();
   });
 

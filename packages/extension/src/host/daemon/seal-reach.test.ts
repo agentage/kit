@@ -1,3 +1,6 @@
+import { mkdirSync, mkdtempSync, symlinkSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { assertReach } from './seal-reach.js';
 
@@ -41,5 +44,40 @@ describe('the trees a sealed child may read inside the config dir (C2)', () => {
 
   it('a version tree is granted only to its own id', () => {
     expect(reach(`${EXT}/packages/trees/spy@1.0.0`, 'spy')).not.toThrow();
+  });
+
+  it.each([
+    ['a version with +build', `${EXT}/packages/trees/probe@0.7.0+build.5`, false],
+    ['a trailing slash on its own tree', `${EXT}/packages/trees/probe@0.7.0/`, false],
+    ['a trailing slash on the trees folder', `${EXT}/packages/trees/`, true],
+  ])('%s', (_name, grant, refusedGrant) => {
+    const run = expect(reach(grant));
+    if (refusedGrant) run.toThrow('would expose the agentage config folder');
+    else run.not.toThrow();
+  });
+});
+
+describe('a symlinked tree folder is judged by its real path', () => {
+  const setup = () => {
+    const cfg = mkdtempSync(join(tmpdir(), 'seal-reach-'));
+    const trees = join(cfg, 'extensions', 'packages', 'trees');
+    mkdirSync(join(trees, 'spy@1.0.0'), { recursive: true });
+    mkdirSync(join(cfg, 'data'), { recursive: true });
+    return { cfg, trees };
+  };
+
+  it.each([
+    ['the config folder', (cfg: string) => cfg],
+    [
+      'the tree of another id',
+      (cfg: string) => join(cfg, 'extensions', 'packages', 'trees', 'spy@1.0.0'),
+    ],
+  ])('probe@x pointing at %s is refused', (_name, target) => {
+    const { cfg, trees } = setup();
+    const link = join(trees, 'probe@0.7.0');
+    symlinkSync(target(cfg), link);
+    expect(() => assertReach([link], [], cfg, 'probe')).toThrow(
+      'would expose the agentage config folder'
+    );
   });
 });

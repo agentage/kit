@@ -19,11 +19,13 @@ const partsLine = ({ container }: BuildResult): string[] => {
 // One line per image (the one image as "image"), the parts it runs and skips, then the record.
 export const buildLines = (result: BuildResult, cwd: string = process.cwd()): string[] => {
   const rows = rowsOf(result);
+  const warned = result.warnings ?? [];
   const width = Math.max(...rows.map((row) => row.tag.length)) + 2;
   const lines = rows.map((row) => {
     const state = row.digest ? `${shortDigest(row.digest)} pushed` : 'built';
     return `${row.label.padEnd(8)}${row.tag.padEnd(width)}${state}`;
   });
+  lines.unshift(...warned);
   lines.push(...partsLine(result));
   if (result.recordFile) lines.push(`${'record'.padEnd(8)}${relative(cwd, result.recordFile)}`);
   return lines;
@@ -36,7 +38,7 @@ const lineOf = (found: CheckProblem): string => `${found.rule}: ${where(found)}$
 
 export const problemLines = (report: CheckReport): string[] => report.problems.map(lineOf);
 
-const warningLines = ({ warnings = [] }: CheckReport): string[] =>
+export const warningLines = ({ warnings = [] }: CheckReport): string[] =>
   warnings.map((found) => `warning ${lineOf(found)}`);
 
 // What `agentage extension check` prints (sheet C2): the rules line and PASS, or each problem and FAIL; warnings first.

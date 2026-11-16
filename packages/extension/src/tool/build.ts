@@ -50,6 +50,7 @@ export interface BuildResult {
   images: BuiltImage[];
   container?: BuiltContainer;
   recordFile?: string;
+  warnings?: string[];
 }
 
 interface PartJob {
@@ -153,10 +154,11 @@ export const build = async (
   const parts = options.container ? containerParts(pkg) : undefined;
   const info = await resolveBuildInfo(dir, options.env ?? process.env, deps.run);
   await compile(dir, pkg, deps.run);
-  await assertConforms(dir, { run: deps.run });
+  const warnings = await assertConforms(dir, { run: deps.run });
   const base = { dir, pkg, info };
   const built = parts
     ? await containerOf(base, parts, options, deps)
     : await partImages(base, options, deps);
-  return { id: pkg.agentage.id, version: pkg.version, ...info, ...built };
+  const warned = warnings.length > 0 ? { warnings } : {};
+  return { id: pkg.agentage.id, version: pkg.version, ...info, ...built, ...warned };
 };

@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { json, SPEC_MANIFEST, tempPackage } from '../test-support/packages.js';
 import { assertConforms, check, RULES } from './check.js';
-import { checkLines } from './format.js';
+import { checkLines, buildLines } from './format.js';
 import { KIT_FLOOR, KIT_VERSION, olderKitMinor } from './kit-version.js';
 
 const stack = { rules: RULES.filter((rule) => rule.name === 'stack') };
@@ -41,7 +41,15 @@ describe('check of engines.agentage against the running kit', () => {
     const dir = await tempPackage({
       'package.json': json({ ...SPEC_MANIFEST, engines: { agentage: `^${older}` } }),
     });
-    await expect(assertConforms(dir, stack)).resolves.toBeUndefined();
+    const lines = await assertConforms(dir, stack);
+    expect(lines).toEqual([`warning stack: ${warning}`]);
+    const built = { id: 'probe', version: '0.1.0', commit: 'c', buildTime: 't', images: [] };
+    const result = {
+      ...built,
+      container: { tag: 'x:1', runs: ['a'], skipped: [] },
+      warnings: lines,
+    };
+    expect(buildLines(result)[0]).toBe(`warning stack: ${warning}`);
   });
 
   it.each([

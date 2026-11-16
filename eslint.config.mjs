@@ -13,6 +13,8 @@ export default [
       '**/node_modules/**',
       'packages/extension/schemas/**',
       'packages/widget/src/ds/styles.generated.ts',
+      'packages/shell-dashboard/dist-e2e/**',
+      'packages/shell-dashboard/.vendor/**',
       '**/test-results/**',
       '**/playwright-report/**',
     ],
@@ -22,6 +24,8 @@ export default [
       'packages/*/src/**/*.{ts,tsx}',
       'packages/widget/e2e/**/*.ts',
       'packages/widget/*.config.ts',
+      'packages/shell-dashboard/e2e/**/*.{ts,tsx}',
+      'packages/shell-dashboard/*.config.ts',
     ],
     languageOptions: {
       parser: tsParser,
@@ -63,7 +67,12 @@ export default [
     },
   },
   {
-    files: ['packages/widget/src/**/*.tsx', 'packages/app/src/**/*.tsx'],
+    files: [
+      'packages/widget/src/**/*.tsx',
+      'packages/app/src/**/*.tsx',
+      'packages/shell-dashboard/src/**/*.tsx',
+      'packages/shell-dashboard/e2e/**/*.tsx',
+    ],
     plugins: { 'jsx-a11y': jsxA11y, 'react-hooks': reactHooks },
     rules: { ...jsxA11y.flatConfigs.recommended.rules, ...reactHooks.configs.recommended.rules },
   },

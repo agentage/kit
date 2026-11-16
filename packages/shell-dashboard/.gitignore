@@ -1,0 +1,6 @@
+dist
+dist-e2e
+.vendor
+shots
+test-results
+playwright-report

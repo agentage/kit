@@ -1,0 +1,45 @@
+{
+  "name": "@agentage/shell-dashboard",
+  "version": "0.1.0",
+  "description": "The agentage dashboard shell: a static frame (React 19, Tailwind v4, design-system tokens) that a host serves at / and that mounts each extension app",
+  "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/agentage/platform.git",
+    "directory": "packages/shell-dashboard"
+  },
+  "homepage": "https://agentage.io",
+  "bugs": {
+    "url": "https://github.com/agentage/platform/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "exports": {
+    "./dist/*": "./dist/*",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "verify": "npm run verify --prefix ../..",
+    "test:e2e": "playwright test",
+    "prepublishOnly": "npm run verify"
+  },
+  "devDependencies": {
+    "@agentage/app": "*",
+    "@agentage/design-system": "^0.19.4",
+    "lucide-react": "^1.73.0"
+  },
+  "keywords": [
+    "agentage",
+    "shell",
+    "dashboard"
+  ]
+}

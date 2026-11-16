@@ -110,6 +110,18 @@ jobs:
           grep -qx 'package/dist/index.js' /tmp/pack/identity-files.txt
           if grep -Eq '\.test\.' /tmp/pack/identity-files.txt; then echo 'test files in the identity tarball'; exit 1; fi
 
+      - name: Pack smoke - shell-dashboard (the static dist in, e2e out)
+        run: |
+          set -euo pipefail
+          npm pack -w @agentage/shell-dashboard --pack-destination /tmp/pack
+          tar -tzf /tmp/pack/agentage-shell-dashboard-*.tgz > /tmp/pack/dash-files.txt
+          grep -qx 'package/dist/index.html' /tmp/pack/dash-files.txt
+          grep -qx 'package/dist/shell/shell.js' /tmp/pack/dash-files.txt
+          grep -qx 'package/dist/shell/shell.css' /tmp/pack/dash-files.txt
+          grep -qx 'package/dist/shell/vendor/react.js' /tmp/pack/dash-files.txt
+          grep -qx 'package/dist/shell/vendor/app.js' /tmp/pack/dash-files.txt
+          if grep -Eq '\.test\.|/e2e/|\.spec\.' /tmp/pack/dash-files.txt; then echo 'test files in the shell-dashboard tarball'; exit 1; fi
+
       - name: Pack smoke - shell (dist in, tests out)
         run: |
           set -euo pipefail
@@ -234,6 +246,37 @@ jobs:
           path: |
             packages/widget/playwright-report
             packages/widget/test-results
+          retention-days: 7
+
+  shell-screenshots:
+    name: Shell screenshots
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.1-noble
+      options: --user 1001
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Frame beside the prototype at 1280 and 400 px, axe, CLS, keys (Chromium)
+        run: npm run test:e2e -w @agentage/shell-dashboard
+
+      - name: Screenshots and pixel difference
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: shell-screenshots
+          path: |
+            packages/shell-dashboard/shots
+            packages/shell-dashboard/playwright-report
+            packages/shell-dashboard/test-results
           retention-days: 7
 
   probe-local-gate:

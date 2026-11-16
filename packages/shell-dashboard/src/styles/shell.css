@@ -1,0 +1,53 @@
+/* Tailwind v4 with the design-system token files (no base.css) and the prototype look as a layer (K2). */
+@import 'tailwindcss' source(none);
+@import '@agentage/design-system/primitives.css';
+@import '@agentage/design-system/styles/tokens.css';
+@import './frame.css' layer(components);
+@source '../';
+
+/* K11: the shell-samples/index.html hex values under the design-system token names, dark only. */
+@theme {
+  --color-background: #1f2028;
+  --color-foreground: #ffffff;
+  --color-card: #2e3039;
+  --color-card-foreground: #ffffff;
+  --color-popover: #2e3039;
+  --color-popover-foreground: #ffffff;
+  --color-sidebar: #1f2028;
+  --color-sidebar-foreground: #ffffff;
+  --color-sidebar-border: #3a3d4a;
+  --color-primary: #f5a623;
+  --color-primary-foreground: #1f2028;
+  --color-primary-emphasis: #f5a623;
+  --color-primary-soft: rgb(245 166 35 / 0.12);
+  --color-primary-hover: #d97706;
+  --color-secondary: #2e3039;
+  --color-secondary-foreground: #ffffff;
+  --color-accent: #3a3d4a;
+  --color-accent-foreground: #ffffff;
+  --color-muted: #2e3039;
+  --color-muted-foreground: #a9adc1;
+  --color-destructive: #f08a7e;
+  --color-destructive-foreground: #1f2028;
+  --color-success: #5fd08f;
+  --color-success-foreground: #1f2028;
+  --color-border: #3a3d4a;
+  --color-input: #3a3d4a;
+  --color-ring: #f5a623;
+  --font-sans: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-mono: ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace;
+}
+
+/* Shell additions to the prototype layer: the React root and design-system wrappers fill their slot. */
+@layer components {
+  #root {
+    height: 100%;
+  }
+  .foot > [data-slot='dropdown-menu'] {
+    flex: 1;
+    min-width: 0;
+  }
+  a.row {
+    text-decoration: none;
+  }
+}

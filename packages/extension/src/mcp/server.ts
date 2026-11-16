@@ -4,7 +4,13 @@ import { type Caller } from '../auth/token-check.js';
 import { currentAgcid } from '../agcid/current.js';
 import { fail, isFailure, type Failure } from '../envelope/envelope.js';
 import { type Log } from '../log/log.js';
-import { nameOf, type Instructions, type ToolEntry } from './tools.js';
+import {
+  isToolResult,
+  nameOf,
+  type Instructions,
+  type ToolEntry,
+  type ToolResult,
+} from './tools.js';
 
 export interface ServerIdentity {
   id: string;
@@ -34,8 +40,17 @@ const argsOf = (entry: ToolEntry, args: Record<string, unknown>) => {
   throw fail('VALIDATION_ERROR', `Invalid arguments: ${[...fields].join(', ')}`);
 };
 
+// The tool's own text; its structured part still meets the output schema.
+const ownResultOf = (entry: ToolEntry, { content, isError, structuredContent }: ToolResult) => {
+  if (isError) return { isError, content };
+  if (!entry.spec.output) return { content };
+  const output = entry.spec.output.parse(structuredContent);
+  return { content, structuredContent: output as Record<string, unknown> };
+};
+
 // No output schema: the answer is text only, as a client of a tool with no outputSchema expects.
 const resultOf = (entry: ToolEntry, value: unknown) => {
+  if (isToolResult(value)) return ownResultOf(entry, value);
   if (!entry.spec.output) return { content: text(JSON.stringify(value ?? null)) };
   const output = entry.spec.output.parse(value);
   return {

@@ -23,11 +23,51 @@ export interface ToolSpec<I extends ObjectSchema, O extends ObjectSchema> {
   scope?: Exclude<Access, 'optional'>;
 }
 
+export interface TextContent {
+  type: 'text';
+  text: string;
+}
+
+// A registry symbol, so a result made by a second copy of the kit is still recognised.
+const TOOL_RESULT = Symbol.for('agentage.extension.tool-result');
+
+export interface ToolResult<T = unknown> {
+  readonly [TOOL_RESULT]: true;
+  content: TextContent[];
+  structuredContent?: T;
+  isError?: true;
+}
+
+export interface ToolResultOptions<T> {
+  // Parsed by the output schema; dropped when the tool declares none.
+  structured?: T;
+  // The text alone goes out as the tool error: no structuredContent, no agcid.
+  isError?: true;
+}
+
+// What a tool returns to send its own text (markdown) in place of the kit's JSON of the output.
+export const toolResult = <T = never>(
+  text: string | TextContent[],
+  options: ToolResultOptions<T> = {}
+): ToolResult<T> => ({
+  [TOOL_RESULT]: true,
+  content: typeof text === 'string' ? [{ type: 'text', text }] : text,
+  ...(options.structured !== undefined && { structuredContent: options.structured }),
+  ...(options.isError && { isError: true }),
+});
+
+export const isToolResult = (value: unknown): value is ToolResult =>
+  typeof value === 'object' &&
+  value !== null &&
+  (value as Record<symbol, unknown>)[TOOL_RESULT] === true;
+
+type Answer<O extends ObjectSchema> = z.input<O> | ToolResult<z.input<O>>;
+
 // The caller is null with no token check (a daemon child) or on a public tool.
 export type ToolHandler<I extends ObjectSchema, O extends ObjectSchema> = (
   args: z.output<I>,
   caller: Caller | null
-) => z.input<O> | Promise<z.input<O>>;
+) => Answer<O> | Promise<Answer<O>>;
 
 // Registers a tool under its own name; the kit serves it as {id}__{name}.
 export type ToolRegistrar = <I extends ObjectSchema, O extends ObjectSchema>(

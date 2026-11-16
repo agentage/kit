@@ -17,6 +17,8 @@ export function create(ctx: McpContext) {
     async ({ msg }, caller) => ({ msg: `pong ${msg}` })
   );
   // Optional: title, annotations (hints) and output; instructions as a text or per caller.
+  // The text is the JSON of the output; toolResult(markdown, { structured }) sends own text,
+  // toolResult(text, { isError: true }) a tool error of that text only.
   ctx.instructions((caller) => `Notes of ${caller?.sub ?? 'nobody'}`);
   // The connector profile at /connector/{id}: tools listed by their own name (search, fetch).
   ctx.connector('search', { description, input, output }, async ({ query }, caller) => ({

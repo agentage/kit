@@ -29,6 +29,7 @@ describe('public surface', () => {
       'siteFromDir',
       'startTestMcp',
       'startTestServer',
+      'toolResult',
       'versionPage',
     ]);
   });

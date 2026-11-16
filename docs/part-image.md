@@ -23,8 +23,12 @@ envelope are in [`packages/extension/schemas`](../packages/extension/schemas). R
 
 ## Host one extension
 
-`@agentage/extension/host` exports `hostExtension(dir, opts)`. It serves the api part of the
-package in `dir` at `/api/{id}/*`. The daemon child and the one container run the entry
+`@agentage/extension/host` exports `hostExtension(dir, opts)`. It runs every server part of the
+package in `dir` on one app and one port: the api at `/api/{id}/*`, the mcp at `/mcp/{id}` and
+the worker jobs. The parts share one store and one `/health`, which lists them in `parts`. The
+jobs start after every `create` and stop before the store closes. With no token check,
+`tools/list` is open. On `127.0.0.1` the host accepts only a local Host and Origin, at its own
+port or at the port of `AGENTAGE_ORIGIN`. The daemon child and the one container run the entry
 `node node_modules/@agentage/extension/dist/host/main.js`.
 
 | Env                      | Meaning                                                                                                                                                                                                                                                                         |

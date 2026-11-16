@@ -4,6 +4,9 @@ The dashboard shell: one static folder that a host serves at `/`. It is the fram
 prototype (`shell-samples/index.html`, variant B) in React 19, styled by Tailwind v4 with the
 `@agentage/design-system` token files (no `base.css`) and the prototype CSS as a `components` layer.
 
+This workspace is private: it is not on npm. The root build copies `dist/` into the kit at
+`dist/shell` (`scripts/inline-shell.mjs`), and the daemon serves the kit's own copy.
+
 ## Bundle output
 
 `npm run build` writes `dist/`:
@@ -12,7 +15,7 @@ prototype (`shell-samples/index.html`, variant B) in React 19, styled by Tailwin
 | --------------------------------- | ---------------------- | ------------------------------------------------------------------------------------- |
 | `dist/index.html`                 | `/` and every app page | pre-paint scripts, the import map, `<meta name="agentage-shell" content="<version>">` |
 | `dist/shell.js`, `dist/shell.css` | `/shell/*`             | the frame                                                                             |
-| `dist/vendor/*.js`                | `/shell/vendor/*`      | one React, react-dom and `@agentage/app` for the shell and every app                  |
+| `dist/vendor/*.js`                | `/shell/vendor/*`      | one React, react-dom and `@agentage/extension/app` for the shell and every app        |
 
 The host serves `dist/*` at `/shell/*` (one mapping, `shellFileOf` in `scripts/build.mjs`). A host finds the folder with `import.meta.resolve('@agentage/shell-dashboard/dist/index.html')`.
 
@@ -20,7 +23,7 @@ The host serves `dist/*` at `/shell/*` (one mapping, `shellFileOf` in `scripts/b
 
 `data-region` names from the prototype: `mobile-header`, `nav`, `notices`, `account`, `main`,
 `actions`, `bottom`, `side`, `aside`, plus `toasts`. Apps reach `actions`, `aside`, `notices`,
-`bottom` and `side` through `Region` of `@agentage/app`.
+`bottom` and `side` through `Region` of `@agentage/extension/app`.
 
 ## Rules the code enforces
 
@@ -30,7 +33,7 @@ The host serves `dist/*` at `/shell/*` (one mapping, `shellFileOf` in `scripts/b
 - No layout shift: the pre-paint script in `index.html` sets `--nav-full`, `--aside-w`, `--bot-h`
   and the `nh` (nav hidden) and `bo` (bottom open) classes from `localStorage` (`ag.nav`,
   `ag.aside`, `ag.bot`, `ag.navh`, `ag.bot.open`) before any module; `SPLIT_PREPAINT` of
-  `@agentage/app` does the same for app splits.
+  `@agentage/extension/app` does the same for app splits.
 - Splitters (`role="separator"`): drag, arrows 16 px, Shift 64 px, Home, End.
 - `Ctrl+K` opens the command list (design-system `Command`): one line per app and "Toggle sidebar".
 - Design-system components by subpath: `command`, `dropdown-menu` (account), `icon-button`, `kbd`.

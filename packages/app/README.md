@@ -1,5 +1,11 @@
 # @agentage/extension/app
 
+This workspace (`packages/app`, private) is published only inside the kit: the kit build copies its
+`dist` and `theme.css` to `dist/vendor/app` (`scripts/inline-app.mjs`). React 19 is an optional
+peer of the kit. `Split` imports `@agentage/design-system` (^0.20.1): an app that renders it outside
+the shell (tests) installs it; the shell's copy is in `vendor/app.js`. It is no kit peer, as the
+widget kit still pins 0.19.
+
 The one import of an agentage app. An app is one root component (the default export of
 `src/app/index.tsx`); the shell mounts it in the `main` region and gives it these hooks. The app has
 no code for layout, auth or storage.

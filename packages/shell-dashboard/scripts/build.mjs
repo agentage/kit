@@ -18,7 +18,7 @@ export const EXTERNALS = [
   'react/jsx-runtime',
   'react-dom',
   'react-dom/client',
-  '@agentage/app',
+  '@agentage/extension/app',
 ];
 export const SHELL_URL = '/shell/';
 // `/shell/vendor/react.js` -> `vendor/react.js` in dist/; null for any other path.
@@ -41,7 +41,7 @@ const base = {
 const reexport = (spec, names, withDefault) =>
   `import M from '${spec}';\n${withDefault ? 'export default M;\n' : ''}export const { ${names.join(', ')} } = M;\n`;
 
-// One build with splitting, so react-dom and @agentage/app import the same React chunk.
+// One build with splitting, so react-dom and the app kit import the same React chunk.
 const buildVendor = async (out, tmp) => {
   await mkdir(tmp, { recursive: true });
   const files = {
@@ -84,6 +84,16 @@ export const buildCss = async (out) => {
   await writeFile(join(out, 'shell.css'), res.css);
 };
 
+// The shell source imports the private workspace @agentage/app: the import map names it as apps do.
+export const appAsKit = {
+  name: 'app-as-kit',
+  setup: (b) =>
+    b.onResolve({ filter: /^@agentage\/app$/ }, () => ({
+      path: '@agentage/extension/app',
+      external: true,
+    })),
+};
+
 export const buildShell = async ({
   out,
   entry = 'src/main.tsx',
@@ -95,6 +105,7 @@ export const buildShell = async ({
     entryPoints: [join(pkgDir, entry)],
     outfile: join(out, name),
     external: EXTERNALS,
+    plugins: [appAsKit],
   });
   const { SPLIT_PREPAINT } = await import('@agentage/app');
   const page = (await readFile(join(pkgDir, 'src/index.html'), 'utf8'))

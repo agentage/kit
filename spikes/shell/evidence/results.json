@@ -1,13 +1,13 @@
 {
   "cold": {
-    "vendorMs": 67.1,
-    "shellMs": 5.6,
-    "probeMs": 4.2,
-    "memoryMs": 3.4,
-    "fatMs": 9.6
+    "vendorMs": 130.2,
+    "shellMs": 6,
+    "probeMs": 7.2,
+    "memoryMs": 4,
+    "fatMs": 10
   },
   "bytes": {
-    "app-probe": 931,
+    "app-probe": 940,
     "app-memory": 977,
     "app-fat": 9654,
     "vendor/app.js": 1681,
@@ -48,7 +48,7 @@
     ]
   },
   "region": {
-    "asideText": "Probe details for Alex Doe: draft is \"\"",
+    "asideText": "Probe details for Alex Doe: draft is \"abc\"",
     "asideInsideAsideRegion": true,
     "actionsText": "Probe",
     "memoryAside": "Selected: README.md"
@@ -56,73 +56,73 @@
   "loop": [
     {
       "run": 1,
-      "rebuildMs": 3,
-      "sendToCommitMs": 10.6,
-      "sendToPaintMs": 13.1,
-      "saveToPaintMs": 16.1
+      "rebuildMs": 4,
+      "sendToCommitMs": 10.1,
+      "sendToPaintMs": 11.8,
+      "saveToPaintMs": 15.8
     },
     {
       "run": 2,
       "rebuildMs": 4,
-      "sendToCommitMs": 7.9,
-      "sendToPaintMs": 9.6,
-      "saveToPaintMs": 13.6
+      "sendToCommitMs": 8.6,
+      "sendToPaintMs": 10.4,
+      "saveToPaintMs": 14.4
     },
     {
       "run": 3,
       "rebuildMs": 3,
-      "sendToCommitMs": 7.1,
-      "sendToPaintMs": 14.3,
-      "saveToPaintMs": 17.3
+      "sendToCommitMs": 8.6,
+      "sendToPaintMs": 17.7,
+      "saveToPaintMs": 20.7
     },
     {
       "run": 4,
-      "rebuildMs": 4,
-      "sendToCommitMs": 7.8,
-      "sendToPaintMs": 9,
-      "saveToPaintMs": 13
+      "rebuildMs": 3,
+      "sendToCommitMs": 8.3,
+      "sendToPaintMs": 9.9,
+      "saveToPaintMs": 12.9
     },
     {
       "run": 5,
-      "rebuildMs": 4,
-      "sendToCommitMs": 8.5,
-      "sendToPaintMs": 10.5,
-      "saveToPaintMs": 14.5
+      "rebuildMs": 3,
+      "sendToCommitMs": 7.5,
+      "sendToPaintMs": 14.4,
+      "saveToPaintMs": 17.4
     },
     {
       "run": 6,
-      "rebuildMs": 3,
-      "sendToCommitMs": 7.5,
-      "sendToPaintMs": 9.1,
-      "saveToPaintMs": 12.1
+      "rebuildMs": 4,
+      "sendToCommitMs": 6.3,
+      "sendToPaintMs": 7.9,
+      "saveToPaintMs": 11.9
     },
     {
       "run": 7,
       "rebuildMs": 3,
-      "sendToCommitMs": 6.4,
-      "sendToPaintMs": 7.9,
-      "saveToPaintMs": 10.9
+      "sendToCommitMs": 7,
+      "sendToPaintMs": 13.5,
+      "saveToPaintMs": 16.5
     },
     {
       "run": 8,
-      "rebuildMs": 3,
-      "sendToCommitMs": 5.8,
-      "sendToPaintMs": 22.9,
-      "saveToPaintMs": 25.9
+      "rebuildMs": 4,
+      "sendToCommitMs": 9,
+      "sendToPaintMs": 10.3,
+      "saveToPaintMs": 14.3
     },
     {
       "run": 9,
-      "rebuildMs": 2,
-      "sendToCommitMs": 7,
-      "sendToPaintMs": 8.1,
-      "saveToPaintMs": 10.1
+      "rebuildMs": 5,
+      "sendToCommitMs": 13.8,
+      "sendToPaintMs": 23.4,
+      "saveToPaintMs": 28.4
     },
     {
       "run": 10,
-      "rebuildMs": 3,
-      "sendToCommitMs": 5.1,
-      "sendToPaintMs": 6.4,
-      "saveToPaintMs": 9.4
+      "rebuildMs": 4,
+      "sendToCommitMs": 6.5,
+      "sendToPaintMs": 8.4,
+      "saveToPaintMs": 12.4
     }
   ],
   "state": {
@@ -134,32 +134,33 @@
   },
   "split": {
     "afterKeys": 324,
+    "afterDrag": 320,
     "afterReload": {
-      "firstWidth": 324,
+      "firstWidth": 320,
       "cls": 0,
-      "cssVar": "324px"
+      "cssVar": "320px"
     }
   },
   "loopStats": {
     "rebuildMs": {
-      "median": 3,
-      "max": 4,
-      "min": 2
+      "median": 4,
+      "max": 5,
+      "min": 3
     },
     "sendToCommitMs": {
-      "median": 7.5,
-      "max": 10.6,
-      "min": 5.1
+      "median": 8.6,
+      "max": 13.8,
+      "min": 6.3
     },
     "sendToPaintMs": {
-      "median": 9.6,
-      "max": 22.9,
-      "min": 6.4
+      "median": 11.8,
+      "max": 23.4,
+      "min": 7.9
     },
     "saveToPaintMs": {
-      "median": 13.6,
-      "max": 25.9,
-      "min": 9.4
+      "median": 15.8,
+      "max": 28.4,
+      "min": 11.9
     }
   }
 }

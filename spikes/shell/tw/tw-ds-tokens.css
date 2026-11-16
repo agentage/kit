@@ -1,0 +1,25 @@
+@import 'tailwindcss' source(none);
+@import '@agentage/design-system/primitives.css';
+@import '@agentage/design-system/styles/tokens.css';
+@import './frame.css' layer(components);
+@source '../src/shell';
+@source '../../../node_modules/@agentage/design-system/dist';
+
+@theme {
+  --color-bg: #1f2028;
+  --color-surface: #2e3039;
+  --color-surface-alt: #3a3d4a;
+  --color-text: #ffffff;
+  --color-text-2: #a9adc1;
+  --color-accent: #f5a623;
+}
+
+/* K11: the design-system token names carry the index.html hex values. */
+@theme {
+  --color-background: #1f2028;
+  --color-foreground: #ffffff;
+  --color-card: #2e3039;
+  --color-muted-foreground: #a9adc1;
+  --color-primary: #f5a623;
+  --color-border: #3a3d4a;
+}

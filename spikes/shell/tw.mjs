@@ -27,10 +27,11 @@ const compile = async (name) => {
   return { ms, css: res.css };
 };
 const files = {};
-for (const v of ['a', 'tw', 'tw-ds'])
+const V = ['a', 'tw', 'tw-ds-raw', 'tw-ds', 'tw-ds-tokens'];
+for (const v of V)
   files[join(here, `tw/${v}.css`)] = await readFile(join(here, `tw/${v}.css`), 'utf8');
 const variants = {};
-for (const v of ['a', 'tw', 'tw-ds']) {
+for (const v of V) {
   const { ms, css } = await compile(v);
   variants[v] = css;
   R.css[v] = { ms, bytes: css.length, hasAppOnlyClass: css.includes('.text-amber-300') };
@@ -57,11 +58,12 @@ R.dsApp.warmMs = warm;
 const rows = [
   { id: 'probe', title: 'Probe' },
   { id: 'memory', title: 'Memory' },
+  { id: 'ds', title: 'Design system' },
 ].map((r) => ({ ...r, entry: entries[r.id] }));
 const srv = await startServer(rows);
 const browser = await chromium.launch();
 const shots = {};
-for (const v of ['a', 'tw', 'tw-ds']) {
+for (const v of V) {
   await writeFile(join(out, 'shell/frame.css'), variants[v]);
   const page = await browser.newPage({ viewport: { width: 1280, height: 800 } });
   await page.goto(`http://127.0.0.1:${srv.port}/memory?details=1`);
@@ -71,7 +73,7 @@ for (const v of ['a', 'tw', 'tw-ds']) {
   await page.close();
 }
 const cmp = await browser.newPage();
-for (const v of ['tw', 'tw-ds']) {
+for (const v of V.slice(1)) {
   R.diff[v] = await cmp.evaluate(
     async ([a, b]) => {
       const load = async (s) => {
@@ -96,6 +98,17 @@ for (const v of ['tw', 'tw-ds']) {
     [shots.a.toString('base64'), shots[v].toString('base64')]
   );
 }
+// The ds app renders design-system components through the shared React, under the tokens-only CSS.
+await writeFile(join(out, 'shell/frame.css'), variants['tw-ds-tokens']);
+const dsPage = await browser.newPage({ viewport: { width: 1280, height: 800 } });
+await dsPage.goto(`http://127.0.0.1:${srv.port}/ds`);
+await dsPage.getByRole('button', { name: 'Save' }).waitFor();
+R.dsApp.render = await dsPage.evaluate(() => ({
+  hookRefs: window.__hooks.size,
+  errorCard: !!document.querySelector('[data-error-card]'),
+  buttonBg: getComputedStyle(document.querySelector('[data-slot="button"]')).backgroundColor,
+}));
+await dsPage.screenshot({ path: join(here, 'evidence/07-ds-app.png') });
 await browser.close();
 srv.close();
 for (const c of Object.values(ctx)) await c.dispose();

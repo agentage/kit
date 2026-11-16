@@ -107,6 +107,13 @@ R.oneReact.hookRefsWithMemory = await page.evaluate(() => window.__hooks.size);
 await page.getByRole('separator').focus();
 for (let k = 0; k < 4; k++) await page.keyboard.press('ArrowRight');
 R.split.afterKeys = await page.locator('.pane0').evaluate((e) => e.getBoundingClientRect().width);
+const pane = await page.locator('.pane0').boundingBox();
+const sep = await page.getByRole('separator').boundingBox();
+await page.mouse.move(sep.x + sep.width / 2, sep.y + 200);
+await page.mouse.down();
+await page.mouse.move(pane.x + 320, sep.y + 200, { steps: 8 });
+await page.mouse.up();
+R.split.afterDrag = await page.locator('.pane0').evaluate((e) => e.getBoundingClientRect().width);
 await page.screenshot({ path: ev('03-memory-split.png') });
 
 await page.addInitScript(() => {

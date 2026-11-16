@@ -4,6 +4,7 @@ import {
   useEffect,
   useLayoutEffect,
   useState,
+  useSyncExternalStore,
   type ComponentType,
   type ReactNode,
 } from 'react';
@@ -22,7 +23,10 @@ w.__timings = [];
 w.__hooks = w.__hooks ?? new Set();
 const now = () => performance.timeOrigin + performance.now();
 
-const store = new Map<string, Map<string, unknown>>();
+// One subscribed store for every app key, so every reader of a key (main and a Region) sees one value.
+const store = new Map<string, unknown>();
+const stateSubs = new Set<() => void>();
+const subscribeState = (fn: () => void) => (stateSubs.add(fn), () => void stateSubs.delete(fn));
 const regionNodes = new Map<string, HTMLElement>();
 const regionSubs = new Set<() => void>();
 const notices: string[] = [];
@@ -34,9 +38,11 @@ const makeShell = (id: string, onNotice: () => void): AppShell => ({
     onNotice();
   },
   state: <T,>(key: string, init: T) => {
-    const bag = store.get(id) ?? store.set(id, new Map()).get(id)!;
-    const [v, setV] = useState<T>(() => (bag.has(key) ? (bag.get(key) as T) : init));
-    return [v, (n: T) => (bag.set(key, n), setV(n))];
+    const k = `${id}:${key}`;
+    const v = useSyncExternalStore(subscribeState, () =>
+      store.has(k) ? (store.get(k) as T) : init
+    );
+    return [v, (n: T) => (store.set(k, n), stateSubs.forEach((f) => f()))];
   },
   region: (name: RegionName) => regionNodes.get(name) ?? null,
   subscribeRegions: (fn) => (regionSubs.add(fn), () => regionSubs.delete(fn)),

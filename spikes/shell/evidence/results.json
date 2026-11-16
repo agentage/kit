@@ -1,0 +1,165 @@
+{
+  "cold": {
+    "vendorMs": 67.1,
+    "shellMs": 5.6,
+    "probeMs": 4.2,
+    "memoryMs": 3.4,
+    "fatMs": 9.6
+  },
+  "bytes": {
+    "app-probe": 931,
+    "app-memory": 977,
+    "app-fat": 9654,
+    "vendor/app.js": 1681,
+    "vendor/chunk-334T4BFI.js": 8248,
+    "vendor/chunk-7M7DYHTQ.js": 4268,
+    "vendor/chunk-NI25Q54Z.js": 797,
+    "vendor/chunk-SQE76S5B.js": 577,
+    "vendor/jsx-runtime.js": 173,
+    "vendor/react-dom-client.js": 209773,
+    "vendor/react-dom.js": 744,
+    "vendor/react.js": 1693
+  },
+  "oneReact": {
+    "hookRefsShellProbe": 1,
+    "hookRefsWithMemory": 1,
+    "fatControl": {
+      "hookRefs": 2,
+      "card": "App fat failed: Cannot read properties of null (reading 'useState')",
+      "navStillWorks": true
+    },
+    "vendorRequests": [
+      "/shell/vendor/react.js",
+      "/shell/vendor/react-dom-client.js",
+      "/shell/vendor/app.js",
+      "/shell/vendor/jsx-runtime.js",
+      "/shell/vendor/chunk-334T4BFI.js",
+      "/shell/vendor/chunk-SQE76S5B.js",
+      "/shell/vendor/chunk-NI25Q54Z.js",
+      "/shell/vendor/chunk-7M7DYHTQ.js",
+      "/shell/vendor/react.js",
+      "/shell/vendor/react-dom-client.js",
+      "/shell/vendor/app.js",
+      "/shell/vendor/jsx-runtime.js",
+      "/shell/vendor/chunk-334T4BFI.js",
+      "/shell/vendor/chunk-SQE76S5B.js",
+      "/shell/vendor/chunk-7M7DYHTQ.js",
+      "/shell/vendor/chunk-NI25Q54Z.js"
+    ]
+  },
+  "region": {
+    "asideText": "Probe details for Alex Doe: draft is \"\"",
+    "asideInsideAsideRegion": true,
+    "actionsText": "Probe",
+    "memoryAside": "Selected: README.md"
+  },
+  "loop": [
+    {
+      "run": 1,
+      "rebuildMs": 3,
+      "sendToCommitMs": 10.6,
+      "sendToPaintMs": 13.1,
+      "saveToPaintMs": 16.1
+    },
+    {
+      "run": 2,
+      "rebuildMs": 4,
+      "sendToCommitMs": 7.9,
+      "sendToPaintMs": 9.6,
+      "saveToPaintMs": 13.6
+    },
+    {
+      "run": 3,
+      "rebuildMs": 3,
+      "sendToCommitMs": 7.1,
+      "sendToPaintMs": 14.3,
+      "saveToPaintMs": 17.3
+    },
+    {
+      "run": 4,
+      "rebuildMs": 4,
+      "sendToCommitMs": 7.8,
+      "sendToPaintMs": 9,
+      "saveToPaintMs": 13
+    },
+    {
+      "run": 5,
+      "rebuildMs": 4,
+      "sendToCommitMs": 8.5,
+      "sendToPaintMs": 10.5,
+      "saveToPaintMs": 14.5
+    },
+    {
+      "run": 6,
+      "rebuildMs": 3,
+      "sendToCommitMs": 7.5,
+      "sendToPaintMs": 9.1,
+      "saveToPaintMs": 12.1
+    },
+    {
+      "run": 7,
+      "rebuildMs": 3,
+      "sendToCommitMs": 6.4,
+      "sendToPaintMs": 7.9,
+      "saveToPaintMs": 10.9
+    },
+    {
+      "run": 8,
+      "rebuildMs": 3,
+      "sendToCommitMs": 5.8,
+      "sendToPaintMs": 22.9,
+      "saveToPaintMs": 25.9
+    },
+    {
+      "run": 9,
+      "rebuildMs": 2,
+      "sendToCommitMs": 7,
+      "sendToPaintMs": 8.1,
+      "saveToPaintMs": 10.1
+    },
+    {
+      "run": 10,
+      "rebuildMs": 3,
+      "sendToCommitMs": 5.1,
+      "sendToPaintMs": 6.4,
+      "saveToPaintMs": 9.4
+    }
+  ],
+  "state": {
+    "draftKept": "abc",
+    "plainAfter": "",
+    "mark": 1,
+    "url": "/probe?details=1",
+    "aside": "Probe details for Alex Doe: draft is \"abc\""
+  },
+  "split": {
+    "afterKeys": 324,
+    "afterReload": {
+      "firstWidth": 324,
+      "cls": 0,
+      "cssVar": "324px"
+    }
+  },
+  "loopStats": {
+    "rebuildMs": {
+      "median": 3,
+      "max": 4,
+      "min": 2
+    },
+    "sendToCommitMs": {
+      "median": 7.5,
+      "max": 10.6,
+      "min": 5.1
+    },
+    "sendToPaintMs": {
+      "median": 9.6,
+      "max": 22.9,
+      "min": 6.4
+    },
+    "saveToPaintMs": {
+      "median": 13.6,
+      "max": 25.9,
+      "min": 9.4
+    }
+  }
+}

@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>agentage shell spike</title>
+    <script>
+      try {
+        var d = document.documentElement,
+          L = localStorage;
+        for (var i = 0; i < L.length; i++) {
+          var k = L.key(i),
+            m = /^ag\.split\.([a-z0-9-]+)\.([a-z0-9-]+)$/.exec(k),
+            n = parseInt(L.getItem(k), 10);
+          if (m && n >= 120 && n <= 900)
+            d.style.setProperty('--split-' + m[1] + '-' + m[2], n + 'px');
+        }
+      } catch (e) {}
+    </script>
+    <script type="importmap">
+      {
+        "imports": {
+          "react": "/shell/vendor/react.js",
+          "react/jsx-runtime": "/shell/vendor/jsx-runtime.js",
+          "react-dom": "/shell/vendor/react-dom.js",
+          "react-dom/client": "/shell/vendor/react-dom-client.js",
+          "@agentage/app": "/shell/vendor/app.js"
+        }
+      }
+    </script>
+    <link rel="stylesheet" href="/shell/frame.css" />
+  </head>
+  <body>
+    <div id="root" style="height: 100%"></div>
+    <script type="module" src="/shell/shell.js"></script>
+  </body>
+</html>

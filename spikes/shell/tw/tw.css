@@ -1,0 +1,12 @@
+@import 'tailwindcss' source(none);
+@import './frame.css' layer(components);
+@source '../src/shell';
+
+@theme {
+  --color-bg: #1f2028;
+  --color-surface: #2e3039;
+  --color-surface-alt: #3a3d4a;
+  --color-text: #ffffff;
+  --color-text-2: #a9adc1;
+  --color-accent: #f5a623;
+}

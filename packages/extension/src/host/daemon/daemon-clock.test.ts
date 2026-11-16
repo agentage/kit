@@ -2,6 +2,7 @@ import { readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { startHarness, type Harness } from '../../test-support/daemon-harness.js';
+import { launchSpec } from '../../test-support/launch-spec.js';
 import { tempDir } from '../../test-support/packages.js';
 import { createDaemon } from './daemon.js';
 import { forkLaunch, type Launch } from './child.js';
@@ -15,15 +16,14 @@ afterEach(async () => {
   vi.restoreAllMocks();
 });
 
-const SPEC = { id: 'x', dir: '/x', dataDir: '/x', settings: {}, secrets: {}, origin: 'http://x' };
-
 const clockSeenByChild = async (rate?: number) => {
   const dir = await tempDir('agentage-clock-');
   const out = join(dir, 'seen.txt');
   const main = join(dir, 'main.mjs');
   const body = `import { writeFileSync } from 'node:fs'; writeFileSync(${JSON.stringify(out)}, String(process.env.AGENTAGE_CLOCK_RATE)); process.exit(1);`;
   await writeFile(main, body);
-  await forkLaunch(main, 2000, rate)(SPEC).catch(() => undefined);
+  // Below the floor: the script is in a temp folder no seal grant names.
+  await forkLaunch(main, 2000, rate, '24.6.0')(await launchSpec()).catch(() => undefined);
   return readFile(out, 'utf8');
 };
 

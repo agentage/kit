@@ -4,7 +4,12 @@ import { chmod, mkdir, readdir, readFile, rm, stat, writeFile } from 'node:fs/pr
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { startHarness, tempConfigDir, type Harness } from '../../test-support/daemon-harness.js';
+import {
+  startHarness,
+  tempConfigDir,
+  type Harness,
+  hostTokenOf,
+} from '../../test-support/daemon-harness.js';
 import { hostedPackage, NO_STORE_MANIFEST } from '../../test-support/hosted-fixture.js';
 import { json } from '../../test-support/packages.js';
 import { createDaemon } from './daemon.js';
@@ -103,9 +108,9 @@ describe('a daemon killed in the middle of a remove', () => {
       );
       // The second write of a remove (settings.json) waits for this live holder: the kill comes then.
       await writeFile(join(configDir, 'settings.json.lock'), String(process.ppid));
-      void fetch(`http://127.0.0.1:${port}/host/extensions/hosted`, { method: 'DELETE' }).catch(
-        () => undefined
-      );
+      const auth = { authorization: `Bearer ${await hostTokenOf(configDir)}` };
+      const remove = { method: 'DELETE', headers: auth };
+      void fetch(`http://127.0.0.1:${port}/host/extensions/hosted`, remove).catch(() => undefined);
       const secrets = () => read(configDir, 'secrets.json');
       await vi.waitFor(async () => expect(await secrets()).toEqual({ gone: ROWS.gone }), {
         timeout: 20_000,
@@ -161,10 +166,15 @@ describe('a second daemon on a folder a live daemon owns', () => {
         timeout: 20_000,
         interval: 50,
       });
-      await vi.waitFor(async () => {
-        const port = (await read(configDir, 'daemon.json')) as { port: number };
-        expect((await fetch(`http://127.0.0.1:${port.port}/health`)).status).toBe(200);
-      });
+      // Booted: the child runs, so its run/ and data/ folders are made before the snapshot.
+      await vi.waitFor(
+        async () => {
+          const port = (await read(configDir, 'daemon.json')) as { port: number };
+          const res = await fetch(`http://127.0.0.1:${port.port}/health`);
+          expect(await res.json()).toMatchObject({ extensions: [{ state: 'running' }] });
+        },
+        { timeout: 20_000, interval: 50 }
+      );
       const before = await snapshot(configDir);
       const second = createDaemon({ configDir, port: 0, version: 't', startedBy: 'test' });
       await expect(second).rejects.toMatchObject({ code: 'DAEMON_RUNNING' });

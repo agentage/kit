@@ -1,11 +1,12 @@
 import { fork, type ChildProcess } from 'node:child_process';
-import { mkdtemp, rm, writeFile } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { rm } from 'node:fs/promises';
+import { dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { SecretNameSchema } from '../../manifest/primitives.schema.js';
 import { CLOCK_RATE_ENV, parseClockRate } from '../../worker/clock.js';
+import { fillRun, makeRun, undoRun, type RunFolders } from './child-files.js';
+import { lastWords } from './last-words.js';
 import { LIMITS } from './limits.js';
+import { permissionFlag, sealFlags, sealOf, type Seal } from './seal.js';
 
 interface LaunchSpec {
   id: string;
@@ -33,62 +34,33 @@ export interface Child {
   stop(): Promise<void>;
 }
 
-// clockRate: the test clock every child gets (C5); /health of the daemon shows the same value.
-export type Launch = ((spec: LaunchSpec) => Promise<Child>) & { clockRate?: number };
+// clockRate: the test clock every child gets (C5); seal: whether each child runs sealed (C2).
+export type Launch = ((spec: LaunchSpec) => Promise<Child>) & { clockRate?: number; seal?: Seal };
 
 const HOST_MAIN = fileURLToPath(new URL('../main.js', import.meta.url));
 const STOP_MS = 5_000;
 const PASSED = ['PATH', 'HOME', 'TMPDIR', 'LANG', 'NODE_EXTRA_CA_CERTS'];
 
-// Handed over as 0600 files in a 0700 folder, removed once the child has read them.
-const secretFiles = async (spec: LaunchSpec): Promise<string> => {
-  const dir = await mkdtemp(join(tmpdir(), `agentage-${spec.id}-`));
-  for (const [name, value] of Object.entries(spec.secrets))
-    await writeFile(join(dir, SecretNameSchema.parse(name)), value, { mode: 0o600 });
-  return dir;
-};
-
 // What dist/host/main.js reads (docs/part-image.md), on a port the OS picks.
-export const childEnv = (spec: LaunchSpec, secretsDir: string): Record<string, string> => ({
+export const childEnv = (
+  spec: LaunchSpec,
+  secretsDir: string,
+  runDir?: string
+): Record<string, string> => ({
   PORT: '0',
   AGENTAGE_EXTENSION_DIR: spec.dir,
   AGENTAGE_DATA_DIR: spec.dataDir,
   AGENTAGE_SETTINGS: JSON.stringify(spec.settings),
   AGENTAGE_SECRETS_DIR: secretsDir,
   AGENTAGE_ORIGIN: spec.origin,
+  ...(runDir && { AGENTAGE_RUN_DIR: runDir }),
   ...(spec.storeOpenMs && { AGENTAGE_STORE_OPEN_MS: String(spec.storeOpenMs) }),
 });
 
+export { lastWords } from './last-words.js';
+
 const passedEnv = () =>
   Object.fromEntries(PASSED.flatMap((k) => (process.env[k] ? [[k, process.env[k]]] : [])));
-
-// Lines that never say why: blanks, stack frames, error properties, the Node version, the hint.
-const NOISE = [
-  /^\s*$/,
-  /^\s+at /,
-  /^\s*[{}]\s*$/,
-  /^\s+[\w$'"]+: /,
-  /^Node\.js v\d/,
-  /^\(Use `node/,
-];
-// A log row below error (listening, a request, a warning) is not why a child exited.
-const QUIET = /^\{.*"level":"(warn|info|debug|trace)"/;
-
-const msgOf = (line: string): string => {
-  try {
-    return String((JSON.parse(line) as { msg?: unknown }).msg ?? line);
-  } catch {
-    return line;
-  }
-};
-
-// The last line that says why (an error line, a log row's msg, or the thrown text): from stderr.
-export const lastWords = (tail: string, how: Exit): string => {
-  const lines = tail.split('\n').map((l) => l.trimEnd());
-  const line = lines.reverse().find((l) => !QUIET.test(l) && !NOISE.some((re) => re.test(l)));
-  if (line) return msgOf(line).replace(/^[A-Za-z]*Error(?: \[[A-Z_]+\])?: /, '');
-  return `exited with ${how.signal ? `signal ${how.signal}` : `code ${how.code}`}`;
-};
 
 const captured = (child: ChildProcess): (() => string) => {
   let tail = '';
@@ -150,24 +122,66 @@ const stopOf = (child: ChildProcess, exited: Promise<Exit>) => async () => {
   clearTimeout(kill);
 };
 
-// One child process per extension: node dist/host/main.js on a port the OS picks.
-export const forkLaunch = (main = HOST_MAIN, startMs = LIMITS.startMs, rate?: number): Launch => {
-  const clockRate = parseClockRate(rate);
-  const launch = async (spec: LaunchSpec): Promise<Child> => {
-    const secretsDir = await secretFiles(spec);
-    const stdio = ['ignore', 'pipe', 'pipe', 'ipc'] as const;
-    // execArgv []: the daemon's own node flags (a loader, --input-type) are not the child's.
-    const clock = clockRate === 1 ? {} : { [CLOCK_RATE_ENV]: String(clockRate) };
-    const env = { ...passedEnv(), ...childEnv(spec, secretsDir), ...clock };
-    const child = fork(main, [], { env, execArgv: [], stdio: [...stdio] });
-    const tail = captured(child);
-    const exited = exitOf(child, tail);
+// The daemon's own node flags (a loader, --input-type) are never the child's; C2 where Node has --permission.
+const execArgvOf = (node: string, main: string, spec: LaunchSpec, run: RunFolders) => {
+  if (!permissionFlag(node)) return [];
+  const configDir = dirname(dirname(spec.dataDir));
+  return sealFlags({ main, dir: spec.dir, configDir, runDir: run.runDir, dataDir: spec.dataDir });
+};
+
+// The listed env of the daemon, then the child's own: TMPDIR in run/{id}, the test clock when not 1.
+const envOf = (spec: LaunchSpec, run: RunFolders, clockRate: number) => ({
+  ...passedEnv(),
+  ...childEnv(spec, run.secretsDir, run.runDir),
+  TMPDIR: run.tmpDir,
+  ...(clockRate === 1 ? {} : { [CLOCK_RATE_ENV]: String(clockRate) }),
+});
+
+interface ForkAt {
+  main: string;
+  startMs: number;
+  clockRate: number;
+  node: string;
+}
+
+const started = async (at: ForkAt, spec: LaunchSpec, run: RunFolders): Promise<Child> => {
+  await fillRun(run, spec);
+  const execArgv = execArgvOf(at.node, at.main, spec, run);
+  const stdio = ['ignore', 'pipe', 'pipe', 'ipc'] as const;
+  const child = fork(at.main, [], {
+    env: envOf(spec, run, at.clockRate),
+    execArgv,
+    stdio: [...stdio],
+  });
+  const tail = captured(child);
+  const exited = exitOf(child, tail);
+  const port = await readyOf(child, tail, at.startMs);
+  return { port, pid: child.pid ?? 0, exited, stop: stopOf(child, exited) };
+};
+
+// Anything before the port (files, the seal check, the start) undoes the folders this launch made.
+const launchAt =
+  (at: ForkAt) =>
+  async (spec: LaunchSpec): Promise<Child> => {
+    const run = await makeRun(spec);
     try {
-      const port = await readyOf(child, tail, startMs);
-      return { port, pid: child.pid ?? 0, exited, stop: stopOf(child, exited) };
+      return await started(at, spec, run);
+    } catch (err) {
+      await undoRun(run, spec.dataDir);
+      throw err;
     } finally {
-      await rm(secretsDir, { recursive: true, force: true });
+      await rm(run.secretsDir, { recursive: true, force: true });
     }
   };
-  return Object.assign(launch, { clockRate });
+
+// One child process per extension on a port the OS picks; node: the version the seal gate reads.
+export const forkLaunch = (
+  main = HOST_MAIN,
+  startMs = LIMITS.startMs,
+  rate?: number,
+  node = process.versions.node
+): Launch => {
+  const clockRate = parseClockRate(rate);
+  const launch = launchAt({ main, startMs, clockRate, node });
+  return Object.assign(launch, { clockRate, seal: sealOf(node) });
 };

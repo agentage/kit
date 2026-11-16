@@ -11,15 +11,24 @@ interface DaemonFile {
   version: string;
   protocol: number;
   startedBy: string;
+  // D11: the cli sends it on /host/*; the file is 0600 and no child is granted it.
+  hostToken: string;
 }
 
 export const writeDaemonFile = (configDir: string, file: DaemonFile): Promise<void> =>
-  writeJsonFile(join(configDir, DAEMON_FILE), file);
+  writeJsonFile(join(configDir, DAEMON_FILE), file, 0o600);
 
 export const removeDaemonFile = (configDir: string): Promise<void> =>
   unlink(join(configDir, DAEMON_FILE)).catch(() => undefined);
 
 export const dataDirOf = (configDir: string, id: string): string => join(configDir, 'data', id);
+
+// C2: the folder only this child reads and writes (secrets, TMPDIR, the store lock).
+export const runDirOf = (configDir: string, id: string): string => join(configDir, 'run', id);
+
+// No user data in it: removed with the extension; each start makes its secrets and tmp anew.
+export const clearRunDir = (configDir: string, id: string): Promise<void> =>
+  rm(runDirOf(configDir, id), { recursive: true, force: true });
 
 export const purgeData = (configDir: string, id: string): Promise<void> =>
   rm(dataDirOf(configDir, id), { recursive: true, force: true });

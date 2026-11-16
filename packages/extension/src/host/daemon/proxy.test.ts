@@ -158,3 +158,34 @@ describe('the wait for the child', () => {
     mute.close();
   });
 });
+
+describe('proxyTo and the host token (D11)', () => {
+  it('keeps the host token from the child; another Authorization passes', async () => {
+    const got: (string | undefined)[] = [];
+    const server = createServer((req, res) => (got.push(req.headers.authorization), res.end('{}')));
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    const child = {
+      port: (server.address() as AddressInfo).port,
+      pid: 1,
+      exited: new Promise<never>(() => undefined),
+      stop: async () => undefined,
+    };
+    const entry: Entry = {
+      id: 'x',
+      install: { id: 'x' },
+      state: 'running',
+      version: '1.0.0',
+      lane: laneOf(child),
+    };
+    const app = express().use(
+      '/api/:id',
+      proxyTo(new Map([['x', entry]]), { gateMs: 50, answerMs: 1_000 }, 'host-tok')
+    );
+    const daemon = await startOn(app);
+    await daemon.fetch('/api/x/a', { headers: { authorization: 'Bearer host-tok' } });
+    await daemon.fetch('/api/x/a', { headers: { authorization: 'Bearer own' } });
+    expect(got).toEqual([undefined, 'Bearer own']);
+    await daemon.close();
+    server.close();
+  });
+});

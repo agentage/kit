@@ -1,4 +1,4 @@
-import { access } from 'node:fs/promises';
+import { access, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { hostedPackage } from '../test-support/hosted-fixture.js';
@@ -7,6 +7,7 @@ import { childEnv } from './daemon/child.js';
 import { LIMITS } from './daemon/limits.js';
 import { hostEnvOf } from './host-env.js';
 import { hostExtension } from './host-extension.js';
+import { lockOf } from './host-store.js';
 
 // A PGlite whose first query ends after opensInMs (never when undefined), and that never closes.
 let opensInMs: number | undefined;
@@ -68,5 +69,25 @@ describe('a store that opens in 40 s under the default daemon', () => {
     vi.useRealTimers();
     const health = await host.health();
     expect(health).toMatchObject({ data: { checks: { store: 'ok' } } });
+  });
+});
+
+describe('the store lock in run/{id} (C2)', () => {
+  it('lockOf: run/{id}/store.lock when the daemon gives runDir, else beside the folder', () => {
+    expect(lockOf({ dataDir: '/c/data/p', runDir: '/c/run/p' })).toBe('/c/run/p/store.lock');
+    expect(lockOf({ dataDir: '/c/data/p' })).toBe('/c/data/p.lock');
+  });
+
+  it('a live old lock beside the folder does not block: the lock is in runDir', async () => {
+    vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    opensInMs = 0;
+    const root = await tempDir('agentage-host-lock-');
+    const [dataDir, runDir] = [join(root, 'data', 'hosted'), join(root, 'run', 'hosted')];
+    await mkdir(join(root, 'data'), { recursive: true });
+    await mkdir(runDir, { recursive: true });
+    await writeFile(`${dataDir}.lock`, String(process.ppid));
+    const h = await hostExtension(await hostedPackage(), { dataDir, runDir, secrets: SECRETS });
+    expect(await readFile(join(runDir, 'store.lock'), 'utf8')).toBe(String(process.pid));
+    void h.stop();
   });
 });

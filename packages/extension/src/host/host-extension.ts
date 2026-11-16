@@ -17,6 +17,8 @@ import { openHostStore, STORE_OPEN_MS } from './host-store.js';
 
 export interface HostOptions {
   dataDir: string;
+  // Holds the store lock (run/{id}/store.lock); unset: the lock is <dataDir>.lock, as before.
+  runDir?: string;
   settings?: Record<string, unknown>;
   secrets?: Record<string, string>;
   onExit?: () => void;
@@ -87,7 +89,8 @@ export const hostWith = async (dir: string, opts: HostOptions, extras: HostExtra
   const pkg = await readManifest(dir);
   const log = createLog({ extension: pkg.agentage.id, part: 'api', version: pkg.version });
   const openMs = opts.storeOpenMs ?? STORE_OPEN_MS;
-  const store = await openHostStore(pkg, { dir, dataDir: opts.dataDir, openMs }, log);
+  const at = { dir, dataDir: opts.dataDir, runDir: opts.runDir, openMs };
+  const store = await openHostStore(pkg, at, log);
   const onExit = once(opts.onExit ?? (() => undefined));
   const build = extras.build ?? buildInfoFromEnv({});
   const h: Hosting = { dir, pkg, log, opts, extras, store, onExit, build };

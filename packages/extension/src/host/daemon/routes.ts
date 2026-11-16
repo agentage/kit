@@ -5,7 +5,9 @@ import { BODY_LIMIT } from '../../server/app.js';
 import { errorHandler, notFound } from '../../server/errors.js';
 import { localOnly } from './guard.js';
 import { addExtension } from './add.js';
-import { listed, summary, type Entries } from './entries.js';
+import { listed, type Entries } from './entries.js';
+import { healthRoutes, type DaemonInfo } from './health-routes.js';
+import { requireHostToken } from './host-token.js';
 import { assertReadable } from './installation.js';
 import { changeExtension, removeExtension } from './ops.js';
 import { type Pending, type PendingChanges } from './pending.js';
@@ -14,28 +16,6 @@ import { proxyTo } from './proxy.js';
 import { reloadRoute } from './reload-route.js';
 import { stopsNow } from './stopping.js';
 import { type SupervisorDeps } from './supervisor.js';
-
-// What /health says of the daemon itself: the values of daemon.json, so a client can prove it.
-const DAEMON_SERVICE = 'agentage-daemon';
-
-interface DaemonInfo {
-  version: string;
-  pid: number;
-  protocol: number;
-  // installation.json had rows (or a shape) C3 refuses: they are left out, the file kept as .bad.
-  invalid: boolean;
-  // installation.json could not be read at boot: every change is refused, the file is never written.
-  unreadable?: string;
-  // The last change found installation.json not JSON (after boot); the next one that reads it clears it.
-  notJson?: boolean;
-  // The test clock, set only when it is not 1.
-  clockRate?: number;
-}
-
-const installationOf = ({ invalid, unreadable, notJson }: DaemonInfo) => {
-  if (unreadable) return { installation: 'unreadable', installationError: unreadable };
-  return invalid || notJson ? { installation: 'invalid' } : {};
-};
 
 const reasonOf = (err: unknown) => (err as { details?: { reason?: string } }).details?.reason;
 
@@ -48,25 +28,6 @@ const checkReadable = (deps: SupervisorDeps, info: DaemonInfo) =>
       throw err;
     }
   );
-
-const healthOf = (deps: SupervisorDeps, entries: Entries, info: DaemonInfo) => {
-  const all = [...entries.values()];
-  const settled = all.every((e) => e.state === 'running' || e.state === 'disabled');
-  const synced = !deps.unsynced.size;
-  const clean = !info.invalid && !info.unreadable && !info.notJson;
-  const status = settled && synced && clean ? 'ok' : 'degraded';
-  const self = { service: DAEMON_SERVICE, pid: info.pid, protocol: info.protocol };
-  const extensions = all.map(summary);
-  const changing = deps.pending.list();
-  const busy = changing.length ? { pending: changing } : {};
-  const marks = {
-    ...busy,
-    ...(info.clockRate && { clockRate: info.clockRate }),
-    ...(!synced && { unsynced: [...deps.unsynced] }),
-    ...installationOf(info),
-  };
-  return { status, version: info.version, ...self, extensions, ...marks };
-};
 
 // What a POST body names, for /health: the id, or the folder.
 const named = (body: unknown): Omit<Pending, 'op' | 'since'> => {
@@ -122,23 +83,23 @@ const hostRoutes = (
   reloadRoute(app, deps, entries, () => checkReadable(deps, info));
 };
 
-// C5: /health, /host/extensions, and /api/{id}/* to the child of that id; Host and Origin first.
+// C5 and C1: /health, discovery, /host/* (host token), /api/{id}/* and /mcp/{id} to the child; Host and Origin first.
 export const daemonApp = (
   deps: SupervisorDeps,
   entries: Entries,
   port: () => number,
-  info: DaemonInfo
+  info: DaemonInfo,
+  hostToken: string
 ): Express => {
   const app = express();
-  const pending = deps.pending;
+  const proxy = proxyTo(entries, deps, hostToken);
   app.disable('x-powered-by');
   app.use(agcidMiddleware, localOnly(port));
-  app.use('/api/:id', proxyTo(entries, deps));
-  app.get(
-    '/health',
-    (_req, res) => void res.set('Cache-Control', 'no-store').json(healthOf(deps, entries, info))
-  );
-  hostRoutes(app, deps, entries, info, pending);
+  app.use('/api/:id', proxy);
+  app.use('/mcp/:id', proxy);
+  healthRoutes(app, deps, entries, info);
+  app.use('/host', requireHostToken(hostToken));
+  hostRoutes(app, deps, entries, info, deps.pending);
   app.use(notFound);
   app.use(errorHandler(deps.log));
   return app;

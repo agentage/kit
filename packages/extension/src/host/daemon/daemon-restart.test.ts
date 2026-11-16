@@ -6,6 +6,7 @@ import {
   tempConfigDir,
   writeSecrets,
   type Harness,
+  hostTokenOf,
 } from '../../test-support/daemon-harness.js';
 import { hostedPackage, NO_STORE_MANIFEST } from '../../test-support/hosted-fixture.js';
 import { json } from '../../test-support/packages.js';
@@ -117,9 +118,10 @@ describe('a change queued behind a slow boot', () => {
     const booting = startHarness({ install, configDir, installMs: 400 });
     await vi.waitFor(() => expect(install).toHaveBeenCalledTimes(1), { timeout: 15_000 });
     const port = JSON.parse(await readFile(join(configDir, 'daemon.json'), 'utf8')).port as number;
+    const auth = { authorization: `Bearer ${await hostTokenOf(configDir)}` };
     const res = await fetch(`http://127.0.0.1:${port}/host/extensions`, {
       method: 'POST',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', ...auth },
       body: JSON.stringify({ id: 'three' }),
     });
     expect([res.status, await res.json()]).toMatchObject([

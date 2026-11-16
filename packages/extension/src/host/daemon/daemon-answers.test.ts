@@ -6,6 +6,7 @@ import {
   tempConfigDir,
   writeSecrets,
   type Harness,
+  hostTokenOf,
 } from '../../test-support/daemon-harness.js';
 import { inProcessLaunch } from '../../test-support/in-process-launch.js';
 import { HOSTED_MANIFEST, hostedPackage } from '../../test-support/hosted-fixture.js';
@@ -136,9 +137,10 @@ describe('daemon answers', () => {
       inProcessLaunch
     );
     await vi.waitFor(() => expect(install).toHaveBeenCalledTimes(1));
+    const auth = { authorization: `Bearer ${await hostTokenOf(configDir)}` };
     const change = fetch(`http://127.0.0.1:${port}/host/extensions/hosted`, {
       method: 'PATCH',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', ...auth },
       body: JSON.stringify({ settings: { 'echo.prefix': 'hey' } }),
     }).then((res) => (order.push(`patch ${res.status}`), res.status));
     await new Promise((resolve) => setTimeout(resolve, 200));

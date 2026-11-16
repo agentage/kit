@@ -29,8 +29,13 @@ describe('a daemon killed with SIGKILL', () => {
     try {
       child = await vi.waitFor(
         async () => {
-          const { port } = JSON.parse(await readFile(join(configDir, 'daemon.json'), 'utf8'));
-          const list = await (await fetch(`http://127.0.0.1:${port}/host/extensions`)).json();
+          const { port, hostToken } = JSON.parse(
+            await readFile(join(configDir, 'daemon.json'), 'utf8')
+          );
+          const headers = { authorization: `Bearer ${hostToken}` };
+          const list = await (
+            await fetch(`http://127.0.0.1:${port}/host/extensions`, { headers })
+          ).json();
           const pid = (list as { data: { pid?: number }[] }).data[0]?.pid;
           if (!pid) throw new Error(`not running yet: ${JSON.stringify(list)}`);
           return pid;

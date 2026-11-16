@@ -36,6 +36,7 @@ port or at the port of `AGENTAGE_ORIGIN`. The daemon child and the one container
 | `PORT`                   | the port, `8080` by default; `0` lets the OS pick, and the port goes to the parent over IPC                                                                                                                                                                                     |
 | `AGENTAGE_EXTENSION_DIR` | the package folder, the current folder by default                                                                                                                                                                                                                               |
 | `AGENTAGE_DATA_DIR`      | the PGlite folder of a postgres store; `<dir>.lock` holds the pid. Unset: in memory, a warn line                                                                                                                                                                                |
+| `AGENTAGE_RUN_DIR`       | the daemon's `run/{id}`: the store lock is `run/{id}/store.lock` there in place of `<dir>.lock`. Unset (the one container): `<dir>.lock`                                                                                                                                        |
 | `AGENTAGE_SETTINGS`      | JSON of setting values over the manifest defaults                                                                                                                                                                                                                               |
 | `AGENTAGE_SECRETS_DIR`   | one file per declared secret, `/run/secrets` by default                                                                                                                                                                                                                         |
 | `AGENTAGE_ORIGIN`        | `ctx.extension.origin`, `http://127.0.0.1:<PORT>` by default                                                                                                                                                                                                                    |
@@ -193,3 +194,30 @@ the daemon stops waiting (`installMs`); an installer that ignores it keeps runni
 shows it).
 Statuses, not codes, tell a retry: 503 `UNAVAILABLE` is worth a retry after `Retry-After`; 504
 `TIMEOUT` means the call may still be applied.
+
+## The daemon: routes, host token, seal
+
+| Route                                 | Answer                                                                                                                          |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------- |
+| `ANY /api/{id}/*`, `ANY /mcp/{id}`    | the child of that id, path kept; 404 envelope not installed or disabled; 503 `Retry-After: 5` not running                       |
+| `GET /.well-known/agentage-host.json` | `{ host: "local", extensions: [{ id, version, parts }] }` of the running extensions; anonymous                                  |
+| `GET /health`                         | each entry adds `parts`, `seal` (`on`/`off`), `restarts`; below the Node floor `seal: "off"`, `sealError`, `status: "degraded"` |
+| `/host/*`                             | `Authorization: Bearer <hostToken>`: 401 `UNAUTHORIZED` with none, 403 `FORBIDDEN` with another                                 |
+
+`hostToken` is new at each daemon start and is only in `daemon.json` (0600). The proxy drops an
+`Authorization` that carries it, so no child sees it.
+
+A child is forked with `node --permission --no-experimental-sqlite`. It may read the `node_modules`
+that holds the kit and the tree of its package (a folder row: the folder). It may read and write
+`run/{id}` and `data/{id}`. It gets no child-process, worker, addon or WASI grant. A symlinked
+path is granted as given and as its real path.
+
+The secrets the package declares go to `run/{id}/secrets` (0600 files, 0700 folder). They are
+removed once the child reports its port. `TMPDIR` is `run/{id}/tmp`. The seal is on from Node
+22.22.2 (22.x) and 24.14.1 (24.x and newer majors). Below that the child starts with no flags.
+
+Before the fork the daemon removes an old `data/{id}.lock` of a dead pid; a live one refuses the
+start. A first start that never reports a port removes the folders it made.
+
+Limits: Node calls the permission model a seat belt, not a defence against hostile code. A symlink
+placed from outside the seal is followed. The network is open.

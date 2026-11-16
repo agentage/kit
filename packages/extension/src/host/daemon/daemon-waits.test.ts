@@ -6,6 +6,7 @@ import {
   tempConfigDir,
   writeSecrets,
   type Harness,
+  hostTokenOf,
 } from '../../test-support/daemon-harness.js';
 import { inProcessLaunch } from '../../test-support/in-process-launch.js';
 import { hostedPackage, NO_STORE_MANIFEST } from '../../test-support/hosted-fixture.js';
@@ -90,7 +91,9 @@ describe('a slow installer at boot', () => {
       ],
     });
     booted = await starting;
-    const list = (await (await fetch(`http://127.0.0.1:${port}/host/extensions`)).json()) as {
+    const auth = { authorization: `Bearer ${await hostTokenOf(configDir)}` };
+    const listed = await fetch(`http://127.0.0.1:${port}/host/extensions`, { headers: auth });
+    const list = (await listed.json()) as {
       data: object[];
     };
     expect(list.data).toMatchObject([
@@ -101,7 +104,7 @@ describe('a slow installer at boot', () => {
     expect(signals[0]?.aborted).toBe(true);
     const values = await fetch(`http://127.0.0.1:${port}/host/extensions/slow`, {
       method: 'PATCH',
-      headers: { 'content-type': 'application/json' },
+      headers: { 'content-type': 'application/json', ...auth },
       body: JSON.stringify({ settings: { a: 1 } }),
     });
     expect([values.status, await values.json()]).toMatchObject([

@@ -8,6 +8,8 @@ import { removeDaemonFile, writeDaemonFile, DAEMON_PROTOCOL } from './daemon-fil
 import { assertNoOtherDaemon } from './daemon-owner.js';
 import { bootInstallation, updateInstallation } from './installation.js';
 import { type Entries } from './entries.js';
+import { newHostToken } from './host-token.js';
+import { sealOffReason } from './seal.js';
 import { limitsOf, type Limits } from './limits.js';
 import { pendingChanges } from './pending.js';
 import { serialQueue } from './queue.js';
@@ -82,15 +84,27 @@ const stopper = (server: Server, entries: Entries, deps: SupervisorDeps, life: A
   return () => (stopped ??= stop());
 };
 
-// C4: how a client finds this daemon.
-const announce = ({ configDir, version, startedBy }: DaemonOptions, port: number) =>
+// C4: how a client finds this daemon; D11: the host token, only in this 0600 file.
+const announce = (
+  { configDir, version, startedBy }: DaemonOptions,
+  port: number,
+  hostToken: string
+) =>
   writeDaemonFile(configDir, {
     pid: process.pid,
     port,
     version,
     protocol: DAEMON_PROTOCOL,
     startedBy,
+    hostToken,
   });
+
+// One source: the launch that forks the children (its test clock, its seal).
+const launchMarks = (launch: Launch) => ({
+  ...(launch.clockRate && launch.clockRate !== 1 && { clockRate: launch.clockRate }),
+  ...(launch.seal && { seal: launch.seal }),
+  ...(launch.seal === 'off' && { sealError: sealOffReason(process.versions.node) }),
+});
 
 const depsOf = (opts: DaemonOptions, launch: Launch, origin: () => string, stopping: Stopping) =>
   ({
@@ -115,21 +129,15 @@ export const startDaemon = async (opts: DaemonOptions, launch: Launch): Promise<
   const life = new AbortController();
   const deps = depsOf(opts, launch, () => `http://127.0.0.1:${port}`, stoppingOf(life.signal));
   const { entries, ...file } = await loadEntries(deps);
-  // One source: the launch that forks the children.
-  const rate = launch.clockRate && launch.clockRate !== 1 ? { clockRate: launch.clockRate } : {};
-  const info = {
-    ...rate,
-    version: opts.version,
-    pid: process.pid,
-    protocol: DAEMON_PROTOCOL,
-    ...file,
-  };
-  const app = daemonApp(deps, entries, () => port, info);
+  const self = { version: opts.version, pid: process.pid, protocol: DAEMON_PROTOCOL };
+  const info = { ...launchMarks(launch), ...self, ...file };
+  const hostToken = newHostToken();
+  const app = daemonApp(deps, entries, () => port, info, hostToken);
   const server = await listen(app, port, '127.0.0.1');
   port = (server.address() as AddressInfo).port;
   const stop = stopper(server, entries, deps, life);
   try {
-    await announce(opts, port);
+    await announce(opts, port, hostToken);
     await deps.queue(() => boot(deps, entries));
   } catch (err) {
     await stop();

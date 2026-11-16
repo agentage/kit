@@ -4,7 +4,7 @@ import { z } from 'zod';
 import { fail } from '../../envelope/envelope.js';
 import { ExtensionIdSchema } from '../../manifest/primitives.schema.js';
 import { assertNoOtherDaemon } from './daemon-owner.js';
-import { readJsonFile, withFileLock, writeJsonFile } from './json-file.js';
+import { readJsonFile, unreadableReason, withFileLock, writeJsonFile } from './json-file.js';
 
 // One extension in installation.json (C3): a version, or a source folder; other keys round-trip.
 const InstallEntrySchema = z.looseObject({
@@ -54,10 +54,7 @@ const unreadable = (why: string, atBoot = false) =>
     { code: 'INSTALLATION_UNREADABLE', details: { reason: why } }
   );
 
-const reasonOf = (err: unknown) =>
-  err instanceof SyntaxError
-    ? 'not JSON'
-    : String((err as NodeJS.ErrnoException).code ?? (err as Error).message);
+const reasonOf = unreadableReason;
 
 // A file that is not JSON: read as empty (kept aside first), or refused like an unreadable one.
 type NotJson = 'empty' | 'refuse';

@@ -110,7 +110,12 @@ When `installation.json` cannot be read (`EACCES`, `EISDIR`), the daemon never w
 boot that is not JSON, has rows C3 refuses or an id twice, is kept as `installation.json.bad` and
 replaced by the valid rows (the first of each id) the daemon runs; `/health` says
 `installation: "invalid"`. A file that turns not JSON after boot is never written: each change is
-409 `INSTALLATION_UNREADABLE` ("not JSON") until it is fixed. A write that finds a daemon file
+409 `INSTALLATION_UNREADABLE` ("not JSON") until it is fixed. A `settings.json` or `secrets.json`
+that is not JSON, or not an object of rows by id, is never written: each change that reads it is
+409 `SETTINGS_UNREADABLE` or `SECRETS_UNREADABLE` (`details: { file, reason }`), and a start that
+reads it fails with that message; the reason is fixed words, never the file text. A daemon file
+that cannot be written (`ENOSPC`, `EDQUOT`, `EROFS`, `EACCES`, `EPERM`) is 503 `UNAVAILABLE`
+naming the file and the errno, and leaves no temp file. A write that finds a daemon file
 locked by another live process waits `lockMs`, then is 503 `UNAVAILABLE` naming the pid
 ("installation.json is locked by process <pid>: waited <ms> ms"). The data lock falls back to an
 exclusive create on a volume with no hard links; an empty lock file is taken as being written for

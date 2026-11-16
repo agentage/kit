@@ -2,6 +2,7 @@ import { type z } from 'zod';
 import { badScope, type Access, type Caller } from '../auth/token-check.js';
 import { type PartContext } from '../context/context.js';
 import { type Reply } from '../envelope/envelope.js';
+import { type DownloadAnswer } from './download.js';
 import { createFilesRegistry, type FilesRegistrar } from './files-registry.js';
 import { createWellKnownRegistry, type WellKnownRegistrar } from './well-known.js';
 
@@ -32,6 +33,8 @@ export interface RouteSpec<
   etag?: true;
   // The success status the contract documents; 200 when left out.
   status?: 200 | 201 | 204;
+  // The media type of a non-JSON answer (application/zip): the handler returns download(...).
+  produces?: string;
 }
 
 // The {name} segments of a path, each a string.
@@ -58,7 +61,7 @@ export interface RouteRequest<
   header: (name: string) => string | undefined;
 }
 
-type Answer<T> = T | Reply<T>;
+type Answer<T> = T | Reply<T> | DownloadAnswer;
 
 export type RouteHandler<
   I extends ObjectSchema,
@@ -111,13 +114,22 @@ export interface RouteEntry {
 
 const PATH = /^(\/([A-Za-z0-9._~-]+|\{[A-Za-z_][A-Za-z0-9_]*\}))+$/;
 
+const MEDIA_TYPE = /^[a-z0-9][\w.+-]*\/[a-z0-9][\w.+-]*$/i;
+
+const producesProblem = ({ produces = '', output, status, etag }: RouteEntry['spec']) => {
+  if (!MEDIA_TYPE.test(produces)) return `produces ${produces}: a media type, as application/zip`;
+  if (output || etag || (status ?? 200) !== 200)
+    return 'produces a file: no output, etag or status';
+  return null;
+};
+
 const problemOf = (routes: RouteEntry[], { method, path, spec }: RouteEntry) => {
   if (!ROUTE_METHODS.includes(method))
     return `method ${String(method)}: one of get, post, put, patch, delete`;
   if (!PATH.test(path)) return 'path: /segments and {param} segments under /api/{id}';
   if (routes.some((r) => r.method === method && r.path === path)) return 'is registered twice';
   if (!spec.summary) return 'needs a summary: it documents the route';
-  return badScope(spec.scope);
+  return (spec.produces !== undefined && producesProblem(spec)) || badScope(spec.scope);
 };
 
 export const createRouteRegistry = () => {

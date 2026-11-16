@@ -7,6 +7,12 @@ export {
   type RouteRequest,
   type RouteSpec,
 } from './api/routes.js';
+export {
+  download,
+  type DownloadAnswer,
+  type DownloadBody,
+  type DownloadOptions,
+} from './api/download.js';
 export { pageOf, PageQuerySchema, type Pagination } from './api/page.js';
 export { type Access, type Caller } from './auth/token-check.js';
 export { type ArgValue } from './command/args.js';

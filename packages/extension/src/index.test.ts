@@ -19,6 +19,7 @@ describe('public surface', () => {
       'createClickhouseStore',
       'createEventsClient',
       'createTestContext',
+      'download',
       'fail',
       'isClickhouseOutage',
       'ok',

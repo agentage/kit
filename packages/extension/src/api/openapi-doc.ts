@@ -24,8 +24,13 @@ const content = (description: string, schema: Json) => ({ description, content: 
 
 const STRING = { type: 'string' };
 
-const okResponse = (spec: RouteEntry['spec']) =>
-  spec.status === 204 ? { description: 'no content' } : okBody(spec);
+const BINARY = { type: 'string', format: 'binary' };
+
+const okResponse = (spec: RouteEntry['spec']) => {
+  if (spec.produces)
+    return { description: 'the file', content: { [spec.produces]: { schema: BINARY } } };
+  return spec.status === 204 ? { description: 'no content' } : okBody(spec);
+};
 
 const okBody = ({ output, etag }: RouteEntry['spec']) => ({
   ...content('the envelope', {

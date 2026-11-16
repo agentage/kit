@@ -34,6 +34,8 @@ const nextBuild = async (text: string) => {
 };
 const reload = (id = 'word', body: unknown = {}) =>
   h!.call('POST', `/host/extensions/${id}/reload`, body);
+const rowOf = async () =>
+  ((await h!.call('GET', '/host/extensions')).body as { data: Record<string, unknown>[] }).data[0];
 const at = (folder: string) => readFile(join(dir, folder, 'word.txt'), 'utf8');
 const marker = () => existsSync(join(h!.configDir, 'run', 'word', 'reload.json'));
 
@@ -83,6 +85,21 @@ describe('POST /host/extensions/{id}/reload (D14)', () => {
     await reload();
     await new Promise((resolve) => setTimeout(resolve, 1_200));
     expect(slow.events).toEqual(['start 1000', 'exit 1000', 'start 1001']);
+  });
+
+  it('a reload exit is not a crash exit, and a reload resets the count', async () => {
+    h = await startHarness({ launch: w.launch, backoffMs: [5_000, 9_000], crashLimit: 2 });
+    await h.call('POST', '/host/extensions', { source: dir });
+    w.children.at(-1)!.crash();
+    await vi.waitFor(async () => expect(await rowOf()).toMatchObject({ state: 'starting' }));
+    for (let i = 0; i < 5; i += 1) await reload();
+    w.children.at(-1)!.crash('after reloads');
+    await vi.waitFor(async () =>
+      expect(await rowOf()).toMatchObject({
+        state: 'starting',
+        error: 'after reloads: restart in 5000 ms',
+      })
+    );
   });
 
   it('two reloads at once run one after the other, never interleaved', async () => {

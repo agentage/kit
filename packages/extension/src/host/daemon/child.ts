@@ -95,11 +95,11 @@ const flushed = (child: ChildProcess): Promise<void> =>
     setTimeout(resolve, 500).unref();
   });
 
-// A log row below warn (listening, a request) is not why a running child exited.
+// A log row below error (listening, a request, a warning) is not why a running child exited.
 const loud = (tail: string): string =>
   tail
     .split('\n')
-    .filter((line) => !/^\{.*"level":"(info|debug|trace)"/.test(line))
+    .filter((line) => !/^\{.*"level":"(warn|info|debug|trace)"/.test(line))
     .join('\n');
 
 const exitOf = (child: ChildProcess, tail: () => string): Promise<Exit> =>

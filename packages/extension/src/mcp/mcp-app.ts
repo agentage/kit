@@ -63,12 +63,12 @@ const callAccess = (options: McpAppOptions, body: unknown): Access[] =>
 
 const OPENING = new Set(['initialize', 'server/discover']);
 
+const isOpening = (body: unknown): boolean =>
+  messagesOf(body).some((message) => OPENING.has(String(message?.method)));
+
 // Instructions made per caller: the opening message reads a bearer when one is sent.
 const openingAccess = (options: McpAppOptions, body: unknown): Access[] =>
-  typeof options.instructions === 'function' &&
-  messagesOf(body).some((message) => OPENING.has(String(message?.method)))
-    ? ['optional']
-    : [];
+  typeof options.instructions === 'function' && isOpening(body) ? ['optional'] : [];
 
 // Tokens off: calls stay anonymous and a closed listing refuses every tools/list (nothing can verify).
 const guard = async (options: McpAppOptions, req: Request, body: unknown) => {
@@ -135,7 +135,7 @@ const handle =
     if (message === undefined) return void res.status(400).json(PARSE_ERROR);
     const caller = await guard(options, req, message);
     markRow(options, req, res, message);
-    const authInfo = caller ? authInfoOf(caller) : undefined;
+    const authInfo = authInfoOf(caller, isOpening(message));
     const answer = await handler.fetch(webRequest(req, body), { parsedBody: message, authInfo });
     await send(answer, res, caller !== null);
   };

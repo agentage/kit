@@ -161,6 +161,23 @@ describe('server instructions', () => {
     expect(await initialize(url)).toBe('vaults of nobody');
   });
 
+  it('a function runs only for the opening message, never for tools/list or tools/call', async () => {
+    let runs = 0;
+    const url = await start((caller) => `run ${++runs} for ${caller?.sub ?? 'nobody'}`, byBearer);
+    expect(await callTool(url, 'memory__write', {})).toEqual({ sub: null });
+    expect(await callTool(url, 'memory__plain', {})).toEqual({ sub: null });
+    expect(runs).toBe(0);
+    expect(await initialize(url, 'u_bob')).toBe('run 1 for u_bob');
+  });
+
+  it('a failing function leaves tools/call working and initialize with no text', async () => {
+    const url = await start(() => {
+      throw new Error('store down');
+    }, byBearer);
+    expect(await callTool(url, 'memory__write', {})).toEqual({ sub: null });
+    expect(await initialize(url, 'u_bob')).toBeUndefined();
+  });
+
   it('is set once', () => {
     const { instructions } = createToolRegistry();
     instructions('one');

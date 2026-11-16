@@ -60,15 +60,17 @@ const callback =
   };
 
 // The caller the guard checked rides in authInfo, the SDK's own path to a per-request server.
-export const authInfoOf = (caller: Caller): AuthInfo => ({
+export const authInfoOf = (caller: Caller | null, opening: boolean): AuthInfo => ({
   token: '',
-  clientId: caller.sub,
-  scopes: [...caller.scopes],
-  extra: { caller },
+  clientId: caller?.sub ?? '',
+  scopes: [...(caller?.scopes ?? [])],
+  extra: { caller, opening },
 });
 
 const callerOf = (ctx?: McpRequestContext): Caller | null =>
   (ctx?.authInfo?.extra?.['caller'] as Caller | undefined) ?? null;
+
+const isOpening = (ctx?: McpRequestContext): boolean => ctx?.authInfo?.extra?.['opening'] === true;
 
 // Unset fields stay off the listing, so a tool that sets none lists as before.
 const configOf = (spec: ToolEntry['spec']) => ({
@@ -79,8 +81,21 @@ const configOf = (spec: ToolEntry['spec']) => ({
   ...(spec.annotations && { annotations: spec.annotations }),
 });
 
-const textOf = async (instructions: Instructions | undefined, caller: Caller | null) =>
-  typeof instructions === 'function' ? instructions(caller) : instructions;
+// A function runs only for the opening message; its failure is logged and the opening has no text.
+const textOf = async (
+  instructions: Instructions | undefined,
+  ctx: McpRequestContext | undefined,
+  log: Log
+) => {
+  if (typeof instructions !== 'function') return instructions;
+  if (!isOpening(ctx)) return undefined;
+  try {
+    return await instructions(callerOf(ctx));
+  } catch (err) {
+    log.error(err, 'instructions');
+    return undefined;
+  }
+};
 
 // One fresh server per request (stateless); serverInfo agentage-{id} at the package version.
 export const serverFactory =
@@ -88,7 +103,7 @@ export const serverFactory =
   async (ctx?: McpRequestContext) => {
     const caller = callerOf(ctx);
     const info = { name: `agentage-${identity.id}`, version: identity.version };
-    const server = new McpServer(info, { instructions: await textOf(instructions, caller) });
+    const server = new McpServer(info, { instructions: await textOf(instructions, ctx, log) });
     for (const entry of tools) {
       const tool = prefixed(identity.id, entry.name);
       server.registerTool(tool, configOf(entry.spec), callback(entry, log, tool, caller));

@@ -9,7 +9,16 @@ export interface Seen {
   body: string;
 }
 
-type Answer = (seen: Seen) => { status?: number; body?: string; code?: string; wait?: number };
+interface Reply {
+  status?: number;
+  body?: string;
+  code?: string;
+  wait?: number;
+  // Sends the headers and part of the body, then closes the socket.
+  cut?: boolean;
+}
+
+type Answer = (seen: Seen) => Reply;
 
 const servers: Server[] = [];
 afterEach(() => servers.splice(0).forEach((s) => s.close()));
@@ -32,7 +41,9 @@ export const fakeClickhouse = async (answer: Answer) => {
       const a = answer(one);
       if (a.wait) await new Promise((ok) => setTimeout(ok, a.wait));
       if (a.code) res.setHeader('X-ClickHouse-Exception-Code', a.code);
-      res.writeHead(a.status ?? 200).end(a.body ?? '');
+      if (!a.cut) return void res.writeHead(a.status ?? 200).end(a.body ?? '');
+      res.writeHead(200, { 'Content-Length': '1000' }).write('{"n":1}\n');
+      setTimeout(() => res.socket?.destroy(), 20);
     });
   });
   servers.push(server);

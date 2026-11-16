@@ -3,8 +3,7 @@ import { messageOf, type Log } from '../log/log.js';
 import { type ExtensionPackage } from '../manifest/manifest.schema.js';
 import { storeOf } from '../manifest/parts.js';
 import { createClickhouseStore } from '../store/clickhouse-store.js';
-import { migrate } from '../store/migrations.js';
-import { createStore, MIGRATE_TIMEOUTS, storeCheck, type PoolStore } from '../store/store.js';
+import { createStore, storeCheck, type PoolStore } from '../store/store.js';
 import {
   isUrlStoreKind,
   readStoreUrl,
@@ -12,12 +11,15 @@ import {
   type UrlStoreKind,
 } from '../store/store-url.js';
 import { type Store } from '../store/store.types.js';
+import { migrationsCheck } from './host-migrations.js';
 
 // The host's store, whichever opened it: queries, and a close on stop.
 export interface HostStore extends Store {
   close(): Promise<void>;
   // Set for a store opened from a URL: /health then also names the kind (checks["store:postgres"]).
   readonly kind?: UrlStoreKind;
+  // The store's own /health checks (store:migrations for postgres).
+  readonly checks?: Record<string, HealthCheck>;
 }
 
 export interface UrlStoreAt {
@@ -27,33 +29,17 @@ export interface UrlStoreAt {
   openMs: number;
 }
 
-type Pool = (url: string, log: Log, timeouts?: typeof MIGRATE_TIMEOUTS) => PoolStore;
-const poolOf: Pool = (url, log, timeouts) =>
-  createStore({ AGENTAGE_STORE_URL: url }, log, timeouts);
+type Pool = (url: string, log: Log) => PoolStore;
+const poolOf: Pool = (url, log) => createStore({ AGENTAGE_STORE_URL: url }, log);
 
-// Migrations on their own short-lived pool with the migrate job's limits, not the part's 10 s.
-const migrateOn = async (url: string, dir: string, log: Log, pool: Pool) => {
-  const own = pool(url, log, MIGRATE_TIMEOUTS);
-  try {
-    await migrate(own, dir, log);
-  } finally {
-    await own.end();
-  }
-};
-
-// Every query waits on the migrations; a failed run is not kept, so the next use (and /health) retries.
-export const preparedPostgres = (url: string, dir: string, log: Log, pool = poolOf): HostStore => {
+// The serving host never migrates (the migrate job does): /health is 503 until the ledger is current.
+export const postgresStore = (url: string, dir: string, log: Log, pool = poolOf): HostStore => {
   const parts = pool(url, log);
-  let ready: Promise<void> | undefined;
-  const prepared = () =>
-    (ready ??= migrateOn(url, dir, log, pool).catch((err: unknown) => {
-      ready = undefined;
-      throw err;
-    }));
   return {
     kind: 'postgres',
-    query: async (text, params) => (await prepared(), parts.query(text, params)),
+    query: parts.query,
     close: () => parts.end(),
+    checks: { 'store:migrations': migrationsCheck(parts, dir, log) },
   };
 };
 
@@ -90,14 +76,21 @@ export const openUrlStore = async (
   if (!kind) return undefined;
   const url = await readStoreUrl(at.file, kind);
   const store =
-    kind === 'postgres' ? preparedPostgres(url, at.dir, log) : createClickhouseStore(url, log);
+    kind === 'postgres' ? postgresStore(url, at.dir, log) : createClickhouseStore(url, log);
   await firstUse(store, kind, at.openMs, log);
   return store;
 };
 
-// checks.store as before, plus checks["store:<kind>"] for a URL store: one probe answers both.
+// Calls that overlap share one run: /health asks checks.store and store:<kind> in one probe.
+const shared = (check: HealthCheck): HealthCheck => {
+  let running: ReturnType<HealthCheck> | undefined;
+  return () => (running ??= check().finally(() => (running = undefined)));
+};
+
+// checks.store as before; a URL store adds store:<kind> (the same probe) and its own checks.
 export const hostStoreChecks = (store: HostStore | undefined): Record<string, HealthCheck> => {
   if (!store) return {};
-  const check = storeCheck(store);
-  return { store: check, ...(store.kind && { [`store:${store.kind}`]: check }) };
+  const check = shared(storeCheck(store));
+  const named = store.kind ? { [`store:${store.kind}`]: check } : {};
+  return { store: check, ...named, ...store.checks };
 };

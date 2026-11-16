@@ -46,17 +46,43 @@ describe('createClickhouseStore', () => {
   });
 
   it('a ClickHouse error carries its own code; it is not an outage', async () => {
-    const ch = await fakeClickhouse(() => ({ status: 500, code: '159', body: 'Code: 159. slow' }));
+    const ch = await fakeClickhouse(() => ({
+      status: 404,
+      code: '60',
+      body: 'Code: 60. no table',
+    }));
     const store = createClickhouseStore(ch.url, recordedLog().log);
     const err = await store.query('SELECT 1').catch((e: unknown) => e);
-    expect(err).toMatchObject({ code: '159', message: 'Code: 159. slow' });
+    expect(err).toMatchObject({ code: '60', message: 'Code: 60. no table' });
     expect(isFailure(err)).toBe(false);
-    const bare = await fakeClickhouse(() => ({ status: 404, body: 'Code: 60. no table' }));
+    const bare = await fakeClickhouse(() => ({ status: 500, body: 'Code: 243. no space' }));
     const other = createClickhouseStore(bare.url, recordedLog().log);
-    await expect(other.command('x')).rejects.toMatchObject({ code: '60' });
-    const empty = await fakeClickhouse(() => ({ status: 502 }));
-    const third = createClickhouseStore(empty.url, recordedLog().log);
-    await expect(third.command('x')).rejects.toMatchObject({ code: '502' });
+    await expect(other.command('x')).rejects.toMatchObject({ code: '243' });
+  });
+
+  const unavailable = async (reply: Parameters<typeof fakeClickhouse>[0]) => {
+    const ch = await fakeClickhouse(reply);
+    const err = await createClickhouseStore(ch.url, recordedLog().log)
+      .query('SELECT 1')
+      .catch((e: unknown) => e);
+    expect(err).toMatchObject({ code: 'UNAVAILABLE', status: 503 });
+  };
+
+  it('159, a timeout of the server, is UNAVAILABLE', async () => {
+    await unavailable(() => ({ status: 500, code: '159', body: 'Code: 159. slow' }));
+  });
+
+  it('202, too many queries, is UNAVAILABLE', async () => {
+    await unavailable(() => ({ status: 500, body: 'Code: 202. too many' }));
+  });
+
+  it('a proxy 502 or 503 with no ClickHouse code is UNAVAILABLE', async () => {
+    await unavailable(() => ({ status: 502, body: 'Bad Gateway' }));
+    await unavailable(() => ({ status: 503 }));
+  });
+
+  it('a socket closed while the body is read is UNAVAILABLE', async () => {
+    await unavailable(() => ({ cut: true }));
   });
 
   it('a store that cannot be reached or answers too late is UNAVAILABLE; ping says false', async () => {
@@ -117,7 +143,9 @@ describe('clickhouse helpers', () => {
     expect(isClickhouseOutage(coded('ECONNRESET'))).toBe(true);
     expect(isClickhouseOutage(new Error('x', { cause: { code: 'ENOTFOUND' } }))).toBe(true);
     expect(isClickhouseOutage(new TypeError('fetch failed'))).toBe(true);
-    expect(isClickhouseOutage(coded('159'))).toBe(false);
+    expect(isClickhouseOutage(coded('60'))).toBe(false);
+    expect(isClickhouseOutage(new TypeError('terminated'))).toBe(true);
+    expect(isClickhouseOutage(coded('HTTP_404'))).toBe(false);
     expect(isClickhouseOutage(null)).toBe(false);
   });
 

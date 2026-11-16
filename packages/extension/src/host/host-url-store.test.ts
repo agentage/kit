@@ -7,7 +7,7 @@ import { recordedLog } from '../test-support/http.js';
 import { json, tempPackage } from '../test-support/packages.js';
 import { type PoolStore } from '../store/store.js';
 import { hostExtension, type HostedExtension } from './host-extension.js';
-import { hostStoreChecks, openUrlStore, preparedPostgres } from './host-url-store.js';
+import { hostStoreChecks, openUrlStore, postgresStore } from './host-url-store.js';
 
 const SECRET = 'pw-never-logged';
 const secrets = { 'api-token': 'tok' };
@@ -19,46 +19,42 @@ afterEach(async () => {
 
 const urlFile = async (url: string) => `${await tempPackage({ 'store-url': url })}/store-url`;
 
-// A pool that records queries; the first `failFirst` migration runs throw.
-const fakePools = (failFirst = 0) => {
-  const queries: string[] = [];
-  const ended: string[] = [];
-  let failures = failFirst;
-  const pool = (_url: string, _log: unknown, timeouts?: unknown): PoolStore => ({
-    query: async (text) => {
-      if (timeouts && text.startsWith('create table') && failures-- > 0) throw new Error('down');
-      queries.push(`${timeouts ? 'migrate' : 'part'}: ${text.split('\n')[0]}`);
-      return { rows: [] };
-    },
-    end: async () => void ended.push(timeouts ? 'migrate' : 'part'),
-  });
-  return { pool, queries, ended };
-};
-
-describe('preparedPostgres', () => {
-  it('runs the migrations once on their own pool before the first query', async () => {
-    const { pool, queries, ended } = fakePools();
-    const store = preparedPostgres('postgres://x', await hostedPackage(), recordedLog().log, pool);
-    await Promise.all([store.query('select 1'), store.query('select 2')]);
-    await store.query('select 3');
-    expect(queries.filter((q) => q.startsWith('part:'))).toEqual([
-      'part: select 1',
-      'part: select 2',
-      'part: select 3',
-    ]);
-    expect(queries.filter((q) => q.startsWith('migrate:')).length).toBeGreaterThan(1);
-    expect(ended).toEqual(['migrate']);
-    await store.close();
-    expect(ended).toEqual(['migrate', 'part']);
-    expect(store.kind).toBe('postgres');
-  });
-
-  it('a failed migration run is not kept: the next query runs it again', async () => {
-    const { pool, queries } = fakePools(1);
-    const store = preparedPostgres('postgres://x', await hostedPackage(), recordedLog().log, pool);
-    await expect(store.query('select 1')).rejects.toThrow('down');
+describe('postgresStore', () => {
+  it('serves queries on the part pool, never migrates, closes the pool on stop', async () => {
+    const queries: string[] = [];
+    let ended = 0;
+    const pool = (): PoolStore => ({
+      query: async (text) => (queries.push(text), { rows: [] }),
+      end: async () => void (ended += 1),
+    });
+    const store = postgresStore('postgres://x', await hostedPackage(), recordedLog().log, pool);
     await store.query('select 1');
-    expect(queries.at(-1)).toBe('part: select 1');
+    expect(queries).toEqual(['select 1']);
+    expect(Object.keys(store.checks ?? {})).toEqual(['store:migrations']);
+    await store.close();
+    expect([store.kind, ended]).toEqual(['postgres', 1]);
+  });
+});
+
+describe('hostStoreChecks', () => {
+  it('no store, no checks; a PGlite store keeps the one name', () => {
+    expect(hostStoreChecks(undefined)).toEqual({});
+    const pglite = { query: async () => ({ rows: [] }), close: async () => undefined };
+    expect(Object.keys(hostStoreChecks(pglite))).toEqual(['store']);
+  });
+
+  it('store and store:<kind> share one probe; the store adds its own checks', async () => {
+    let probes = 0;
+    const store = {
+      kind: 'postgres' as const,
+      query: async () => (probes++, { rows: [] }),
+      close: async () => undefined,
+      checks: { 'store:migrations': async () => 'ok' as const },
+    };
+    const checks = hostStoreChecks(store);
+    expect(Object.keys(checks)).toEqual(['store', 'store:postgres', 'store:migrations']);
+    await Promise.all([checks['store']?.(), checks['store:postgres']?.()]);
+    expect(probes).toBe(1);
   });
 });
 
@@ -79,7 +75,11 @@ describe('openUrlStore', () => {
     const host = await hostExtension(await hostedPackage(), opts);
     hosted.push(host);
     const body = await host.health();
-    expect(body.data.checks).toEqual({ store: 'unavailable', 'store:postgres': 'unavailable' });
+    expect(body.data.checks).toEqual({
+      store: 'unavailable',
+      'store:postgres': 'unavailable',
+      'store:migrations': 'unavailable',
+    });
     const written = vi.mocked(process.stderr.write).mock.calls.join('\n');
     expect(written).toMatch(/the store did not open/);
     expect(written).not.toContain(SECRET);
@@ -103,14 +103,6 @@ describe('openUrlStore', () => {
     hosted.push(host);
     expect((await host.health()).data.checks).toEqual({ store: 'ok', 'store:clickhouse': 'ok' });
     expect(ch.seen.every((s) => s.user === 'logs' && s.body === 'select 1')).toBe(true);
-  });
-});
-
-describe('hostStoreChecks', () => {
-  it('no store, no checks; a PGlite store keeps the one name', () => {
-    expect(hostStoreChecks(undefined)).toEqual({});
-    const pglite = { query: async () => ({ rows: [] }), close: async () => undefined };
-    expect(Object.keys(hostStoreChecks(pglite))).toEqual(['store']);
   });
 });
 

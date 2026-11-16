@@ -68,8 +68,9 @@ const urlOf = (c: ClickhouseConnection, call: ClickhouseCall): URL => {
 const failure = async (res: Response): Promise<Error> => {
   const text = (await res.text()).trim();
   const code = res.headers.get('x-clickhouse-exception-code') ?? /Code: (\d+)/.exec(text)?.[1];
+  // No ClickHouse code: a proxy or the edge answered, never the server itself.
   return Object.assign(new Error(text || `clickhouse answered ${res.status}`), {
-    code: code ?? String(res.status),
+    code: code ?? `HTTP_${res.status}`,
   });
 };
 

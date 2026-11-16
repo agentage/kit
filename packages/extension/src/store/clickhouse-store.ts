@@ -40,18 +40,23 @@ const TABLE = /^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)?$/;
 const PING_MS = 900;
 
 const OUTAGE = /^(ECONNREFUSED|ECONNRESET|ETIMEDOUT|ENOTFOUND|EAI_AGAIN|EHOSTUNREACH|EPIPE)$/;
+// 159 timeout, 202 too many queries; a proxy's 502-504 with no ClickHouse code.
+const BUSY = /^(159|202|HTTP_50[234])$/;
 const codeOf = (err: unknown): string => {
   const own = (err as { code?: unknown } | null)?.code;
   const cause = (err as { cause?: { code?: unknown } } | null)?.cause?.code;
   return String(own ?? cause ?? '');
 };
 
-const FETCH_FAILED = (err: unknown) => err instanceof TypeError && err.message === 'fetch failed';
+// undici: "fetch failed" before the answer, "terminated" when the socket closes mid-body.
+const NETWORK = (err: unknown) =>
+  err instanceof TypeError && /^(fetch failed|terminated)$/.test(err.message);
 
-// The client's own timeout or a network fault; a caller's abort and a query error pass through.
+// A store that cannot answer now is UNAVAILABLE, as in store.ts; a caller's abort and a query error pass through.
 export const isClickhouseOutage = (err: unknown): boolean =>
   OUTAGE.test(codeOf(err)) ||
-  FETCH_FAILED(err) ||
+  BUSY.test(codeOf(err)) ||
+  NETWORK(err) ||
   (err as { name?: string } | null)?.name === 'TimeoutError';
 
 const guarded = (log: Log) => async (work: () => Promise<string>) => {

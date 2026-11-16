@@ -21,6 +21,8 @@ interface LaunchSpec {
 export interface Exit {
   code: number | null;
   signal: string | null;
+  // The last stderr line (its msg when a log row): the reason a restart and failed show.
+  words?: string;
 }
 
 // A started extension: its loopback port; stop drains it (SIGTERM) and waits for the exit.
@@ -85,6 +87,29 @@ const captured = (child: ChildProcess): (() => string) => {
   return () => tail;
 };
 
+// 'exit' can come before the last stderr chunk: wait for the stream end, at most 500 ms.
+const flushed = (child: ChildProcess): Promise<void> =>
+  new Promise((resolve) => {
+    if (!child.stderr || child.stderr.readableEnded) return resolve();
+    child.stderr.once('end', resolve);
+    setTimeout(resolve, 500).unref();
+  });
+
+// A log row below warn (listening, a request) is not why a running child exited.
+const loud = (tail: string): string =>
+  tail
+    .split('\n')
+    .filter((line) => !/^\{.*"level":"(info|debug|trace)"/.test(line))
+    .join('\n');
+
+const exitOf = (child: ChildProcess, tail: () => string): Promise<Exit> =>
+  new Promise((resolve) =>
+    child.once('exit', (code, signal) => {
+      const how = { code, signal };
+      void flushed(child).then(() => resolve({ ...how, words: lastWords(loud(tail()), how) }));
+    })
+  );
+
 const portOf = (msg: unknown): number | undefined => {
   const { type, port } = (msg ?? {}) as { type?: unknown; port?: unknown };
   return type === 'ready' && typeof port === 'number' ? port : undefined;
@@ -129,11 +154,10 @@ export const forkLaunch = (main = HOST_MAIN, startMs = LIMITS.startMs, rate?: nu
     const clock = clockRate === 1 ? {} : { [CLOCK_RATE_ENV]: String(clockRate) };
     const env = { ...passedEnv(), ...childEnv(spec, secretsDir), ...clock };
     const child = fork(main, [], { env, execArgv: [], stdio: [...stdio] });
-    const exited = new Promise<Exit>((resolve) =>
-      child.once('exit', (code, signal) => resolve({ code, signal }))
-    );
+    const tail = captured(child);
+    const exited = exitOf(child, tail);
     try {
-      const port = await readyOf(child, captured(child), startMs);
+      const port = await readyOf(child, tail, startMs);
       return { port, pid: child.pid ?? 0, exited, stop: stopOf(child, exited) };
     } finally {
       await rm(secretsDir, { recursive: true, force: true });

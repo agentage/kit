@@ -1,4 +1,4 @@
-export type PendingOp = 'install' | 'update' | 'remove';
+export type PendingOp = 'install' | 'update' | 'remove' | 'reload';
 
 export interface Pending {
   op: PendingOp;

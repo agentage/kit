@@ -14,6 +14,7 @@ import { serialQueue } from './queue.js';
 import { launchUnlessStopping, stopAll, stoppingOf, type Stopping } from './stopping.js';
 import { daemonApp } from './routes.js';
 import { runInstaller } from './installer-call.js';
+import { repairReload } from './reload-marker.js';
 import { halt, startEntry, type Entry, type Installer, type SupervisorDeps } from './supervisor.js';
 
 export interface DaemonOptions extends Partial<Limits> {
@@ -64,6 +65,7 @@ const boot = async (deps: SupervisorDeps, entries: Entries): Promise<void> => {
   const off = all.filter((e) => e.state === 'disabled');
   const on = all.filter((e) => e.state !== 'disabled');
   const ordered = [...on.filter((e) => e.install.source), ...on.filter((e) => !e.install.source)];
+  for (const entry of all) await repairReload(deps.configDir, entry, deps.log).catch(warnOf(deps));
   for (const entry of ordered) await startEntry(deps, entry);
   for (const entry of off) await resolveDir(deps, entry);
 };

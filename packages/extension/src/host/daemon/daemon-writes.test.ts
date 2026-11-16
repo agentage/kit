@@ -161,7 +161,10 @@ describe('a failed write whose undo fails too', () => {
       interval: 5,
     });
     await takeLock('installation.json');
-    expect(await call).toMatchObject({ status: 400, body: { error: { code: 'START_FAILED' } } });
+    expect(await call).toMatchObject({
+      status: 400,
+      body: { error: { code: 'VALIDATION_ERROR', details: { code: 'START_FAILED' } } },
+    });
     expect((await h.call('GET', '/health')).body).toMatchObject({ unsynced: ['hosted'] });
     await rm(join(h.configDir, 'installation.json.lock'));
   });

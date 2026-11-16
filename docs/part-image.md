@@ -80,7 +80,7 @@ not answer", can come after the extension applied the call: retry only an idempo
 request counted on the old child before a swap is answered there while it drains (`drainMs`).
 
 While a change is taken and not yet answered (queued too), `/health` lists it in `pending`:
-`[{ op: "install" | "update" | "remove", id?, source?, since, timedOut? }]`; the field is left
+`[{ op: "install" | "update" | "remove" | "reload", id?, source?, since, timedOut? }]`; the field is left
 out when nothing is pending. An installer call past `installMs` stays listed with `timedOut: true`
 until it ends, and a second installer call for that id meanwhile is 409 `CONFLICT` with that row
 in `error.details`. So an installer that never ends keeps its id at 409 until the daemon restarts.
@@ -116,6 +116,29 @@ exclusive create on a volume with no hard links; an empty lock file is taken as 
 1 s, then as stale. One starter at a time removes a stale lock (it holds `<dataDir>.lock.break`),
 so of many starters at once only one takes it.
 
+Refuse and restart (C6). A new id whose first start fails is 400 `VALIDATION_ERROR` with
+`details: { code: "START_FAILED", reason }`: its `installation.json` row goes, and its `data/{id}/`
+only when this start made it (the data of an id that had a folder, and its settings and secrets
+rows, stay). A `PATCH` that fails to start answers the same envelope and the old child runs again.
+A declared secret of a server part with no value is checked before the fork: the install is kept,
+state `failed`, error `needs secret <name>`; `PATCH { secrets }` starts it. A running child that
+exits restarts after `backoffMs` (1, 2, 4, 8, 16 s, by the restarts since the last reset; the last
+value repeats); a restart that does not start counts as an exit. `crashLimit` (5) exits in
+`crashWindowMs` (10 min) is `failed`, error `exited 5 times in 10 min: <last words>` (the child's
+last stderr line above info), and no more restarts. While it waits the state is `starting`, the
+error `<last words>: restart in <ms> ms`. A `PATCH` that starts it (enable, configure, update) or a
+reload resets the count. A restart runs in the change queue; a change, remove or stop cancels it.
+
+Reload (D14). `POST /host/extensions/{id}/reload`, body `{}`, for a folder row only (a market row
+is 400 `VALIDATION_ERROR`, a disabled one 409 `CONFLICT`). In the change queue (a second reload
+waits): requests wait at the gate (`gateMs`), the child stops and its exit is awaited, `dist` is
+renamed to `dist.prev` and `dist.next` to `dist` (with no `dist.next` it restarts on `dist`), the
+new child starts and must be healthy. Then 200 `{ id, version, state, pid, reloaded: true }`.
+Not healthy: `dist` goes back to `dist.next`, `dist.prev` to `dist`, the last good build starts, 200
+`{ ..., reloaded: false, refused: "<why>" }`; the store rows stay. `run/{id}/reload.json` is written
+before the swap and removed after; at boot a marker means a cut reload, and the last good build
+goes back to `dist`. A reload exit is not a crash exit.
+
 Two exports from `/host` write the daemon files under the kit's lock, for a client that moves
 older files before the daemon starts:
 
@@ -130,15 +153,17 @@ older files before the daemon starts:
 
 Each wait of the daemon has a bound, a `createDaemon` option:
 
-| Option      | Default  | Bounds                                                                                  |
-| ----------- | -------- | --------------------------------------------------------------------------------------- |
-| `startMs`   | `60000`  | a forked child's port report; then `SIGKILL`, "reported no port in <ms> ms: killed"     |
-| `healthMs`  | `60000`  | a new child's own `/health`                                                             |
-| `drainMs`   | `10000`  | the open requests of an old child before it stops (then `SIGTERM`, `SIGKILL` after 5 s) |
-| `gateMs`    | `30000`  | a request held while its extension swaps children; then 503                             |
-| `answerMs`  | `60000`  | a child's answer headers, from the start of the request; then 504                       |
-| `lockMs`    | `5000`   | a write waiting for another process's lock of a daemon file; then 503                   |
-| `installMs` | `660000` | one `Installer` call, then 504 (at boot the entry fails); a queued change, then 503     |
+| Option                        | Default                           | Bounds                                                                                  |
+| ----------------------------- | --------------------------------- | --------------------------------------------------------------------------------------- |
+| `startMs`                     | `60000`                           | a forked child's port report; then `SIGKILL`, "reported no port in <ms> ms: killed"     |
+| `healthMs`                    | `60000`                           | a new child's own `/health`                                                             |
+| `drainMs`                     | `10000`                           | the open requests of an old child before it stops (then `SIGTERM`, `SIGKILL` after 5 s) |
+| `gateMs`                      | `30000`                           | a request held while its extension swaps children; then 503                             |
+| `answerMs`                    | `60000`                           | a child's answer headers, from the start of the request; then 504                       |
+| `lockMs`                      | `5000`                            | a write waiting for another process's lock of a daemon file; then 503                   |
+| `installMs`                   | `660000`                          | one `Installer` call, then 504 (at boot the entry fails); a queued change, then 503     |
+| `backoffMs`                   | `[1000, 2000, 4000, 8000, 16000]` | the wait before each restart of a child that exited                                     |
+| `crashLimit`, `crashWindowMs` | `5`, `600000`                     | this many exits in the window is `failed`                                               |
 
 The 11 min of `installMs` is above the cli's npm bound (10 min) and below its client wait (12 min).
 

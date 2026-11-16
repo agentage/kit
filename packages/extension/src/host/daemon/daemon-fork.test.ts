@@ -103,46 +103,49 @@ describe('daemon with child processes', () => {
   it('a child that refuses to start is failed with its own reason', async () => {
     const lone = { ...HOSTED_MANIFEST, agentage: { ...HOSTED_MANIFEST.agentage, id: 'lone' } };
     const added = await h.call('POST', '/host/extensions', { source: await hostedPackage(lone) });
-    const error = 'api refused to start: secret api-token has no value';
+    const error = 'needs secret api-token';
     expect(added.body).toMatchObject({ data: { id: 'lone', state: 'failed', error } });
     await h.call('DELETE', '/host/extensions/lone');
   });
 
-  it('a killed child is failed in the list and /health; the other still answers', async () => {
+  it('a killed child restarts after the backoff with a new pid; the other still answers', async () => {
     const { body } = await echo('hosted');
     process.kill(body.data!.pid, 'SIGKILL');
-    await vi.waitFor(async () => {
-      const health = (await h.call('GET', '/health')).body;
-      expect(health).toMatchObject({
-        status: 'degraded',
-        extensions: [
-          { id: 'hosted', state: 'failed', error: 'the process exited (signal SIGKILL)' },
-          { id: 'other', state: 'running' },
-        ],
-      });
-    });
+    await vi.waitFor(
+      async () => {
+        const list = (await h.call('GET', '/host/extensions')).body;
+        expect(list).toMatchObject({ data: [{ id: 'hosted', state: 'starting' }, {}] });
+        expect(JSON.stringify(list)).toContain('signal SIGKILL');
+      },
+      { timeout: 5_000, interval: 20 }
+    );
     expect((await echo('other')).status).toBe(200);
-    expect((await echo('hosted')).status).toBe(503);
-  });
+    await vi.waitFor(async () => expect((await echo('hosted')).status).toBe(200), {
+      timeout: 10_000,
+      interval: 100,
+    });
+    expect((await echo('hosted')).body.data!.pid).not.toBe(body.data!.pid);
+  }, 20_000);
 
-  it('a child that exits with a code is failed with "(code N)" in the list and /health', async () => {
+  it('a child that exits with a code restarts; its exit names the code until then', async () => {
     const crash = { ...OTHER, agentage: { ...OTHER.agentage, id: 'crash' } };
     await writeSecrets(h.configDir, ['hosted', 'other', 'crash']);
     await h.call('POST', '/host/extensions', { source: await hostedPackage(crash) });
-    expect((await echo('crash')).status).toBe(200);
+    const first = (await echo('crash')).body.data!.pid;
     await fetch(`http://127.0.0.1:${h.daemon.port}/api/crash/crash`);
-    const error = 'the process exited (code 3)';
-    await vi.waitFor(async () => {
-      const health = (await h.call('GET', '/health')).body;
-      expect(health).toMatchObject({
-        extensions: [{}, {}, { id: 'crash', state: 'failed', error }],
-      });
-    });
-    expect((await h.call('GET', '/host/extensions')).body).toMatchObject({
-      data: [{}, {}, { id: 'crash', state: 'failed', error }],
+    await vi.waitFor(
+      async () => {
+        const list = (await h.call('GET', '/host/extensions')).body;
+        expect(JSON.stringify(list)).toContain('exited with code 3: restart in 1000 ms');
+      },
+      { timeout: 5_000, interval: 20 }
+    );
+    await vi.waitFor(async () => expect((await echo('crash')).body.data?.pid).not.toBe(first), {
+      timeout: 10_000,
+      interval: 100,
     });
     await h.call('DELETE', '/host/extensions/crash');
-  });
+  }, 20_000);
 
   it('stop ends every child, also one with a request that never ends', async () => {
     const { body } = await echo('other');

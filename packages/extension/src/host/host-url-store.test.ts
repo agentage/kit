@@ -3,7 +3,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { closedPort, fakeClickhouse } from '../test-support/fake-clickhouse.js';
 import { HOSTED_MANIFEST, hostedPackage } from '../test-support/hosted-fixture.js';
-import { recordedLog } from '../test-support/http.js';
+import { recordedLog, serveApp } from '../test-support/http.js';
 import { json, tempPackage } from '../test-support/packages.js';
 import { type PoolStore } from '../store/store.js';
 import { hostExtension, type HostedExtension } from './host-extension.js';
@@ -55,6 +55,25 @@ describe('hostStoreChecks', () => {
     expect(Object.keys(checks)).toEqual(['store', 'store:postgres', 'store:migrations']);
     await Promise.all([checks['store']?.(), checks['store:postgres']?.()]);
     expect(probes).toBe(1);
+  });
+});
+
+describe('AGENTAGE_STORE_URL_FILE unset (the local daemon)', () => {
+  it('PGlite migrates at start as in 0.15.1; /health has no store:migrations and is 200', async () => {
+    vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    const host = await hostExtension(await hostedPackage(), { dataDir: '', secrets });
+    hosted.push(host);
+    const body = await host.health();
+    expect([body.success, body.data.checks]).toEqual([true, { store: 'ok' }]);
+    const served = await serveApp(host.app);
+    try {
+      const res = await fetch(`${served.url}/api/hosted/echo?msg=hi`);
+      expect(res.status).toBe(200);
+      // hits comes from migrations/001-hits.sql: the open migrated before the first request.
+      expect(await res.json()).toMatchObject({ data: { hits: 1 } });
+    } finally {
+      await served.close();
+    }
   });
 });
 

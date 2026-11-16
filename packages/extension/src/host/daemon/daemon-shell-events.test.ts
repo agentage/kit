@@ -3,6 +3,7 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { startHarness, writeSecrets, type Harness } from '../../test-support/daemon-harness.js';
 import { hostedPackage, NO_STORE_MANIFEST } from '../../test-support/hosted-fixture.js';
+import { wordLaunch } from '../../test-support/word-launch.js';
 import { json } from '../../test-support/packages.js';
 
 let h: Harness | undefined;
@@ -109,5 +110,29 @@ describe('/shell/session (S1.2.1 row 7, K9)', () => {
     expect(text).not.toContain(TOKEN);
     await writeFile(join(h.configDir, 'auth.json'), '{not json');
     expect(JSON.parse(await session())).toEqual({ user: null, host: 'local' });
+  });
+});
+
+describe('a crashed child keeps its nav row (S1.2.3 row 3)', () => {
+  it('discovery lists the failed row with its state; a failed row with no app is not listed', async () => {
+    const w = wordLaunch();
+    h = await startHarness({ launch: w.launch, backoffMs: [10], crashLimit: 1 });
+    await writeSecrets(h.configDir);
+    const dir = await hostedPackage(APP_MANIFEST);
+    await writeFile(join(dir, 'dist/word.txt'), 'x');
+    await build(dir, '0123456789');
+    await h.call('POST', '/host/extensions', { source: dir });
+    const rows = async () =>
+      (
+        (await (await fetch(at('/.well-known/agentage-host.json'))).json()) as never as {
+          extensions: { id: string; state: string; app?: unknown }[];
+        }
+      ).extensions;
+    expect(await rows()).toMatchObject([{ id: 'hosted', state: 'running' }]);
+    w.children.at(-1)!.crash('boom');
+    await vi.waitFor(async () =>
+      expect(await rows()).toMatchObject([{ id: 'hosted', state: 'failed', app: { title: 'H' } }])
+    );
+    expect((await fetch(at('/app/hosted/app.json'))).status).toBe(200);
   });
 });

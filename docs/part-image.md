@@ -289,7 +289,8 @@ Statuses, not codes, tell a retry: 503 `UNAVAILABLE` is worth a retry after `Ret
 | `GET /app/{id}/*` | the package's `dist/app`, also while the child is down; hashed files `immutable`, `index.js` and `app.json` `no-cache` |
 
 `X-Agentage-App: <id>` on `/api/{other}/*` is 403 `FORBIDDEN`: an app calls only its own
-extension. A request with no header is not stopped. `POST /host/extensions/{id}/reload` with body
+extension. The header is self-declared, so it is a guard against mistakes, not a boundary: a
+request with no header, or with a false one, is not stopped. `POST /host/extensions/{id}/reload` with body
 `{ "part": "app" }` restarts no child: it reads `dist/app/app.json` and sends the `app` event.
 
 `hostToken` is new at each daemon start and is only in `daemon.json` (0600). The proxy drops an

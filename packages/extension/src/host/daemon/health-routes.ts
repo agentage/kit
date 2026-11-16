@@ -77,13 +77,19 @@ const healthOf = async (deps: SupervisorDeps, entries: Entries, info: DaemonInfo
 
 const rowOf = async (e: Entry) => {
   const app = await appRowOf(e);
-  return { id: e.id, version: e.version, parts: await partsOf(e), ...(app && { app }) };
+  return {
+    id: e.id,
+    version: e.version,
+    state: e.state,
+    parts: await partsOf(e),
+    ...(app && { app }),
+  };
 };
 
-// C10 (D10): where each running extension answers, its parts and nav row; the shell; bare JSON.
+// C10 (D10): each running extension and each enabled one with an app (a crashed child keeps its nav row), its state; the shell.
 const discoveryOf = async (entries: Entries, { shell }: DaemonInfo) => {
-  const running = [...entries.values()].filter((e) => e.state === 'running');
-  const extensions = await Promise.all(running.map(rowOf));
+  const rows = await Promise.all([...entries.values()].map(rowOf));
+  const extensions = rows.filter((row) => row.state === 'running' || row.app);
   const served = shell && { shell: { package: shell.package, version: shell.version } };
   return { host: 'local', ...served, extensions };
 };

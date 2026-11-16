@@ -91,6 +91,7 @@ describe('the shell page (S1.2.1 rows 1, 5, 6, 8)', () => {
         {
           id: 'hosted',
           version: '1.0.0',
+          state: 'running',
           parts: ['api'],
           app: {
             title: 'Hosted',

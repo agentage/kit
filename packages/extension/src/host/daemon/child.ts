@@ -130,7 +130,8 @@ const stopOf = (child: ChildProcess, exited: Promise<Exit>) => async () => {
 const execArgvOf = (node: string, main: string, spec: LaunchSpec, run: RunFolders) => {
   if (!permissionFlag(node)) return [];
   const configDir = dirname(dirname(spec.dataDir));
-  return sealFlags({ main, dir: spec.dir, configDir, runDir: run.runDir, dataDir: spec.dataDir });
+  const { id, dir, dataDir } = spec;
+  return sealFlags({ id, main, dir, configDir, runDir: run.runDir, dataDir });
 };
 
 // The listed env of the daemon, then the child's own: TMPDIR in run/{id}, the test clock when not 1.

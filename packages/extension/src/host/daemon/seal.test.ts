@@ -56,7 +56,9 @@ describe('the flags of a sealed child (C2)', () => {
   it('a tree row: the cli node_modules, the tree of that version, run and data; nothing else', () => {
     const tree = `${CFG}/extensions/trees/abc123`;
     const dir = `${tree}/node_modules/@agentage/extension-probe`;
-    expect(sealFlags({ main: KIT, dir, runDir: RUN, dataDir: DATA, configDir: CFG })).toEqual([
+    expect(
+      sealFlags({ id: 'probe', main: KIT, dir, runDir: RUN, dataDir: DATA, configDir: CFG })
+    ).toEqual([
       '--permission',
       '--no-experimental-sqlite',
       '--allow-fs-read=/usr/lib/node_modules/@agentage/cli/node_modules',
@@ -70,6 +72,7 @@ describe('the flags of a sealed child (C2)', () => {
 
   it('a folder row: the folder itself', () => {
     const flags = sealFlags({
+      id: 'probe',
       main: KIT,
       dir: '/work/probe',
       runDir: RUN,
@@ -82,6 +85,7 @@ describe('the flags of a sealed child (C2)', () => {
 
   it('never a child process, worker, addon or WASI grant', () => {
     const flags = sealFlags({
+      id: 'probe',
       main: KIT,
       dir: '/work/probe',
       runDir: RUN,
@@ -96,6 +100,7 @@ describe('the flags of a sealed child (C2)', () => {
     await mkdir(join(dir, 'real'));
     await symlink(join(dir, 'real'), join(dir, 'link'));
     const flags = sealFlags({
+      id: 'probe',
       main: KIT,
       dir: join(dir, 'link'),
       runDir: RUN,
@@ -142,6 +147,7 @@ describe('the flags of a sealed child (C2)', () => {
 
 const at = (dir: string, configDir = CFG) =>
   sealFlags({
+    id: 'x',
     main: KIT,
     dir,
     runDir: `${configDir}/run/x`,

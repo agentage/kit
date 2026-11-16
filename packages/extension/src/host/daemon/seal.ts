@@ -69,6 +69,7 @@ export const kitReadDirs = (main: string): string[] => {
 };
 
 export interface SealAt {
+  id: string;
   main: string;
   dir: string;
   configDir: string;
@@ -77,11 +78,11 @@ export interface SealAt {
 }
 
 // C2: read kit, tree, run/{id}, data/{id}; write the last two; no child process, worker, addon, WASI, sqlite.
-export const sealFlags = ({ main, dir, configDir, runDir, dataDir }: SealAt): string[] => {
+export const sealFlags = ({ id, main, dir, configDir, runDir, dataDir }: SealAt): string[] => {
   const both = (paths: string[]) => [...new Set(paths.flatMap((path) => [path, real(path)]))];
   const writes = both([runDir, dataDir]);
   const kit = both([...kitReadDirs(main), treeOf(dir)]);
-  assertReach(kit, writes, configDir);
+  assertReach(kit, writes, configDir, id);
   const reads = [...new Set([...kit, ...writes])];
   return [
     '--permission',

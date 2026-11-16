@@ -72,10 +72,10 @@ const captured = (child: ChildProcess, secrets: Record<string, string>): (() => 
   const out = redactedLines((text) => process.stderr.write(text), secrets);
   child.stdout?.pipe(process.stdout);
   child.stderr?.on('data', (chunk: Buffer) => {
-    out.push(chunk.toString());
+    out(chunk.toString());
     tail = (tail + chunk.toString()).slice(-4000);
   });
-  child.stderr?.once('end', out.end);
+  child.stderr?.once('end', () => out());
   return () => tail;
 };
 

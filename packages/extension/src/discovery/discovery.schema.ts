@@ -80,7 +80,7 @@ const recordShape = {
   buildTime: z.iso.datetime(),
   parts: PartsRecordSchema,
   image: OneImageRefSchema.optional().describe(
-    'The one image (build --container). A record has part images or this image: never both, never none.'
+    'The one image (build --container). A build record has part images or this image: never both, never none.'
   ),
   // /api/v{N}: an extension still on a kit before 0.13, read by a newer one; it goes in phase 4.
   openapi: z

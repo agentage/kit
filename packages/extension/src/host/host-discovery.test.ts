@@ -3,7 +3,11 @@ import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { DiscoveryDocumentSchema } from '../discovery/discovery.schema.js';
 import { startOn, type TestServer } from '../testing/test-server.js';
-import { allPartsPackage, hostedPackage } from '../test-support/hosted-fixture.js';
+import {
+  allPartsPackage,
+  hostedPackage,
+  NO_STORE_MANIFEST,
+} from '../test-support/hosted-fixture.js';
 import { json, tempDir } from '../test-support/packages.js';
 import { hostExtension, type HostedExtension } from './host-extension.js';
 
@@ -44,13 +48,22 @@ describe('the kit host serves the full discovery record', () => {
     expect(DiscoveryDocumentSchema.safeParse(doc).error?.issues).toBeUndefined();
   });
 
-  it('an api-only package: the api part and the store, no openapi when none is served', async () => {
+  it('an api package with a store: the api part and the store, no openapi when none is served', async () => {
     const { doc } = await discoveryOf(await hostedPackage(), { 'api-token': 'tok-123' });
     expect(doc).toMatchObject({ parts: { api: {}, store: { kind: 'postgres', migrations: 1 } } });
     expect(Object.keys((doc as { parts: object }).parts)).toEqual(['api', 'store']);
     expect(doc).not.toHaveProperty('openapi');
     expect(doc).not.toHaveProperty('tools');
     expect(doc).not.toHaveProperty('secrets');
+    expect(DiscoveryDocumentSchema.safeParse(doc).error?.issues).toBeUndefined();
+  });
+
+  it('an api-only package with no store: the api part alone', async () => {
+    const dir = await hostedPackage(NO_STORE_MANIFEST);
+    await writeFile(join(dir, 'openapi.json'), json(OPENAPI));
+    const { doc } = await discoveryOf(dir, { 'api-token': 'tok-123' });
+    expect(doc).toMatchObject({ parts: { api: {} }, openapi: '/api/hosted/openapi.json' });
+    expect((doc as { parts: object }).parts).toEqual({ api: {} });
     expect(DiscoveryDocumentSchema.safeParse(doc).error?.issues).toBeUndefined();
   });
 });

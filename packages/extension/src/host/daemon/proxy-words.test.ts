@@ -32,6 +32,27 @@ describe('a 503 of the proxy says why there is no child', () => {
     await server.close();
   });
 
+  it('starting or failed: its state, with Retry-After', async () => {
+    const at = (state: Entry['state']): Entry => ({
+      id: 'x',
+      install: { id: 'x' },
+      state,
+      version: '1',
+    });
+    for (const state of ['starting', 'failed'] as const) {
+      const app = express().use(
+        '/api/:id',
+        proxyTo(new Map([['x', at(state)]]), { gateMs: 50, answerMs: 1_000 })
+      );
+      app.use(errorHandler(createLog({ extension: 'host', part: 'api' }, () => undefined)));
+      const server = await startOn(app);
+      const res = await server.fetch('/api/x/echo');
+      expect(res.headers.get('retry-after')).toBe('5');
+      expect(await errorOf(res)).toMatchObject([503, { message: `x is ${state}: try again` }]);
+      await server.close();
+    }
+  });
+
   it('while the daemon stops: "the daemon stops", on /api and /mcp', async () => {
     const h = await startHarness({ launch: wordLaunch(400).launch });
     await h.call('POST', '/host/extensions', { source: await wordPackage('one') });

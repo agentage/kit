@@ -29,6 +29,7 @@ const closer = (store: PgliteStore, release: () => Promise<void>, openMs: number
 // Locks dataDir, then opens PGlite in it and migrates; past openMs the part starts, /health says not ready.
 const open = async (at: StoreAt, log: Log): Promise<PgliteStore> => {
   const { dir, dataDir, openMs } = at;
+  const started = Date.now();
   if (dataDir) await mkdir(dataDir, { recursive: true });
   const release = dataDir ? await lockDataDir(dataDir) : unlocked;
   const store = createPgliteStore((s) => migrate(s, dir, log), {
@@ -40,7 +41,11 @@ const open = async (at: StoreAt, log: Log): Promise<PgliteStore> => {
     await close();
     throw err;
   });
-  if ((await within(opened, openMs)) === 'late') {
+  const t0 = Date.now();
+  const res = await within(opened, openMs);
+  // spike s113-l0: the store open time for the reload split.
+  log.info('spike store open', { ms: Date.now() - t0, lockMs: t0 - started });
+  if (res === 'late') {
     opened.catch(() => undefined);
     log.warn('the store did not open in time: /health says unavailable until it does', { openMs });
   }

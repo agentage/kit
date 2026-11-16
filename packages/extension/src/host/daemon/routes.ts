@@ -8,6 +8,7 @@ import { addExtension } from './add.js';
 import { listed, summary, type Entries } from './entries.js';
 import { assertReadable } from './installation.js';
 import { changeExtension, removeExtension } from './ops.js';
+import { reloadExtension } from './reload.js';
 import { type Pending, type PendingChanges } from './pending.js';
 import { waitAtMost } from './queue.js';
 import { proxyTo } from './proxy.js';
@@ -99,7 +100,11 @@ const changes = (deps: SupervisorDeps, entries: Entries, info: DaemonInfo, p: Pe
     const what = { op: 'remove' as const, id: id(params) };
     res.json(ok(await run(what, () => removeExtension(deps, entries, what.id, purge(query)))));
   };
-  return { add, change, remove };
+  const reload: RequestHandler = async ({ params }, res) => {
+    const what = { op: 'update' as const, id: id(params) };
+    res.json(ok(await run(what, () => reloadExtension(deps, entries, id(params)))));
+  };
+  return { add, change, remove, reload };
 };
 
 const hostRoutes = (
@@ -111,7 +116,8 @@ const hostRoutes = (
 ) => {
   app.get('/host/extensions', (_req, res) => void res.json(ok([...entries.values()].map(listed))));
   const json = express.json({ limit: BODY_LIMIT });
-  const { add, change, remove } = changes(deps, entries, info, p);
+  const { add, change, remove, reload } = changes(deps, entries, info, p);
+  app.post('/host/extensions/:id/reload', reload);
   app.post('/host/extensions', json, add);
   app.patch('/host/extensions/:id', json, change);
   app.delete('/host/extensions/:id', remove);

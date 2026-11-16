@@ -1,0 +1,28 @@
+diff --git a/src/api/index.ts b/src/api/index.ts
+index 848da11..246e980 100644
+--- a/src/api/index.ts
++++ b/src/api/index.ts
+@@ -10,7 +10,7 @@ export const create = (ctx: PartContext): Router => {
+   router.get('/echo', (req, res) => {
+     const { msg } = parse(EchoQuerySchema, req.query, 'Invalid query');
+     const prefix = ctx.settings['echo.prefix'];
+-    res.json(ok({ msg: prefix ? `${prefix} ${msg}` : msg, caller: ctx.auth.caller(req)?.sub }));
++    res.json(ok({ v: 'v0', msg: prefix ? `${prefix} ${msg}` : msg, caller: ctx.auth.caller(req)?.sub }));
+   });
+   router.get('/ticks', async (req, res) => {
+     const query = parse(TicksQuerySchema, req.query, 'Invalid query');
+@@ -19,5 +19,14 @@ export const create = (ctx: PartContext): Router => {
+     res.json(ok(ticks, { pagination }));
+   });
+   router.post('/emit', emit(ctx));
++  // spike s113-l0: a row written before a reload must be there after it.
++  router.post('/spike', async (_req, res) => {
++    await ctx.store.query('create table if not exists spike_rows (n serial primary key, at text)');
++    await ctx.store.query('insert into spike_rows (at) values ($1)', [new Date().toISOString()]);
++    res.json(ok((await ctx.store.query('select count(*)::int as c from spike_rows')).rows[0]));
++  });
++  router.get('/spike', async (_req, res) => {
++    res.json(ok((await ctx.store.query('select count(*)::int as c from spike_rows')).rows[0]));
++  });
+   return router;
+ };

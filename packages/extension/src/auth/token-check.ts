@@ -27,9 +27,11 @@ export const withJti = (caller: Caller, jti: string | undefined): Caller => {
 };
 
 // A caller, or a thrown UNAUTHORIZED, FORBIDDEN or UNAVAILABLE (verify-token.ts).
+// at: the path of a resource with its own metadata document (an mcp endpoint), named in a 401.
 export type TokenCheck = (
   authorization: string | undefined,
-  access: Access
+  access: Access,
+  at?: string
 ) => Promise<Caller | null>;
 
 const callers = new WeakMap<object, Caller | null>();

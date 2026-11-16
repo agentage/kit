@@ -40,8 +40,8 @@ export const registeredTools = async (
   pkg: ExtensionPackage
 ) => {
   const registry = createToolRegistry();
-  const { tool, instructions } = registry;
-  await create({ ...recordingContext(pkg, 'mcp'), tool, instructions });
+  const { tool, instructions, connector } = registry;
+  await create({ ...recordingContext(pkg, 'mcp'), tool, instructions, connector });
   return registry.tools;
 };
 
@@ -51,8 +51,8 @@ export const registeredRoutes = async (
   pkg: ExtensionPackage
 ) => {
   const registry = createRouteRegistry();
-  const { route, wellKnown } = registry;
-  const returned = await create({ ...recordingContext(pkg, 'api'), route, wellKnown });
+  const { route, wellKnown, files } = registry;
+  const returned = await create({ ...recordingContext(pkg, 'api'), route, wellKnown, files });
   return { routes: registry.routes, returned };
 };
 

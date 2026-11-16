@@ -7,14 +7,22 @@ import { requestScope } from '../agcid/current.js';
 import { setCaller, strongest, type Access, type Caller } from '../auth/token-check.js';
 import { fail } from '../envelope/envelope.js';
 import { declaredType, printable } from '../log/who.js';
-import { BODY_LIMIT, createPartApp, PUBLIC_CORS, type PartAppBase } from '../server/app.js';
+import {
+  BODY_LIMIT,
+  createPartApp,
+  PUBLIC_CORS,
+  resourceDocAt,
+  type PartAppBase,
+} from '../server/app.js';
 import { authInfoOf, serverFactory } from './server.js';
-import { prefixed, type Instructions, type ToolEntry } from './tools.js';
+import { nameOf, type Instructions, type ToolEntry } from './tools.js';
 
 export interface McpAppOptions extends PartAppBase {
   tools: ToolEntry[];
   listing: 'open' | 'token';
   instructions?: Instructions;
+  // The connector profile: tools listed by their own name.
+  bare?: boolean;
   // Where the endpoint is: /mcp in a part image, /mcp/{id} in a host process.
   paths?: string[];
 }
@@ -57,7 +65,9 @@ const callAccess = (options: McpAppOptions, body: unknown): Access[] =>
     .filter((message) => message?.method === 'tools/call')
     .map((message) => {
       const id = options.pkg.agentage.id;
-      const entry = options.tools.find((t) => prefixed(id, t.name) === message?.params?.name);
+      const entry = options.tools.find(
+        (t) => nameOf(id, t.name, options.bare) === message?.params?.name
+      );
       return entry?.spec.scope ?? 'read';
     });
 
@@ -71,7 +81,7 @@ const openingAccess = (options: McpAppOptions, body: unknown): Access[] =>
   typeof options.instructions === 'function' && isOpening(body) ? ['optional'] : [];
 
 // Tokens off: calls stay anonymous and a closed listing refuses every tools/list (nothing can verify).
-const guard = async (options: McpAppOptions, req: Request, body: unknown) => {
+const guard = async (options: McpAppOptions, req: Request, body: unknown, at: string) => {
   const listing = options.listing === 'token' && isListing(body) ? (['read'] as Access[]) : [];
   const needed = [...listing, ...callAccess(options, body), ...openingAccess(options, body)];
   if (!options.tokenCheck) {
@@ -81,7 +91,8 @@ const guard = async (options: McpAppOptions, req: Request, body: unknown) => {
   if (needed.length === 0) return null;
   const caller: Caller | null = await options.tokenCheck(
     req.get('authorization'),
-    strongest(needed)
+    strongest(needed),
+    at
   );
   setCaller(req, caller);
   return caller;
@@ -93,7 +104,7 @@ const markRow = (options: McpAppOptions, req: Request, res: Response, body: unkn
   const scope = requestScope.getStore();
   const id = options.pkg.agentage.id;
   const known = (m: Message | null) =>
-    options.tools.some((t) => prefixed(id, t.name) === m?.params?.name);
+    options.tools.some((t) => nameOf(id, t.name, options.bare) === m?.params?.name);
   // An unknown tool never reaches a handler, so it keeps its http row.
   if (messages.some((m) => m?.method === 'tools/call' && known(m))) {
     res.locals['toolCall'] = true;
@@ -127,13 +138,13 @@ const send = async (response: globalThis.Response, res: Response, auth: boolean)
 };
 
 const handle =
-  (handler: McpHttpHandler, options: McpAppOptions) =>
+  (handler: McpHttpHandler, options: McpAppOptions, at: string) =>
   async (req: Request, res: Response): Promise<void> => {
     const body = Buffer.isBuffer(req.body) ? req.body : Buffer.alloc(0);
     const message = parsed(body);
     // The SDK reads a body again when given none (a BOM, say): it must only run what guard read.
     if (message === undefined) return void res.status(400).json(PARSE_ERROR);
-    const caller = await guard(options, req, message);
+    const caller = await guard(options, req, message, at);
     markRow(options, req, res, message);
     const authInfo = authInfoOf(caller, isOpening(message));
     const answer = await handler.fetch(webRequest(req, body), { parsedBody: message, authInfo });
@@ -149,7 +160,8 @@ const methodNotAllowed = (_req: Request, res: Response): void => {
 
 // Stateless Streamable HTTP on SDK v2: POST only, GET and DELETE (sessions) answer 405.
 export const mountMcp = (app: Express, options: McpAppOptions): void => {
-  const identity = { id: options.pkg.agentage.id, version: options.pkg.version };
+  const { pkg, bare, resource } = options;
+  const identity = { id: pkg.agentage.id, version: pkg.version, bare };
   const factory = serverFactory(identity, options.tools, options.log, options.instructions);
   const handler = createMcpHandler(factory, {
     legacy: 'stateless',
@@ -158,8 +170,9 @@ export const mountMcp = (app: Express, options: McpAppOptions): void => {
   const raw = express.raw({ type: () => true, limit: BODY_LIMIT });
   for (const path of options.paths ?? [MCP_PATH]) {
     app.use(path, cors(MCP_CORS));
-    app.post(path, raw, handle(handler, options));
+    app.post(path, raw, handle(handler, options, path));
     app.all(path, methodNotAllowed);
+    if (resource) resourceDocAt(app, path, resource);
   }
 };
 

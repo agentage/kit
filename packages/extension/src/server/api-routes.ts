@@ -1,5 +1,6 @@
 import { Router, type RequestHandler } from 'express';
 import { inQuery } from '../api/openapi-doc.js';
+import { type FilesEntry } from '../api/files-registry.js';
 import { createRouteRegistry, type ApiContext, type RouteEntry } from '../api/routes.js';
 import { type WellKnownEntry } from '../api/well-known.js';
 import { type PartContext } from '../context/context.js';
@@ -49,21 +50,29 @@ const routesRouter = (ctx: PartContext, routes: RouteEntry[]): Router => {
   return router;
 };
 
-// What create(ctx) gave: its ctx.route routes, or the router it returned; exactly one.
-const handlerFor = (ctx: PartContext, routes: RouteEntry[], returned: unknown): ApiHandler => {
+// What create(ctx) gave: its ctx.route routes, or the router it returned; exactly one (or ctx.files alone).
+const handlerFor = (ctx: PartContext, routes: RouteEntry[], returned: unknown, files: boolean) => {
   if (routes.length > 0 && returned)
     throw new Error('the api part registers ctx.route routes and returns a router: pick one');
-  if (routes.length > 0) return routesRouter(ctx, routes);
+  if (routes.length > 0 || (files && !returned)) return routesRouter(ctx, routes);
   if (!returned) throw new Error('the api part registers nothing and returns no router');
   return returned as ApiHandler;
 };
+
+export interface MountedApi {
+  router: ApiHandler;
+  routes: RouteEntry[];
+  documents: WellKnownEntry[];
+  files?: FilesEntry;
+}
 
 // Runs the api part's create(ctx) with ctx.route; the runtime and the test server mount alike.
 export const mountApi = async (
   ctx: PartContext,
   create: (ctx: ApiContext) => unknown
-): Promise<{ router: ApiHandler; routes: RouteEntry[]; documents: WellKnownEntry[] }> => {
-  const { route, routes, wellKnown, documents } = createRouteRegistry();
-  const returned = await create({ ...ctx, route, wellKnown });
-  return { router: handlerFor(ctx, routes, returned), routes, documents };
+): Promise<MountedApi> => {
+  const { route, routes, wellKnown, documents, files, filesServed } = createRouteRegistry();
+  const returned = await create({ ...ctx, route, wellKnown, files });
+  const router = handlerFor(ctx, routes, returned, filesServed.files !== undefined);
+  return { router, routes, documents, files: filesServed.files };
 };

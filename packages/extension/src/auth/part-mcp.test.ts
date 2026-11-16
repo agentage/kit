@@ -1,5 +1,5 @@
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from 'vitest';
-import { startIssuer, type TestIssuer } from '../test-support/issuer.js';
+import { ORIGIN, startIssuer, type TestIssuer } from '../test-support/issuer.js';
 import {
   authEnv,
   INSUFFICIENT,
@@ -47,7 +47,11 @@ describe('an mcp part checks tokens (C5, C7)', () => {
     ] as const)
       expect((await rpc(url, method, params)).res.status, method).toBe(200);
     const none = await rpc(url, 'tools/call', CALL);
-    expect([none.res.status, none.res.headers.get('www-authenticate')]).toEqual([401, RESOURCE]);
+    // The 401 names the document of /mcp itself (RFC 9728 path form), served beside the bare one.
+    const atMcp = RESOURCE.replace('resource"', 'resource/mcp"');
+    expect([none.res.status, none.res.headers.get('www-authenticate')]).toEqual([401, atMcp]);
+    const doc = await (await fetch(`${url}/.well-known/oauth-protected-resource/mcp`)).json();
+    expect(doc).toMatchObject({ resource: `${ORIGIN}/mcp`, authorization_servers: [issuer.url] });
     const memory = await rpc(
       url,
       'tools/call',

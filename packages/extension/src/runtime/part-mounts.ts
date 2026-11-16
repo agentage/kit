@@ -10,7 +10,8 @@ import { type ExtensionPackage } from '../manifest/manifest.schema.js';
 import { hasStore, type HostPartKind } from '../manifest/parts.js';
 import { type ImagePartKind } from '../manifest/primitives.schema.js';
 import { createSpan } from '../log/span.js';
-import { mountMcp, type McpAppOptions } from '../mcp/mcp-app.js';
+import { mountWithConnector } from '../mcp/connector.js';
+import { type McpAppOptions } from '../mcp/mcp-app.js';
 import { createToolRegistry } from '../mcp/tools.js';
 import { mountApiRoutes, type PartAppBase } from '../server/app.js';
 import { mountApi } from '../server/api-routes.js';
@@ -54,10 +55,11 @@ export const callCreate = async <C>(
 
 const api = async (input: RunnerInput): Promise<PartMount> => {
   const ctx = input.ctx();
-  const { router, routes, documents } = await mountApi(ctx, (api) => callCreate(input, 'api', api));
+  const mounted = await mountApi(ctx, (api) => callCreate(input, 'api', api));
+  const { router, routes, documents, files } = mounted;
   // Declared routes guard at their own scope, whatever the committed file says.
   const openapi = routes.length > 0 ? generatedOpenapi(input.pkg, routes) : input.openapi;
-  const options = { ...input.base, router, routes, openapi, wellKnown: documents };
+  const options = { ...input.base, router, routes, openapi, wellKnown: documents, files };
   const record = openapi ? { openapi: openapiPath(input.pkg.agentage.id) } : {};
   return { mount: (app) => mountApiRoutes(app, { ...options, aliases: input.apiAliases }), record };
 };
@@ -65,14 +67,16 @@ const api = async (input: RunnerInput): Promise<PartMount> => {
 const mcp = async (input: RunnerInput): Promise<PartMount> => {
   const registry = createToolRegistry();
   const ctx = input.ctx();
-  const { tool, instructions, tools: registered, served } = registry;
-  await callCreate(input, 'mcp', { ...ctx, tool, instructions });
+  const { tool, instructions, connector, tools: registered, served } = registry;
+  await callCreate(input, 'mcp', { ...ctx, tool, instructions, connector });
   const token = !input.openListing && ctx.settings['mcp.listing'] === 'token';
   const listing: McpAppOptions['listing'] = token ? 'token' : 'open';
   const paths = input.mcpPaths;
   const options = { ...input.base, tools: registered, listing, paths, ...served };
+  const mount = (app: Express) => mountWithConnector(app, options, registry.connectors);
+  // Connector tools stay out of the record: the record lists the {id}__{name} tools only.
   const tools = toolRecords(input.pkg.agentage.id, registry.tools);
-  return { mount: (app) => mountMcp(app, options), record: tools.length ? { tools } : {} };
+  return { mount, record: tools.length ? { tools } : {} };
 };
 
 const worker = async (input: RunnerInput): Promise<PartMount> => {

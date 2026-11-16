@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { build } from 'esbuild';
-import { EXTERNALS } from '../scripts/build.mjs';
+import { appAsKit, EXTERNALS } from '../scripts/build.mjs';
 
 const APPS = {
   probe: ['Probe', 'radar', 10],
@@ -24,6 +24,7 @@ export const createLab = (here, out) => {
       jsx: 'automatic',
       write: false,
       external: EXTERNALS,
+      plugins: [appAsKit],
       define: { BUILD: JSON.stringify(tag) },
     });
     const code = res.outputFiles[0].contents;

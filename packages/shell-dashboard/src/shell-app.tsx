@@ -42,7 +42,7 @@ export const ShellApp = ({ deps, version }: { deps: ShellDeps; version: string }
   const row = rows.find((r) => r.id === route.id);
   const own = useAppBars(bars, row?.id ?? '');
   const user = session?.user ?? null;
-  const label = user ? (user.name ?? user.email) : null;
+  const label = user ? (user.name ?? user.email ?? user.id) : null;
   const inboxOpen = route.aside === 'inbox';
   useEffect(() => {
     if (inboxOpen) notices.markAllRead();

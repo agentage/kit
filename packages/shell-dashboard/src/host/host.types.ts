@@ -23,11 +23,11 @@ export interface Discovery {
 
 export interface SessionUser {
   id: string;
-  email: string;
+  email?: string;
   name?: string;
 }
 
-// GET /shell/session: `user` from auth.json, never a token.
+// GET /shell/session: the user the daemon's children run as, never a token.
 export interface Session {
   user: SessionUser | null;
   host: string;

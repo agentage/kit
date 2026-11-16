@@ -9,7 +9,7 @@ export interface NavRow {
 }
 
 export interface Account {
-  // The name, else the email; null when signed out.
+  // The name, else the email, else the user id; null when signed out.
   label: string | null;
   initials: string;
   // Session not read yet: the text is hidden, so its arrival shifts nothing (CLS 0).

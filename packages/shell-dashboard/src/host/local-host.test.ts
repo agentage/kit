@@ -45,5 +45,6 @@ describe('local host', () => {
       name: 'N',
     });
     expect(appUserOf(null)).toBeNull();
+    expect(appUserOf({ id: 'u_alice' })).toEqual({ id: 'u_alice' });
   });
 });

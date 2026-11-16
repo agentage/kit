@@ -49,6 +49,20 @@ describe('forkLaunch refusals', () => {
   });
 });
 
+describe('forkLaunch stderr', () => {
+  it('passes to the daemon stderr with the child secret values masked', async () => {
+    const write = vi.mocked(process.stderr.write);
+    const spec = await launchSpec({ 'api-token': 'tok-secret-1' });
+    const main = await script(
+      "process.stderr.write('tok-sec'); console.error('ret-1 leaked'); process.exit(2);"
+    );
+    await expect(forkLaunch(main, undefined, undefined, OFF)(spec)).rejects.toThrow();
+    const out = write.mock.calls.map(([text]) => String(text)).join('');
+    expect(out).toContain('*** leaked');
+    expect(out).not.toContain('tok-secret-1');
+  });
+});
+
 describe('forkLaunch folders of a first start that fails', () => {
   it('run/{id} and an empty data/{id} it made are removed; a data/{id} there before stays', async () => {
     const main = await script('process.exit(3);');

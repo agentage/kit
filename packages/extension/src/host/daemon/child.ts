@@ -6,6 +6,7 @@ import { CLOCK_RATE_ENV, parseClockRate } from '../../worker/clock.js';
 import { fillRun, makeRun, undoRun, type RunFolders } from './child-files.js';
 import { lastWords } from './last-words.js';
 import { LIMITS } from './limits.js';
+import { pipeRedacted } from './redact-stream.js';
 import { permissionFlag, sealFlags, sealOf, type Seal } from './seal.js';
 
 interface LaunchSpec {
@@ -66,13 +67,11 @@ export { lastWords } from './last-words.js';
 const passedEnv = () =>
   Object.fromEntries(PASSED.flatMap((k) => (process.env[k] ? [[k, process.env[k]]] : [])));
 
-const captured = (child: ChildProcess): (() => string) => {
+const captured = (child: ChildProcess, secrets: Record<string, string>): (() => string) => {
   let tail = '';
-  child.stdout?.pipe(process.stdout);
-  child.stderr?.on('data', (chunk: Buffer) => {
-    process.stderr.write(chunk);
-    tail = (tail + chunk.toString()).slice(-4000);
-  });
+  pipeRedacted(child.stdout, process.stdout, secrets);
+  pipeRedacted(child.stderr, process.stderr, secrets);
+  child.stderr?.on('data', (chunk: Buffer) => (tail = (tail + chunk.toString()).slice(-4000)));
   return () => tail;
 };
 
@@ -158,7 +157,7 @@ const started = async (at: ForkAt, spec: LaunchSpec, run: RunFolders): Promise<C
     execArgv,
     stdio: [...stdio],
   });
-  const tail = captured(child);
+  const tail = captured(child, spec.secrets);
   const exited = exitOf(child, tail);
   const port = await readyOf(child, tail, at.startMs);
   return { port, pid: child.pid ?? 0, exited, stop: stopOf(child, exited) };

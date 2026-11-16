@@ -2,8 +2,9 @@ import { type Express } from 'express';
 import { createContext, type PartContext } from '../context/context.js';
 import { readSecrets, secretsFrom } from '../context/secrets.js';
 import { settingsOf } from '../context/settings.js';
-import { type BuildInfo } from '../discovery/discovery.js';
+import { hostedRecordOf, type BuildInfo } from '../discovery/discovery.js';
 import { readOpenapi } from '../discovery/openapi.js';
+import { migrationsOf } from '../discovery/served-extras.js';
 import { createLog, type Log } from '../log/log.js';
 import { type ExtensionPackage } from '../manifest/manifest.schema.js';
 import { hostParts, type HostPartKind } from '../manifest/parts.js';
@@ -93,12 +94,19 @@ const mountsOf = async (h: Hosting, parts: HostPartKind[], base: PartAppBase) =>
   return mounts;
 };
 
+// The record a part image reads from its build, here from what each part serves.
+const recordOf = async (h: Hosting, parts: HostPartKind[], mounts: PartMount[]) => {
+  const extras = Object.assign(await migrationsOf(h.dir, h.pkg), ...mounts.map((m) => m.record));
+  return hostedRecordOf(h.pkg, h.build, parts, extras);
+};
+
 // The api at /api/{id}/*, the mcp at /mcp/{id}, the worker jobs; one /health with every check.
 export const hostPartsOf = async (h: Hosting, base: PartAppBase): Promise<HostedParts> => {
   const parts = hostParts(h.pkg);
   const mounts = await mountsOf(h, parts, base);
   const mount = (app: Express) => mounts.forEach((m) => m.mount(app));
-  const app = createPartApp({ ...base, parts, part: 'api', mount });
+  const record = await recordOf(h, parts, mounts);
+  const app = createPartApp({ ...base, parts, part: 'api', mount, record });
   const start = () => mounts.forEach((m) => m.start?.());
   const stop = () => mounts.forEach((m) => m.stop?.());
   return { app, parts, start, stop };

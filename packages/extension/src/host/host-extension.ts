@@ -1,4 +1,6 @@
 import { randomBytes } from 'node:crypto';
+import { stat } from 'node:fs/promises';
+import { join } from 'node:path';
 import { type Express } from 'express';
 import { type BuildInfo } from '../discovery/discovery.js';
 import { healthBody } from '../health/health.js';
@@ -7,7 +9,7 @@ import { createLog, type Log } from '../log/log.js';
 import { type ExtensionPackage } from '../manifest/manifest.schema.js';
 import { type HostPartKind } from '../manifest/parts.js';
 import { readManifest } from '../manifest/read-manifest.js';
-import { buildInfoFromEnv } from '../runtime/build-info.js';
+import { buildInfoFromEnv, type Env } from '../runtime/build-info.js';
 import { type PartAppBase } from '../server/app.js';
 import { storeCheck } from '../store/store.js';
 import { hostClockRate } from '../worker/clock.js';
@@ -84,6 +86,10 @@ const hostedOf = (h: Hosting, hosted: HostedParts, base: PartAppBase): HostedExt
   return { id, version, parts, app, health, stop };
 };
 
+// BUILD_TIME of an image, else the installed package's time: the same across restarts.
+export const hostBuildInfo = async (env: Env, dir: string): Promise<BuildInfo> =>
+  buildInfoFromEnv(env, (await stat(join(dir, 'package.json'))).mtime);
+
 // hostExtension with the extras of the entry (dist/host/main.js).
 export const hostWith = async (dir: string, opts: HostOptions, extras: HostExtras) => {
   const pkg = await readManifest(dir);
@@ -92,7 +98,7 @@ export const hostWith = async (dir: string, opts: HostOptions, extras: HostExtra
   const at = { dir, dataDir: opts.dataDir, runDir: opts.runDir, openMs };
   const store = await openHostStore(pkg, at, log);
   const onExit = once(opts.onExit ?? (() => undefined));
-  const build = extras.build ?? buildInfoFromEnv({});
+  const build = extras.build ?? (await hostBuildInfo({}, dir));
   const h: Hosting = { dir, pkg, log, opts, extras, store, onExit, build };
   try {
     const base = await baseOf(h);

@@ -59,6 +59,7 @@ describe('public surface', () => {
   it('the contracts export the wire schemas clients read', () => {
     expect(Object.keys(contracts).sort()).toEqual([
       'AGCID_HEADER',
+      'CloudDiscoveryDocumentSchema',
       'DiscoveryDocumentSchema',
       'ERROR_CODES',
       'ErrorEnvelopeSchema',

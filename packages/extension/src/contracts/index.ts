@@ -1,5 +1,6 @@
 export { AGCID_HEADER, isAgcid } from '../agcid/header.js';
 export {
+  CloudDiscoveryDocumentSchema,
   DiscoveryDocumentSchema,
   ExtensionRecordSchema,
   type DiscoveryDocument,

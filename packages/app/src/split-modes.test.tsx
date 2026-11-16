@@ -38,14 +38,17 @@ afterEach(() => {
 });
 
 describe('Split on a phone', () => {
-  it('one pane shows: the second by default, the first with pane 0, no separator', async () => {
+  it('one pane shows (the second by default), the other stays mounted; no separator', async () => {
     width(true);
+    const shown = (el: HTMLElement) =>
+      [...el.querySelectorAll<HTMLElement>('[data-split] > div')].map((d) => !d.hidden);
     let el = await mount({});
-    expect(el.textContent).toBe('content');
+    expect(shown(el)).toEqual([false, true]);
+    expect(el.textContent).toBe('treecontent');
     expect(el.querySelector('[role="separator"]')).toBeNull();
     act(() => root?.unmount());
     el = await mount({ pane: 0 });
-    expect(el.textContent).toBe('tree');
+    expect(shown(el)).toEqual([true, false]);
   });
 
   it('on a desktop both panes and the separator show', async () => {

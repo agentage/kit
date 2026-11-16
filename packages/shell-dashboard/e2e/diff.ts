@@ -27,12 +27,11 @@ export const pixelDiff = async (page: Page, a: Buffer, b: Buffer): Promise<numbe
     [a.toString('base64'), b.toString('base64')] as [string, string]
   );
 
-// Content, not chrome: main below the actions bar, the title and action buttons, the nav app
+// Content, not chrome: main below the actions bar, the action buttons, the nav app
 // rows (they come from discovery), the account text, the prototype's Recent list and log lines.
 export const CONTENT = [
   '[data-region="main"] > :not(.abar)',
   '.abar .agrp > *',
-  '.abar .ttl',
   '.mid > .row:not(.search)',
   '.who',
   '.bhead .err',

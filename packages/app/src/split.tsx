@@ -56,10 +56,12 @@ export const Split = ({ id, pane = 1, children, ...rest }: SplitProps) => {
   const { id: app } = useAppContext();
   if (!NAME.test(id)) throw new Error(`Split id "${id}" must match [a-z0-9-]+`);
   const phone = usePhone();
+  // Both panes stay mounted (the hidden one keeps its state for the back button).
   if (phone)
     return (
       <div className="split" data-split={id} data-phone={pane} style={{ height: '100%' }}>
-        {children[pane]}
+        <div hidden={pane !== 0}>{children[0]}</div>
+        <div hidden={pane !== 1}>{children[1]}</div>
       </div>
     );
   return (

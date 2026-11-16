@@ -126,7 +126,7 @@ jobs:
         run: |
           set -euo pipefail
           npm pack -w @agentage/shell --pack-destination /tmp/pack
-          tar -tzf /tmp/pack/agentage-shell-*.tgz > /tmp/pack/shell-files.txt
+          tar -tzf /tmp/pack/agentage-shell-[0-9]*.tgz > /tmp/pack/shell-files.txt
           grep -qx 'package/dist/index.js' /tmp/pack/shell-files.txt
           grep -qx 'package/dist/mount-widgets.js' /tmp/pack/shell-files.txt
           if grep -Eq '\.test\.|test-support' /tmp/pack/shell-files.txt; then echo 'test files in the shell tarball'; exit 1; fi

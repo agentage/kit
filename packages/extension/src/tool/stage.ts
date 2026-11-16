@@ -2,7 +2,7 @@ import { access, cp, mkdir, mkdtemp, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, join, normalize, sep } from 'node:path';
 import { type ExtensionPackage } from '../manifest/manifest.schema.js';
-import { entryOf, migratesStore } from '../manifest/parts.js';
+import { entryOf, hasStore, migratesStore } from '../manifest/parts.js';
 import { type ImagePartKind } from '../manifest/primitives.schema.js';
 import { OPENAPI_FILE } from '../discovery/openapi.js';
 import { serverPartRecipe } from './recipe.js';
@@ -99,6 +99,9 @@ export const stageContext = async (
   const root = await mkdtemp(join(tmpRoot, `agentage-${pkg.agentage.id}-${part}-`));
   await copyDeps(dir, root, pkg);
   await copyApp(dir, root, pkg, part);
-  await writeFile(join(root, 'Dockerfile'), serverPartRecipe(part));
+  await writeFile(
+    join(root, 'Dockerfile'),
+    serverPartRecipe(part, part !== 'ui' && hasStore(pkg, 'git'))
+  );
   return root;
 };

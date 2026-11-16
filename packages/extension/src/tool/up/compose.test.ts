@@ -210,4 +210,20 @@ describe('composeFile', () => {
       expect(clickhouseUrl('probe-x')).toBe('http://probe_x:agentage-local@store:8123/probe_x');
     });
   });
+
+  it('with a git store shares one /data volume across api and mcp, each with its own lock dir', () => {
+    const pkg = validateManifest({
+      ...API_MANIFEST,
+      agentage: { id: 'probe', parts: { api: true, mcp: true, store: 'git' } },
+    });
+    const file = composeFile({ pkg, tags: { api: 'a', mcp: 'm' }, ...FILES });
+    const services = file.services as Record<string, Service>;
+    expect(Object.keys(services).sort()).toEqual(['api', 'gateway', 'issuer', 'mcp']);
+    expect(file.volumes).toEqual({ store: {} });
+    for (const part of ['api', 'mcp']) {
+      expect(services[part]?.['volumes']).toEqual([RECORD_MOUNT, 'store:/data']);
+      expect(services[part]?.['environment']).toMatchObject({ AGENTAGE_RUN_DIR: '/tmp' });
+      expect(services[part]?.['environment']).not.toHaveProperty('AGENTAGE_STORE_URL');
+    }
+  });
 });

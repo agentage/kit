@@ -1,8 +1,14 @@
 export const CONTAINER_PORT = 8080;
 
 // The volume holds the store folder, so its <dir>.lock sibling persists with it.
-const DATA_VOLUME = '/data';
-const STORE_DIR = `${DATA_VOLUME}/store`;
+export const DATA_VOLUME = '/data';
+export const STORE_DIR = `${DATA_VOLUME}/store`;
+// git-daemon brings git http-backend, which a part serving smart HTTP spawns.
+export const GIT_INSTALL = 'RUN apk add --no-cache git git-daemon';
+export const DATA_VOLUME_LINES = [
+  `RUN mkdir -p ${DATA_VOLUME} && chown node:node ${DATA_VOLUME}`,
+  `VOLUME ${DATA_VOLUME}`,
+];
 
 const HEALTH_PROBE =
   `fetch('http://127.0.0.1:'+(process.env.PORT||${CONTAINER_PORT})+'/health')` +
@@ -47,7 +53,7 @@ interface Stores {
 
 const runner = ({ pglite, git }: Stores) => [
   ...runnerEnv(pglite !== undefined || Boolean(git)),
-  ...(git ? ['RUN apk add --no-cache git'] : []),
+  ...(git ? [GIT_INSTALL] : []),
   'WORKDIR /app',
   'COPY --from=deps /app/node_modules ./node_modules',
   ...(pglite !== undefined
@@ -56,9 +62,7 @@ const runner = ({ pglite, git }: Stores) => [
       ]
     : []),
   'COPY app/ ./',
-  ...(pglite !== undefined || git
-    ? [`RUN mkdir -p ${DATA_VOLUME} && chown node:node ${DATA_VOLUME}`, `VOLUME ${DATA_VOLUME}`]
-    : []),
+  ...(pglite !== undefined || git ? DATA_VOLUME_LINES : []),
   'USER node',
   `EXPOSE ${CONTAINER_PORT}`,
   `HEALTHCHECK --interval=10s --timeout=3s --start-period=15s --retries=3 CMD ["node", "-e", "${HEALTH_PROBE}"]`,

@@ -19,7 +19,7 @@ export const EXTERNALS = [
   'react-dom/client',
   '@agentage/app',
 ];
-const DS_USED = ['command', 'dropdown-menu', 'icon-button', 'kbd'];
+const DS_USED = ['command', 'dropdown-menu', 'empty-state', 'icon-button', 'kbd'];
 
 const base = {
   bundle: true,

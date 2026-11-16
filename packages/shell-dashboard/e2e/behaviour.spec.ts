@@ -57,7 +57,7 @@ test.describe('desktop', () => {
     await page.keyboard.press('Control+k');
     const list = page.getByRole('dialog', { name: 'Command list' });
     await expect(list).toBeVisible();
-    await expect(list.getByRole('option', { name: 'Go to Hosts' })).toBeVisible();
+    await expect(list.getByRole('option', { name: 'Go to Memory' })).toBeVisible();
     await expect(list.getByRole('option', { name: 'Toggle sidebar' })).toBeVisible();
     await page.keyboard.press('Escape');
     await expect(list).toBeHidden();
@@ -80,6 +80,6 @@ test.describe('phone', () => {
     await expect(page.locator('[data-region="mobile-header"]')).toBeVisible();
     expect(await page.evaluate(() => document.scrollingElement!.scrollWidth)).toBe(400);
     await page.getByRole('button', { name: 'Open navigation' }).click();
-    await expect(page.getByRole('link', { name: 'Hosts' })).toBeInViewport();
+    await expect(page.getByRole('link', { name: 'Memory' })).toBeInViewport();
   });
 });

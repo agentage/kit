@@ -1,14 +1,17 @@
 import type { RegionName } from '@agentage/app';
-import { PanelLeft } from 'lucide-react';
-import { useMemo, useState, type ReactNode } from 'react';
+import { ChevronUp, PanelLeft } from 'lucide-react';
+import { useEffect, useState, type ReactNode } from 'react';
 import { cn } from '../lib/cn.js';
 import { Aside } from './aside.js';
 import { CommandList } from './command-list.js';
-import type { Account, AsideState, Command, NavRow } from './frame.types.js';
+import { frameCommands } from './commands.js';
+import type { Account, AsideState, BottomState, NavRow, PageItem } from './frame.types.js';
 import { MobileHeader } from './mobile-header.js';
 import { Nav } from './nav.js';
 import { BOTTOM_SPLIT, Splitter } from './splitter.js';
+import { TitleMenu } from './title-menu.js';
 import { useFrameState } from './use-frame-state.js';
+import { usePeek } from './use-peek.js';
 
 export interface FrameProps {
   rows: NavRow[];
@@ -16,43 +19,53 @@ export interface FrameProps {
   version: string;
   // The title in the actions bar (the open app's title).
   title: string;
+  // The open app's pages: the title becomes a menu ("Overview ⌄") when there are any.
+  pages?: PageItem[];
   aside: AsideState | null;
   unread?: number;
   // The bottom region shows only when an app fills it (S1.4.1); closed by default.
-  bottom?: string | null;
+  bottom?: BottomState | null;
   regionRef: (name: RegionName) => (el: HTMLElement | null) => void;
   onNavigate: (href: string) => void;
   onInbox?: () => void;
+  // The open app has a details aside: the command list gets "Toggle details".
+  onDetails?: () => void;
   children: ReactNode;
 }
 
 const navIcon = <PanelLeft className="i" aria-hidden="true" />;
 
+// Escape closes the aside last: after the command list, a menu (it prevents) and the drawer.
+const useAsideEscape = (aside: AsideState | null, busy: boolean) =>
+  useEffect(() => {
+    if (!aside || busy) return;
+    const onKey = (e: KeyboardEvent) => {
+      const inPopup = (e.target as Element | null)?.closest?.('[role="menu"], [role="dialog"]');
+      if (e.key === 'Escape' && !e.defaultPrevented && !inPopup) aside.onClose();
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [aside, busy]);
+
 // The frame of shell-samples/index.html (variant B): nav, main with actions, bottom, aside.
 export const Frame = (p: FrameProps) => {
   const state = useFrameState();
+  const peek = usePeek(state.navHidden);
   const [wide, setWide] = useState(false);
   const onInbox = p.onInbox ?? (() => undefined);
-  const commands = useMemo<Command[]>(
-    () => [
-      ...p.rows.map((r) => ({
-        id: `go-${r.id}`,
-        label: `Go to ${r.title}`,
-        icon: r.icon,
-        run: () => p.onNavigate(r.href),
-      })),
-      { id: 'toggle-nav', label: 'Toggle sidebar', icon: navIcon, run: state.toggleNav },
-    ],
-    [p, state.toggleNav]
-  );
+  const commands = frameCommands(p, state);
+  useAsideEscape(p.aside, state.palette || state.drawer);
   return (
     <>
       <div className={cn('app', p.aside && 'aside-open', p.aside && wide && 'aside-wide')}>
         <MobileHeader
           account={p.account}
+          version={p.version}
           unread={p.unread ?? 0}
           onMenu={state.toggleNav}
           onInbox={onInbox}
+          onPalette={() => state.setPalette(true)}
+          onNavigate={p.onNavigate}
         />
         <Nav
           rows={p.rows}
@@ -60,15 +73,18 @@ export const Frame = (p: FrameProps) => {
           version={p.version}
           unread={p.unread ?? 0}
           state={state}
+          peek={peek}
           regionRef={p.regionRef}
           onNavigate={p.onNavigate}
           onInbox={onInbox}
         />
         <button
           className="ib showbtn"
+          id="show"
           aria-label="Show sidebar"
           title="Show sidebar"
           onClick={() => state.setNavHidden(false)}
+          {...peek.handlers}
         >
           {navIcon}
         </button>
@@ -76,7 +92,10 @@ export const Frame = (p: FrameProps) => {
           <div className="sidepane" data-region="side" ref={p.regionRef('side')} hidden />
           <main data-region="main">
             <div className="abar" data-region="actions">
-              <span className="ttl">{p.title}</span>
+              <div className="lgrp">
+                <div className="lead" data-region="lead" ref={p.regionRef('lead')} />
+                <TitleMenu title={p.title} pages={p.pages ?? []} onNavigate={p.onNavigate} />
+              </div>
               <div className="agrp" ref={p.regionRef('actions')} />
             </div>
             {p.children}
@@ -84,7 +103,7 @@ export const Frame = (p: FrameProps) => {
           <section
             className="bottom"
             data-region="bottom"
-            aria-label={p.bottom ?? 'Bottom panel'}
+            aria-label={p.bottom?.title ?? 'Bottom panel'}
             hidden={!p.bottom}
           >
             <Splitter {...BOTTOM_SPLIT} />
@@ -93,7 +112,10 @@ export const Frame = (p: FrameProps) => {
               aria-expanded={state.bottomOpen}
               onClick={() => state.setBottomOpen(!state.bottomOpen)}
             >
-              <span>{p.bottom}</span>
+              <span>{p.bottom?.title}</span>
+              {!!p.bottom?.count && <span className="err">{p.bottom.count}</span>}
+              <span className="sp" />
+              <ChevronUp className="i" aria-hidden="true" />
             </button>
             <div className="logs" ref={p.regionRef('bottom')} />
           </section>
@@ -107,7 +129,7 @@ export const Frame = (p: FrameProps) => {
         onClick={() => state.setDrawer(false)}
       />
       <CommandList open={state.palette} onOpenChange={state.setPalette} commands={commands} />
-      <div className="toasts" role="status" aria-live="polite" data-region="toasts" />
+      <div className="toasts" role="status" aria-live="polite" />
     </>
   );
 };

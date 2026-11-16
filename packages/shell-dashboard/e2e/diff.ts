@@ -27,6 +27,16 @@ export const pixelDiff = async (page: Page, a: Buffer, b: Buffer): Promise<numbe
     [a.toString('base64'), b.toString('base64')] as [string, string]
   );
 
-// Parts of the prototype the frame does not build in S1.2.1: the Recent list and the Log tail bar.
-export const NOT_BUILT = '.sect, #recent, .bottom { display: none !important; }';
+// Content, not chrome: main below the actions bar, the title and action buttons, the nav app
+// rows (they come from discovery), the account text, the prototype's Recent list and log lines.
+export const CONTENT = [
+  '[data-region="main"] > :not(.abar)',
+  '.abar .agrp > *',
+  '.abar .ttl',
+  '.mid > .row:not(.search)',
+  '.who',
+  '.bhead .err',
+].join(', ');
+export const CHROME_ONLY = `${CONTENT} { visibility: hidden !important; }`;
+export const NOT_CHROME = '.sect, #recent { display: none !important; }';
 export const NO_SWITCHER = '#sw { display: none !important; }';

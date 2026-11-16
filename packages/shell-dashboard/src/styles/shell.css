@@ -21,3 +21,27 @@
     text-decoration: none;
   }
 }
+
+/* The left of the actions bar: the app's lead slot (back, tree toggle, crumb), then the title. */
+@layer components {
+  .lgrp {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+  }
+  .lead {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+  .lead:empty {
+    display: none;
+  }
+  .empty-main {
+    flex: 1;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+  }
+}

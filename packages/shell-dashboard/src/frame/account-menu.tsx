@@ -4,45 +4,90 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
 } from '@agentage/design-system/dropdown-menu';
-import { ChevronUp, Command as CommandIcon, PanelLeft } from 'lucide-react';
+import {
+  ChevronUp,
+  Command as CommandIcon,
+  KeyRound,
+  LogOut,
+  PanelLeft,
+  Settings,
+} from 'lucide-react';
+import type { ReactNode } from 'react';
 import type { Account } from './frame.types.js';
 
 interface Props {
   account: Account;
   version: string;
+  // The mobile header shows the avatar alone, at the right edge.
+  compact?: boolean;
   onPalette: () => void;
   onToggleNav: () => void;
+  onNavigate: (href: string) => void;
 }
 
 const SIGNED_OUT = 'Not signed in, run agentage setup';
+const I = { className: 'i', 'aria-hidden': true } as const;
 
-// The account region: who is signed in and the shell version (`shell 0.1.0`).
-export const AccountMenu = ({ account, version, onPalette, onToggleNav }: Props) => (
-  <DropdownMenu
-    side="top"
-    align="start"
-    trigger={
-      <button className="acct" title={account.label ?? SIGNED_OUT} aria-label="Account menu">
-        <span className="av" aria-hidden="true">
-          {account.initials}
-        </span>
-        <span className="who">
-          <b>{account.label ?? 'Not signed in'}</b>
-          <span data-shell-version={version}>shell {version}</span>
-        </span>
-        <ChevronUp className="i" aria-hidden="true" />
-      </button>
-    }
-  >
-    <DropdownMenuLabel>{account.label ?? SIGNED_OUT}</DropdownMenuLabel>
-    <DropdownMenuSeparator />
-    <DropdownMenuItem onClick={onPalette}>
-      <CommandIcon className="i" aria-hidden="true" />
-      Command list
-    </DropdownMenuItem>
-    <DropdownMenuItem onClick={onToggleNav}>
-      <PanelLeft className="i" aria-hidden="true" />
-      Toggle sidebar
-    </DropdownMenuItem>
-  </DropdownMenu>
-);
+// A plain element, not a component: the menu's Slot passes its props onto the button.
+const trigger = ({ account, version, compact }: Pick<Props, 'account' | 'version' | 'compact'>) =>
+  compact ? (
+    <button className="av" aria-label="Account menu" title={account.label ?? SIGNED_OUT}>
+      {account.initials}
+    </button>
+  ) : (
+    <button className="acct" title={account.label ?? SIGNED_OUT} aria-label="Account menu">
+      <span className="av" aria-hidden="true">
+        {account.initials}
+      </span>
+      <span className="who">
+        <b>{account.label ?? 'Not signed in'}</b>
+        <span data-shell-version={version}>shell {version}</span>
+      </span>
+      <ChevronUp {...I} />
+    </button>
+  );
+
+// Settings, Tokens and Sign out link to the account extension; absent routes hide the item.
+const links = (account: Account, go: (href: string) => void): ReactNode[] => {
+  const l = account.links ?? {};
+  const rows: [string | undefined, string, ReactNode][] = [
+    [l.settings, 'Settings', <Settings key="i" {...I} />],
+    [l.tokens, 'Tokens', <KeyRound key="i" {...I} />],
+    [l.signOut, 'Sign out', <LogOut key="i" {...I} />],
+  ];
+  return rows
+    .filter((r): r is [string, string, ReactNode] => !!r[0])
+    .map(([href, label, icon]) => (
+      <DropdownMenuItem key={label} onClick={() => go(href)}>
+        {icon}
+        {label}
+      </DropdownMenuItem>
+    ));
+};
+
+// The account region: who is signed in, the shell version (`shell 0.1.0`), the account links.
+export const AccountMenu = ({ account, version, compact, ...on }: Props) => {
+  const items = links(account, on.onNavigate);
+  return (
+    <DropdownMenu
+      side={compact ? 'bottom' : 'top'}
+      align={compact ? 'end' : 'start'}
+      trigger={trigger({ account, version, compact })}
+    >
+      <DropdownMenuLabel>{account.label ?? SIGNED_OUT}</DropdownMenuLabel>
+      <DropdownMenuSeparator />
+      <DropdownMenuLabel>shell {version}</DropdownMenuLabel>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem onClick={on.onPalette}>
+        <CommandIcon {...I} />
+        Command list
+      </DropdownMenuItem>
+      <DropdownMenuItem onClick={on.onToggleNav}>
+        <PanelLeft {...I} />
+        Toggle sidebar
+      </DropdownMenuItem>
+      {items.length > 0 && <DropdownMenuSeparator />}
+      {items}
+    </DropdownMenu>
+  );
+};

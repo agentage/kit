@@ -1,5 +1,6 @@
 import { createRoot } from 'react-dom/client';
 import { Frame } from './frame/frame.js';
+import { NoExtensions } from './frame/no-extensions.js';
 import { createRegionHost } from './frame/regions.js';
 import { shellVersion } from './version.js';
 
@@ -16,8 +17,6 @@ if (root)
       regionRef={regions.ref}
       onNavigate={(href) => history.pushState(null, '', href)}
     >
-      <div className="scroll">
-        <p className="sub">No app is installed yet.</p>
-      </div>
+      <NoExtensions />
     </Frame>
   );

@@ -1,8 +1,5 @@
 # @agentage/extension/app
 
-This workspace (`packages/app`, private) is published only inside the kit: the kit build copies its
-`dist` and `theme.css` to `dist/vendor/app` (`scripts/inline-app.mjs`). React 19 is a peer of the kit.
-
 The one import of an agentage app. An app is one root component (the default export of
 `src/app/index.tsx`); the shell mounts it in the `main` region and gives it these hooks. The app has
 no code for layout, auth or storage.
@@ -17,7 +14,7 @@ The shell serves one copy of React and of this package through an import map: an
 | `useAppShell()`           | `{ id, route: { path, query }, notify({ text, kind }), openAside(key), closeAside(), navigate(page) }`; `route.path` is the page after `/{id}/` |
 | `useAppHost()`            | `{ id, user, scopes, api(path, init?) }`; `api('/echo')` calls `/api/{id}/echo` and returns the envelope `data`                                 |
 | `useAppState(key, init)`  | `[value, set]`, kept by the shell per app and key: a remount (a new build, an update) keeps it; every reader of a key sees one value            |
-| `<Region name>`           | renders its children into a frame region (`actions`, `aside`, `notices`, `bottom`, `side`) as a React portal, inside an error boundary          |
+| `<Region name>`           | renders its children into a frame region (`lead`, `actions`, `aside`, `notices`, `bottom`, `side`) as a React portal, inside an error boundary  |
 | `<Split id init min max>` | two panes, the first one resizable (arrow keys 16 px, Shift 64 px, Home, End, drag); the size holds across a reload with no layout shift        |
 | `AppBoundary`             | the error boundary the shell puts around each app root and `Region`                                                                             |
 | `AppApiError`             | what `api` throws: `code` (the envelope code, `FORBIDDEN` for a refused path, else `HTTP_<status>`), `status`                                   |
@@ -36,6 +33,8 @@ Keys of `openAside`: `inspect`, `details`, `inbox` (the shell puts the key in th
   `ag.split.{app}.{id}`. The shell runs `SPLIT_PREPAINT` in the page head before any module, and the
   split clamps the stored value to its own `min` and `max` in CSS, so the first paint is final.
 - The shell owns the look of `.split`, `.sep` and `.card-err`; the app ships no layout CSS.
+- `collapsed` hides the first pane (a tree toggle); below 760 px one pane shows, `pane` picks it (0 or 1, the app gives the back button).
+- There is no `base.css`: a plain `<input>` has no border. Use the design-system `Input` (or give it a class).
 
 ## Theme
 
@@ -45,7 +44,7 @@ build import it, so an app utility such as `bg-card` or `text-primary` matches t
 
 ## Tests
 
-`@agentage/extension/app/test-host` gives `TestHost`: the five regions as plain nodes and an in-memory host.
+`@agentage/extension/app/test-host` gives `TestHost`: the six regions as plain nodes and an in-memory host.
 It records notices, api calls, the aside key and pages; `reply(call)` sets the api answer.
 
 ```tsx

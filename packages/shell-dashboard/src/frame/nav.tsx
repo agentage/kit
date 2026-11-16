@@ -6,6 +6,7 @@ import { AccountMenu } from './account-menu.js';
 import type { Account, NavRow } from './frame.types.js';
 import { Brand } from './logo.js';
 import { NAV_SPLIT, Splitter } from './splitter.js';
+import type { usePeek } from './use-peek.js';
 import type { FrameState } from './use-frame-state.js';
 
 interface Props {
@@ -15,16 +16,23 @@ interface Props {
   unread: number;
   state: FrameState;
   regionRef: (name: RegionName) => (el: HTMLElement | null) => void;
+  peek: ReturnType<typeof usePeek>;
   onNavigate: (href: string) => void;
   onInbox: () => void;
 }
 
 const icon = <PanelLeft className="i" aria-hidden="true" />;
 
-export const Nav = ({ rows, account, version, unread, state, regionRef, ...on }: Props) => {
+export const Nav = ({ rows, account, version, unread, state, regionRef, peek, ...on }: Props) => {
   const hideLabel = state.navHidden ? 'Dock sidebar' : 'Hide sidebar';
   return (
-    <nav className="side" data-region="nav" id="nav" aria-label="Primary">
+    <nav
+      className={peek.peek ? 'side peek' : 'side'}
+      data-region="nav"
+      id="nav"
+      aria-label="Primary"
+      {...peek.handlers}
+    >
       <div className="sidehead">
         <Brand />
         <IconButton
@@ -74,6 +82,7 @@ export const Nav = ({ rows, account, version, unread, state, regionRef, ...on }:
           version={version}
           onPalette={() => state.setPalette(true)}
           onToggleNav={state.toggleNav}
+          onNavigate={on.onNavigate}
         />
       </div>
       <Splitter {...NAV_SPLIT} />

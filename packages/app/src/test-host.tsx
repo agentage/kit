@@ -41,7 +41,7 @@ export interface TestHostProps {
   route?: AppRoute;
 }
 
-const REGIONS: RegionName[] = ['actions', 'aside', 'notices', 'bottom', 'side'];
+const REGIONS: RegionName[] = ['lead', 'actions', 'aside', 'notices', 'bottom', 'side'];
 const TEST_USER: AppUser = { id: 'u-test', name: 'Test User' };
 const NO_SCOPES: string[] = [];
 const HOME: AppRoute = { path: '', query: {} };
@@ -91,7 +91,7 @@ const useRegionHost = (): [RegionHost, (name: RegionName) => (el: HTMLElement | 
   return [host, ref];
 };
 
-// A small shell for unit tests of an app: the five regions as divs and an in-memory host.
+// A small shell for unit tests of an app: the six regions as divs and an in-memory host.
 export const TestHost = (props: TestHostProps) => {
   const [record] = useState(() => props.record ?? createTestRecord());
   const [store] = useState(() => props.store ?? createStateStore());

@@ -65,7 +65,7 @@ describe('Frame', () => {
       'side',
     ])
       expect(el.querySelector(`[data-region="${r}"]`), r).not.toBeNull();
-    for (const r of ['actions', 'aside', 'notices', 'bottom', 'side'] as const)
+    for (const r of ['lead', 'actions', 'aside', 'notices', 'bottom', 'side'] as const)
       expect(regions.node(r), r).not.toBeNull();
     expect(el.querySelector('[data-region="account"]')?.textContent).toContain('shell 0.1.0');
     expect(el.querySelector('[aria-current="page"]')?.textContent).toBe('Probe');
@@ -156,9 +156,10 @@ describe('Frame', () => {
   });
 
   it('the bottom region shows only with a title and opens with its header', async () => {
-    const { el } = await mount({ bottom: 'Log tail' });
+    const { el } = await mount({ bottom: { title: 'Log tail', count: 2 } });
     const bottom = el.querySelector<HTMLElement>('[data-region="bottom"]')!;
     expect(bottom.hidden).toBe(false);
+    expect(bottom.querySelector('.bhead')?.textContent).toBe('Log tail2');
     await act(async () => bottom.querySelector<HTMLButtonElement>('.bhead')?.click());
     expect(document.documentElement.classList.contains('bo')).toBe(true);
     const sep = bottom.querySelector<HTMLElement>('[role="separator"]')!;

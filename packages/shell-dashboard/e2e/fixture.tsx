@@ -1,44 +1,28 @@
-// The frame filled like shell-samples/index.html, to compare screenshots beside the prototype.
-import {
-  AppContext,
-  createStateStore,
-  Region,
-  type AppContextValue,
-  type HostAdapter,
-} from '@agentage/app';
-import { Archive, Box, House, List, Puzzle, Server, Users } from 'lucide-react';
+// The frame (chrome only) with rows as discovery gives them, to compare beside the prototype.
+import { Box, Brain, Cloud, List, Store } from 'lucide-react';
 import { createRoot } from 'react-dom/client';
 import { Frame } from '../src/frame/frame.js';
 import { createRegionHost } from '../src/frame/regions.js';
-import { Actions, Overview } from './fixture-overview.js';
 
 const ICON = { className: 'i', 'aria-hidden': true } as const;
+// One row per installed extension with `agentage.app`; the shell has no rows of its own.
 const ROWS = [
-  ['overview', 'Overview', <House key="i" {...ICON} />],
-  ['extensions', 'Extensions', <Puzzle key="i" {...ICON} />],
-  ['hosts', 'Hosts', <Server key="i" {...ICON} />],
+  ['platform', 'Platform', <Box key="i" {...ICON} />],
+  ['memory', 'Memory', <Brain key="i" {...ICON} />],
   ['logs', 'Logs', <List key="i" {...ICON} />],
-  ['backups', 'Backups', <Archive key="i" {...ICON} />],
-  ['users', 'Users', <Users key="i" {...ICON} />],
-  ['installations', 'Installations', <Box key="i" {...ICON} />],
+  ['market', 'Market', <Store key="i" {...ICON} />],
+  ['cloud', 'Cloud', <Cloud key="i" {...ICON} />],
 ] as const;
+// The open app (platform) fills the title menu and the bottom bar; main stays empty.
+const PAGES = ['Overview', 'Last 24 h', 'Last 7 d'].map((title, i) => ({
+  title,
+  href: `/platform/${i}`,
+  current: i === 0,
+}));
 
 const regions = createRegionHost();
-const host: HostAdapter = { user: null, scopes: [], request: (_i, p) => fetch(p) };
-const ctx: AppContextValue = {
-  id: 'overview',
-  route: { path: '', query: {} },
-  regions,
-  host,
-  store: createStateStore(),
-  shell: {
-    notify: () => undefined,
-    openAside: () => undefined,
-    closeAside: () => undefined,
-    navigate: () => undefined,
-  },
-};
-const wide = new URLSearchParams(location.search).has('aside');
+const params = new URLSearchParams(location.search);
+const go = (href: string) => history.pushState(null, '', href);
 
 createRoot(document.getElementById('root')!).render(
   <Frame
@@ -47,21 +31,20 @@ createRoot(document.getElementById('root')!).render(
       title,
       icon,
       href: `/${id}`,
-      current: id === 'overview',
+      current: id === 'platform',
     }))}
     account={{ label: 'Alex Doe', initials: 'AD' }}
     version="0.1.0"
     title="Overview"
+    pages={PAGES}
     unread={3}
-    aside={wide ? { title: 'memory', onClose: () => undefined } : null}
+    bottom={{ title: 'Log tail', count: 2 }}
+    aside={params.has('aside') ? { title: 'Details', onClose: () => go('/fixture.html') } : null}
     regionRef={regions.ref}
-    onNavigate={() => undefined}
+    onNavigate={go}
+    onInbox={() => undefined}
+    onDetails={() => undefined}
   >
-    <AppContext.Provider value={ctx}>
-      <Region name="actions">
-        <Actions />
-      </Region>
-      <Overview />
-    </AppContext.Provider>
+    <div className="scroll" data-page="platform" />
   </Frame>
 );

@@ -14,7 +14,7 @@ import { exportedPartCode } from './rules/folders.js';
 import { sealing } from './rules/sealing.js';
 import { store } from './rules/store.js';
 import { surface } from './rules/surface.js';
-import { KIT_VERSION } from './kit-version.js';
+import { KIT_FLOOR, KIT_VERSION, olderKitMinor } from './kit-version.js';
 import { assertBuilt, exists } from './stage.js';
 
 export interface CheckOptions {
@@ -26,7 +26,8 @@ export interface CheckOptions {
 
 export type CheckInput = CheckOptions & { dir: string; pkg: ExtensionPackage; run: Run };
 
-export type Finding = { file?: string; line?: number; problem: string };
+// warning: reported, never a reason to refuse.
+export type Finding = { file?: string; line?: number; problem: string; warning?: true };
 
 export type CheckProblem = Finding & { rule: string };
 
@@ -42,6 +43,8 @@ export interface CheckReport {
   conforms: boolean;
   rules: string[];
   problems: CheckProblem[];
+  // Only when a rule warned (an older kit minor the host still runs).
+  warnings?: CheckProblem[];
   skipped: Record<string, string>;
 }
 
@@ -111,6 +114,15 @@ const specProblem = (name: string, spec: string, needed: string): string[] => {
   return semver.subset(spec, needed) ? [] : [`${name} ${spec}, needs ${needed}`];
 };
 
+// D8: an older minor from the floor up still runs (a warning); below it or above the kit, refused.
+const kitRange = (range: string): Finding[] => {
+  if (semver.satisfies(KIT_VERSION, range)) return [];
+  const older = olderKitMinor(range);
+  if (!older) return [{ problem: `kit ${KIT_VERSION} is outside engines.agentage ${range}` }];
+  const problem = `engines.agentage ${range} is kit ${older}: kit ${KIT_VERSION} runs it (floor ${KIT_FLOOR}), update the extension`;
+  return [{ problem, warning: true }];
+};
+
 const stack: CheckRule = {
   name: 'stack',
   run: async ({ pkg }) => {
@@ -124,9 +136,7 @@ const stack: CheckRule = {
     });
     if ('@modelcontextprotocol/sdk' in deps)
       found.push('@modelcontextprotocol/sdk is MCP SDK 1: use @modelcontextprotocol/server ^2');
-    if (!semver.satisfies(KIT_VERSION, range))
-      found.push(`kit ${KIT_VERSION} is outside engines.agentage ${range}`);
-    return found.map((problem) => ({ problem }));
+    return [...found.map((problem) => ({ problem })), ...kitRange(range)];
   },
 };
 
@@ -137,22 +147,30 @@ export const RULES: readonly CheckRule[] = [manifest, entries, surface, stack, s
 const runRule = (rule: CheckRule, input: CheckInput) =>
   rule.run(input).catch((err) => [{ problem: messageOf(err).replace(`${input.dir}/`, '') }]);
 
+const split = (found: CheckProblem[]) => {
+  const warnings = found.flatMap(({ warning, ...rest }) => (warning ? [rest] : []));
+  const problems = found.filter((finding) => !finding.warning);
+  return { problems, warned: warnings.length > 0 ? { warnings } : {} };
+};
+
 export const check = async (at: string, options: CheckOptions = {}): Promise<CheckReport> => {
   const { rules = RULES, run = runCommand } = options;
   const dir = resolve(at);
   const read = readJsonIfExists(join(dir, 'package.json')).catch(() => ({}));
   const pkg = ((await read) ?? {}) as ExtensionPackage;
-  const problems: CheckProblem[] = [];
+  const found: CheckProblem[] = [];
   const skipped: Record<string, string> = {};
   for (const rule of rules) {
     const result = await runRule(rule, { ...options, dir, pkg, run });
     if ('skipped' in result) skipped[rule.name] = result.skipped;
-    else problems.push(...result.map((found) => ({ rule: rule.name, ...found })));
-    if (rule.name === 'manifest' && problems.length > 0) break;
+    else found.push(...result.map((finding) => ({ rule: rule.name, ...finding })));
+    if (rule.name === 'manifest' && found.length > 0) break;
   }
+  const { problems, warned } = split(found);
   const names = rules.map((rule) => rule.name);
   const conforms = problems.length === 0;
-  return { id: pkg.agentage?.id, version: pkg.version, conforms, rules: names, problems, skipped };
+  const { agentage, version } = pkg;
+  return { id: agentage?.id, version, conforms, rules: names, problems, ...warned, skipped };
 };
 
 // What build runs after the compile and before any image: any problem stops everything.

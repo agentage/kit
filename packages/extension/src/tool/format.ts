@@ -1,6 +1,6 @@
 import { relative } from 'node:path';
 import { type BuildResult } from './build.js';
-import { type CheckReport, type Finding } from './check.js';
+import { type CheckProblem, type CheckReport, type Finding } from './check.js';
 import { plural } from './up/lines.js';
 
 const shortDigest = (digest: string): string => digest.slice(0, 'sha256:'.length + 8);
@@ -32,10 +32,14 @@ export const buildLines = (result: BuildResult, cwd: string = process.cwd()): st
 const where = ({ file, line }: Finding): string =>
   file ? `${file}${line ? `:${line}` : ''} ` : '';
 
-export const problemLines = (report: CheckReport): string[] =>
-  report.problems.map((found) => `${found.rule}: ${where(found)}${found.problem}`);
+const lineOf = (found: CheckProblem): string => `${found.rule}: ${where(found)}${found.problem}`;
 
-// What `agentage extension check` prints (sheet C2): the rules line and PASS, or each problem and FAIL.
+export const problemLines = (report: CheckReport): string[] => report.problems.map(lineOf);
+
+const warningLines = ({ warnings = [] }: CheckReport): string[] =>
+  warnings.map((found) => `warning ${lineOf(found)}`);
+
+// What `agentage extension check` prints (sheet C2): the rules line and PASS, or each problem and FAIL; warnings first.
 export const checkLines = (report: CheckReport): string[] => {
   const { rules, skipped, problems } = report;
   if (report.conforms) {
@@ -43,9 +47,9 @@ export const checkLines = (report: CheckReport): string[] => {
       (name) => `${name} ${skipped[name] ? `skipped: ${skipped[name]}` : 'ok'}`
     );
     const pass = `PASS ${report.id} ${report.version} conforms (${plural(rules.length, 'rule')})`;
-    return [states.join(' · '), pass];
+    return [states.join(' · '), ...warningLines(report), pass];
   }
   const failed = new Set(problems.map((found) => found.rule)).size;
   const fail = `FAIL ${plural(problems.length, 'problem')} in ${plural(failed, 'rule')}`;
-  return [...problemLines(report), fail];
+  return [...warningLines(report), ...problemLines(report), fail];
 };

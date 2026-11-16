@@ -29,14 +29,14 @@ node packages/extension/dist/tool/cli.js token --scope probe:read
 
 The six rules:
 
-| Rule       | Checks                                                                                                                                 |
-| ---------- | -------------------------------------------------------------------------------------------------------------------------------------- |
-| `manifest` | the `agentage` block is valid; a problem here stops the later rules                                                                    |
-| `entries`  | `npm run build` ran (`dist/` exists); each part is built and exports only `create`; no export holds part code                          |
-| `surface`  | the committed `openapi.json` and `{id}.mcpc.json` equal what the code serves                                                           |
-| `stack`    | dependency ranges fit express 5, zod 4, `@modelcontextprotocol/server` 2 and the kit range in `engines.agentage`                       |
-| `store`    | migrations apply on a real postgres; `check` skips it without Docker                                                                   |
-| `sealing`  | no `process`, no `listen()`, no absolute agentage URL; a part imports only its own folder and `src/lib` (type-only imports are exempt) |
+| Rule       | Checks                                                                                                                                                           |
+| ---------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `manifest` | the `agentage` block is valid; a problem here stops the later rules                                                                                              |
+| `entries`  | `npm run build` ran (`dist/` exists); each part is built and exports only `create`; no export holds part code                                                    |
+| `surface`  | the committed `openapi.json` and `{id}.mcpc.json` equal what the code serves                                                                                     |
+| `stack`    | dependency ranges fit express 5, zod 4, `@modelcontextprotocol/server` 2 and the kit range in `engines.agentage`; an older kit minor from `0.12` up is a warning |
+| `store`    | migrations apply on a real postgres; `check` skips it without Docker                                                                                             |
+| `sealing`  | no `process`, no `listen()`, no absolute agentage URL; a part imports only its own folder and `src/lib` (type-only imports are exempt)                           |
 
 `npm run check:fixtures` shows one fixture refused per rule. Under `build` the `store` rule needs
 Docker and fails without it (`tool/rules/store.ts`).

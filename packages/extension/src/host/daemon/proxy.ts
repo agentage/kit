@@ -11,15 +11,26 @@ import { carriesHostToken } from './host-token.js';
 import { enter, type Lane } from './lane.js';
 import { type Entries } from './entries.js';
 import { type Limits } from './limits.js';
+import { stopsNow, type Stopping } from './stopping.js';
+import { type Entry } from './supervisor.js';
+
+type ProxyLimits = Pick<Limits, 'gateMs' | 'answerMs'> & { stopping?: Stopping };
+
+// With no child: the daemon stops, a change still holds it (state still running), or its state.
+const noLane = (entry: Entry, stopping?: Stopping) => {
+  if (stopping?.signal.aborted) return stopsNow();
+  const now = entry.state === 'running' ? 'changing' : entry.state;
+  return fail('UNAVAILABLE', `${entry.id} is ${now}: try again`, { retryAfter: 5 });
+};
 
 // 404 not installed or disabled (chosen, not to retry); 503 starting, failed, or held past gateMs.
-const laneFor = async (entries: Entries, id: string, gateMs: number) => {
+const laneFor = async (entries: Entries, id: string, limits: ProxyLimits) => {
   const entry = entries.get(id);
   if (!entry) throw fail('NOT_FOUND', `${id} is not installed`);
   if (entry.state === 'disabled') throw fail('NOT_FOUND', `${id} is disabled`);
-  if (entry.gate) await Promise.race([entry.gate, sleep(gateMs, undefined, { ref: false })]);
+  if (entry.gate) await Promise.race([entry.gate, sleep(limits.gateMs, undefined, { ref: false })]);
   const lane = entry.lane;
-  if (!lane) throw fail('UNAVAILABLE', `${id} is ${entry.state}`, { retryAfter: 5 });
+  if (!lane) throw noLane(entry, limits.stopping);
   // Counted in the same tick it is read: a swap cannot stop this child before the request is open.
   return { lane, leave: enter(lane) };
 };
@@ -116,12 +127,8 @@ const forward = (
 
 // ANY /api/{id}/* and /mcp/{id} (C1): the same lane, the same refusals (404 unknown, 503 not running).
 export const proxyTo =
-  (
-    entries: Entries,
-    limits: Pick<Limits, 'gateMs' | 'answerMs'>,
-    hostToken?: string
-  ): RequestHandler =>
+  (entries: Entries, limits: ProxyLimits, hostToken?: string): RequestHandler =>
   async (req, res, next) => {
-    const to = await laneFor(entries, String(req.params['id']), limits.gateMs);
+    const to = await laneFor(entries, String(req.params['id']), limits);
     forward(req, res, next, { to, ms: limits.answerMs, hostToken });
   };

@@ -75,7 +75,8 @@ need it.
 The daemon (`createDaemon`) answers `/api/{id}/*` from the child of that extension. It answers 404
 `NOT_FOUND` for an id that is not installed or is disabled; a client does not retry it. It answers
 503 `UNAVAILABLE` with `Retry-After` while the extension is starting or failed, or when a request
-waited past `gateMs` for a change to end. A child that sends no answer headers in `answerMs` gets
+waited past `gateMs` for a change to end ("<id> is starting | failed | changing: try again"), and
+"the daemon stops" once `stop()` began. A child that sends no answer headers in `answerMs` gets
 504 `TIMEOUT` ("The extension did not answer in <ms> ms"). A 504, and a 503 "The extension did
 not answer", can come after the extension applied the call: retry only an idempotent call. A
 request counted on the old child before a swap is answered there while it drains (`drainMs`).

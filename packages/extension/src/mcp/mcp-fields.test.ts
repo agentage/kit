@@ -166,6 +166,8 @@ describe('server instructions', () => {
     const url = await start((caller) => `run ${++runs} for ${caller?.sub ?? 'nobody'}`, byBearer);
     expect(await callTool(url, 'memory__write', {})).toEqual({ sub: null });
     expect(await callTool(url, 'memory__plain', {})).toEqual({ sub: null });
+    const list = JSON.stringify({ jsonrpc: '2.0', id: 4, method: 'tools/list' });
+    expect((await fetch(url, { method: 'POST', headers: HEADERS, body: list })).status).toBe(200);
     expect(runs).toBe(0);
     expect(await initialize(url, 'u_bob')).toBe('run 1 for u_bob');
   });

@@ -1,8 +1,12 @@
 import { formatIssues, readJsonIfExists } from '../manifest/read-manifest.js';
 import { type ExtensionPackage } from '../manifest/manifest.schema.js';
-import { normalizeParts, scopedSecrets } from '../manifest/parts.js';
+import { normalizeParts, scopedSecrets, type HostPartKind } from '../manifest/parts.js';
 import { type ImagePartKind } from '../manifest/primitives.schema.js';
-import { ExtensionRecordSchema, type ExtensionRecord } from './discovery.schema.js';
+import {
+  ExtensionRecordSchema,
+  type DiscoveryDocument,
+  type ExtensionRecord,
+} from './discovery.schema.js';
 
 export interface BuildInfo {
   commit: string;
@@ -50,6 +54,21 @@ export const recordOf = (
   return record;
 };
 
+// What a part serves in discovery: a build record, or the kit host's (parts with no image).
+export type ServedRecord = Omit<ExtensionRecord, 'parts'> & { parts: DiscoveryDocument['parts'] };
+
+// The kit host never knows its digest: the parts it runs have no image; pages and ui are not listed.
+export const hostedRecordOf = (
+  pkg: ExtensionPackage,
+  build: BuildInfo,
+  hosted: readonly HostPartKind[],
+  extras: RecordExtras
+): ServedRecord => {
+  const record = recordOf(pkg, build, {}, extras);
+  const bare = Object.fromEntries(hosted.map((kind) => [kind, {}]));
+  return { ...record, parts: { ...bare, ...record.parts } };
+};
+
 export const validateRecord = (value: unknown): ExtensionRecord => {
   const result = ExtensionRecordSchema.safeParse(value);
   if (result.success) return result.data;
@@ -62,7 +81,7 @@ export const loadRecord = async (file: string): Promise<ExtensionRecord | null> 
   return record === undefined ? null : validateRecord(record);
 };
 
-export const discoveryDocument = (record: ExtensionRecord, host: string) => {
+export const discoveryDocument = (record: ServedRecord, host: string) => {
   const { id, version, commit, buildTime, ...rest } = record;
   delete rest.secrets;
   delete rest.secretParts;

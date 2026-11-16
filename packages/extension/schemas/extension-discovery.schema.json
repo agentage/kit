@@ -54,46 +54,73 @@
           "additionalProperties": false
         },
         "api": {
-          "type": "object",
-          "properties": {
-            "image": {
-              "type": "string",
-              "maxLength": 256,
-              "pattern": "^[a-z0-9][a-z0-9.-]*(:[0-9]{1,5})?\\/[a-z0-9][a-z0-9-]*\\/[a-z][a-z0-9-]*-(pages|ui|api|mcp|worker)@sha256:[0-9a-f]{64}$"
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "image": {
+                  "type": "string",
+                  "maxLength": 256,
+                  "pattern": "^[a-z0-9][a-z0-9.-]*(:[0-9]{1,5})?\\/[a-z0-9][a-z0-9-]*\\/[a-z][a-z0-9-]*-(pages|ui|api|mcp|worker)@sha256:[0-9a-f]{64}$"
+                }
+              },
+              "required": [
+                "image"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {},
+              "additionalProperties": false
             }
-          },
-          "required": [
-            "image"
-          ],
-          "additionalProperties": false
+          ]
         },
         "mcp": {
-          "type": "object",
-          "properties": {
-            "image": {
-              "type": "string",
-              "maxLength": 256,
-              "pattern": "^[a-z0-9][a-z0-9.-]*(:[0-9]{1,5})?\\/[a-z0-9][a-z0-9-]*\\/[a-z][a-z0-9-]*-(pages|ui|api|mcp|worker)@sha256:[0-9a-f]{64}$"
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "image": {
+                  "type": "string",
+                  "maxLength": 256,
+                  "pattern": "^[a-z0-9][a-z0-9.-]*(:[0-9]{1,5})?\\/[a-z0-9][a-z0-9-]*\\/[a-z][a-z0-9-]*-(pages|ui|api|mcp|worker)@sha256:[0-9a-f]{64}$"
+                }
+              },
+              "required": [
+                "image"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {},
+              "additionalProperties": false
             }
-          },
-          "required": [
-            "image"
-          ],
-          "additionalProperties": false
+          ]
         },
         "worker": {
-          "type": "object",
-          "properties": {
-            "image": {
-              "type": "string",
-              "maxLength": 256,
-              "pattern": "^[a-z0-9][a-z0-9.-]*(:[0-9]{1,5})?\\/[a-z0-9][a-z0-9-]*\\/[a-z][a-z0-9-]*-(pages|ui|api|mcp|worker)@sha256:[0-9a-f]{64}$"
+          "anyOf": [
+            {
+              "type": "object",
+              "properties": {
+                "image": {
+                  "type": "string",
+                  "maxLength": 256,
+                  "pattern": "^[a-z0-9][a-z0-9.-]*(:[0-9]{1,5})?\\/[a-z0-9][a-z0-9-]*\\/[a-z][a-z0-9-]*-(pages|ui|api|mcp|worker)@sha256:[0-9a-f]{64}$"
+                }
+              },
+              "required": [
+                "image"
+              ],
+              "additionalProperties": false
+            },
+            {
+              "type": "object",
+              "properties": {},
+              "additionalProperties": false
             }
-          },
-          "required": [
-            "image"
-          ],
-          "additionalProperties": false
+          ]
         },
         "store": {
           "type": "object",

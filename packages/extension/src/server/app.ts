@@ -10,8 +10,8 @@ import {
   recordOf,
   type BuildInfo,
   type PartImages,
+  type ServedRecord,
 } from '../discovery/discovery.js';
-import { type ExtensionRecord } from '../discovery/discovery.schema.js';
 import { apiPrefix } from '../discovery/openapi.js';
 import { createHealthHandler, type HealthCheck } from '../health/health.js';
 import { type Log } from '../log/log.js';
@@ -25,7 +25,7 @@ export interface PartAppBase {
   pkg: ExtensionPackage;
   build: BuildInfo;
   log: Log;
-  record?: ExtensionRecord | null;
+  record?: ServedRecord | null;
   ownImage?: string;
   origin?: string;
   checks?: Record<string, HealthCheck>;

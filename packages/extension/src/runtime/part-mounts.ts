@@ -1,6 +1,9 @@
 import { type Express } from 'express';
 import { generatedOpenapi } from '../api/openapi-doc.js';
 import { type PartContext } from '../context/context.js';
+import { type RecordExtras } from '../discovery/discovery.js';
+import { openapiPath } from '../discovery/openapi.js';
+import { toolRecords } from '../discovery/served-extras.js';
 import { type HealthCheck } from '../health/health.js';
 import { loadCreate, type ImportModule } from '../manifest/entry.js';
 import { type ExtensionPackage } from '../manifest/manifest.schema.js';
@@ -38,6 +41,8 @@ export interface PartMount {
   checks?: Record<string, HealthCheck>;
   start?: () => void;
   stop?: () => void;
+  // What this part adds to the record the kit host serves (openapi, tools).
+  record?: RecordExtras;
 }
 
 // ui has no code to run; every other part is its create(ctx).
@@ -53,7 +58,8 @@ const api = async (input: RunnerInput): Promise<PartMount> => {
   // Declared routes guard at their own scope, whatever the committed file says.
   const openapi = routes.length > 0 ? generatedOpenapi(input.pkg, routes) : input.openapi;
   const options = { ...input.base, router, routes, openapi, wellKnown: documents };
-  return { mount: (app) => mountApiRoutes(app, { ...options, aliases: input.apiAliases }) };
+  const record = openapi ? { openapi: openapiPath(input.pkg.agentage.id) } : {};
+  return { mount: (app) => mountApiRoutes(app, { ...options, aliases: input.apiAliases }), record };
 };
 
 const mcp = async (input: RunnerInput): Promise<PartMount> => {
@@ -63,7 +69,8 @@ const mcp = async (input: RunnerInput): Promise<PartMount> => {
   const token = !input.openListing && ctx.settings['mcp.listing'] === 'token';
   const listing: McpAppOptions['listing'] = token ? 'token' : 'open';
   const options = { ...input.base, tools: registry.tools, listing, paths: input.mcpPaths };
-  return { mount: (app) => mountMcp(app, options) };
+  const tools = toolRecords(input.pkg.agentage.id, registry.tools);
+  return { mount: (app) => mountMcp(app, options), record: tools.length ? { tools } : {} };
 };
 
 const worker = async (input: RunnerInput): Promise<PartMount> => {

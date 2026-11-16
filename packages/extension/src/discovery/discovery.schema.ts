@@ -29,15 +29,30 @@ const OneImageRefSchema = z
     /^[a-z0-9][a-z0-9.-]*(:[0-9]{1,5})?(\/[a-z0-9][a-z0-9_.-]*)+\/[a-z][a-z0-9-]*@sha256:[0-9a-f]{64}$/
   );
 
+const StoreRecordSchema = z.strictObject({
+  kind: StoreKindSchema,
+  migrations: z.int().min(0).optional(),
+});
+
 const PartsRecordSchema = z.strictObject({
   pages: PartImageSchema.optional(),
   ui: PartImageSchema.optional(),
   api: PartImageSchema.optional(),
   mcp: PartImageSchema.optional(),
   worker: PartImageSchema.optional(),
-  store: z
-    .strictObject({ kind: StoreKindSchema, migrations: z.int().min(0).optional() })
-    .optional(),
+  store: StoreRecordSchema.optional(),
+});
+
+// A part the kit host runs has no image: the host never knows its own digest.
+const HostedPartSchema = z.strictObject({});
+
+const ServedPartsSchema = z.strictObject({
+  pages: PartImageSchema.optional(),
+  ui: PartImageSchema.optional(),
+  api: z.union([PartImageSchema, HostedPartSchema]).optional(),
+  mcp: z.union([PartImageSchema, HostedPartSchema]).optional(),
+  worker: z.union([PartImageSchema, HostedPartSchema]).optional(),
+  store: StoreRecordSchema.optional(),
 });
 
 export const OriginSchema = z
@@ -80,7 +95,11 @@ const recordShape = {
   commands: z.array(CommandNameSchema).min(1).optional(),
 };
 
-type Imaged = { id: string; parts: z.infer<typeof PartsRecordSchema>; image?: string };
+type Imaged = {
+  id: string;
+  parts: Partial<Record<(typeof IMAGE_PART_KINDS)[number], { image?: string }>>;
+  image?: string;
+};
 
 const imagesNameTheirExtension = (doc: Imaged) =>
   (!doc.image || doc.image.includes(`/${doc.id}@sha256:`)) &&
@@ -97,6 +116,18 @@ const oneImageForm = (doc: Imaged) =>
 
 const FORM_RULE = {
   message: 'at least one part with an image, or the one image and no part image',
+  path: ['parts'],
+};
+
+// Discovery also takes the kit host's form: one or more parts, none with an image, no one image.
+const servedForm = (doc: Imaged) => {
+  const bare = IMAGE_PART_KINDS.filter((kind) => doc.parts[kind] && !doc.parts[kind].image);
+  if (!bare.length) return oneImageForm(doc);
+  return !doc.image && IMAGE_PART_KINDS.every((kind) => doc.parts[kind]?.image === undefined);
+};
+
+const HOSTED_RULE = {
+  message: 'at least one part with an image, the one image, or only parts with no image',
   path: ['parts'],
 };
 
@@ -129,8 +160,8 @@ export const ExtensionRecordSchema = z
 
 // What a deployment serves at /.well-known/agentage-extension.json: the record plus its host.
 export const DiscoveryDocumentSchema = z
-  .strictObject({ ...recordShape, host: OriginSchema })
-  .refine(oneImageForm, FORM_RULE)
+  .strictObject({ ...recordShape, parts: ServedPartsSchema, host: OriginSchema })
+  .refine(servedForm, HOSTED_RULE)
   .refine(imagesNameTheirExtension, IMAGE_RULE)
   .refine(openapiNamesItsExtension, OPENAPI_RULE);
 

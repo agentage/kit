@@ -1,18 +1,17 @@
 import { join } from 'node:path';
 import { z } from 'zod';
 import { createRouteRegistry, type ApiContext } from '../api/routes.js';
-import { scopeOf } from '../auth/token-check.js';
 import { createContext } from '../context/context.js';
 import { type RecordExtras } from '../discovery/discovery.js';
 import { WidgetSchema } from '../discovery/discovery.schema.js';
 import { openapiPath, readOpenapi } from '../discovery/openapi.js';
+import { migrationsOf, toolRecords } from '../discovery/served-extras.js';
 import { createLog } from '../log/log.js';
 import { loadCreate } from '../manifest/entry.js';
 import { readJsonIfExists } from '../manifest/read-manifest.js';
 import { type ExtensionPackage } from '../manifest/manifest.schema.js';
-import { migratesStore, normalizeParts } from '../manifest/parts.js';
-import { createToolRegistry, prefixed, type McpContext } from '../mcp/tools.js';
-import { sqlFiles } from '../store/migrations.js';
+import { normalizeParts } from '../manifest/parts.js';
+import { createToolRegistry, type McpContext } from '../mcp/tools.js';
 import { type Store } from '../store/store.types.js';
 
 const WidgetsSchema = z.array(WidgetSchema).min(1);
@@ -58,11 +57,7 @@ export const registeredRoutes = async (
 
 export const toolsOf = async (dir: string, pkg: ExtensionPackage) => {
   const tools = await registeredTools(await loadCreate<McpContext>(dir, pkg, 'mcp'), pkg);
-  const { id } = pkg.agentage;
-  return tools.map((tool) => ({
-    name: prefixed(id, tool.name),
-    scope: scopeOf(id, tool.spec.scope),
-  }));
+  return toolRecords(pkg.agentage.id, tools);
 };
 
 const widgetsOf = async (dir: string) => {
@@ -73,13 +68,12 @@ const widgetsOf = async (dir: string) => {
 // What the code serves, for the record: tools, widgets and the migration count.
 export const recordExtras = async (dir: string, pkg: ExtensionPackage): Promise<RecordExtras> => {
   const { code } = normalizeParts(pkg.agentage.parts);
-  const extras: RecordExtras = {};
+  const extras: RecordExtras = await migrationsOf(dir, pkg);
   if (code.mcp) {
     const tools = await toolsOf(dir, pkg);
     if (tools.length > 0) extras.tools = tools;
   }
   if (code.ui) extras.widgets = await widgetsOf(dir);
   if (code.api && (await readOpenapi(dir))) extras.openapi = openapiPath(pkg.agentage.id);
-  if (migratesStore(pkg)) extras.migrations = (await sqlFiles(join(dir, 'migrations'))).length;
   return extras;
 };

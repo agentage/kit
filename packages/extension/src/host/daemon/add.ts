@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs';
 import { rm } from 'node:fs/promises';
 import { isAbsolute } from 'node:path';
+import { validRange } from 'semver';
 import { z } from 'zod';
 import { fail } from '../../envelope/envelope.js';
 import { parse } from '../../envelope/parse.js';
@@ -15,11 +16,16 @@ import { startEntry, startFailed, type Entry, type SupervisorDeps } from './supe
 
 const RESERVED_ID = 'host';
 
+// The cli's rule for what follows `<id>@`: a version, a range or a dist-tag; never a path, URL or flag.
+const DIST_TAG = /^[A-Za-z][\w.-]*$/;
+const isVersionSpec = (spec: string): boolean =>
+  !/\s/.test(spec) && (validRange(spec) !== null || DIST_TAG.test(spec));
+
 // enabled: false records the extension and never starts it (a profile "off" entry).
 const AddSchema = z.union([
   z.strictObject({
     id: ExtensionIdSchema,
-    version: z.string().min(1).optional(),
+    version: z.string().min(1).refine(isVersionSpec, 'a version, a range or a dist-tag').optional(),
     enabled: z.boolean().optional(),
   }),
   z.strictObject({

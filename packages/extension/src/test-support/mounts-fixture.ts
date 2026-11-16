@@ -11,13 +11,16 @@ export const MOUNTS_MANIFEST = {
   agentage: { id: 'mem', parts: { api: true, mcp: true } },
 };
 
-// Counts the body it gets: a pack passes as it came, no parser, no 1 MB limit.
+// Counts the body it gets: a pack passes as it came, no parser, no 1 MB limit; a push up to 3 MB.
+// The owner of /{user}/... is that user; with no token check (a daemon child) anyone.
+export const MAX_PUSH = 3 * 1024 * 1024;
 const API = `export const create = (ctx) => {
-  ctx.git((req, res) => {
+  const owner = (req, caller) => !caller || req.path.split('/')[1] === caller.sub;
+  ctx.files((req, res) => {
     let bytes = 0;
     req.on('data', (chunk) => (bytes += chunk.length));
     req.on('end', () => res.json({ path: req.path, sub: ctx.auth.caller(req)?.sub ?? null, bytes }));
-  });
+  }, { owner, maxPushBytes: ${MAX_PUSH} });
 };
 `;
 

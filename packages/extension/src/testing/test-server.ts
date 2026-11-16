@@ -74,8 +74,8 @@ export const startTestServer = async <C extends PartContext = PartContext>(
     tokenCheck: callerCheck(ctx.extension.id, options.caller ?? null),
     openapi: generatedOpenapi(pkg, mounted.routes),
   };
-  const { documents: wellKnown, git } = mounted;
-  const base = { pkg, build: TEST_BUILD, log: ctx.log, wellKnown, git };
+  const { documents: wellKnown, files } = mounted;
+  const base = { pkg, build: TEST_BUILD, log: ctx.log, wellKnown, files };
   return startOn(
     createApiApp({ ...base, router: mounted.router, routes: mounted.routes, ...guard })
   );

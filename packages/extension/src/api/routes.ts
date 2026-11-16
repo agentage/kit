@@ -2,7 +2,7 @@ import { type z } from 'zod';
 import { badScope, type Access, type Caller } from '../auth/token-check.js';
 import { type PartContext } from '../context/context.js';
 import { type Reply } from '../envelope/envelope.js';
-import { createGitRegistry, type GitRegistrar } from './git-registry.js';
+import { createFilesRegistry, type FilesRegistrar } from './files-registry.js';
 import { createWellKnownRegistry, type WellKnownRegistrar } from './well-known.js';
 
 export const ROUTE_METHODS = ['get', 'post', 'put', 'patch', 'delete'] as const;
@@ -95,7 +95,7 @@ export type RouteRegistrar = <
 export interface ApiContext extends PartContext {
   readonly route: RouteRegistrar;
   readonly wellKnown: WellKnownRegistrar;
-  readonly git: GitRegistrar;
+  readonly files: FilesRegistrar;
 }
 
 type Params = Record<string, unknown>;
@@ -128,6 +128,6 @@ export const createRouteRegistry = () => {
     if (problem) throw new Error(`route ${String(method).toUpperCase()} ${path} ${problem}`);
     routes.push(entry);
   };
-  const { git, served } = createGitRegistry();
-  return { route, routes, git, gitServed: served, ...createWellKnownRegistry() };
+  const { files, served } = createFilesRegistry();
+  return { route, routes, files, filesServed: served, ...createWellKnownRegistry() };
 };

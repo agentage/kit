@@ -8,7 +8,7 @@ import { serveHost, type ServedHost } from './serve-host.js';
 
 const MCP = { 'content-type': 'application/json', accept: 'application/json, text/event-stream' };
 const ORIGIN = 'http://mem.next.agentage.io';
-const REFS = '/git/mem/u_1/default.git/info/refs';
+const REFS = '/files/mem/u_1/default.git/info/refs';
 const hosted: HostedExtension[] = [];
 const served: ServedHost[] = [];
 let issuer: TestIssuer | undefined;
@@ -55,14 +55,14 @@ const basic = (bearer: string) =>
   `Basic ${Buffer.from(`x:${bearer.slice('Bearer '.length)}`).toString('base64')}`;
 
 describe('extra mounts with no token check (a daemon child)', () => {
-  it('/git/{id}/* reaches ctx.git anonymous, a 2 MB pack passes whole', async () => {
+  it('/files/{id}/* reaches ctx.files anonymous, a 2 MB pack passes whole', async () => {
     const server = await open();
     const refs = await server.fetch(`${REFS}?service=git-upload-pack`);
     const path = '/u_1/default.git/info/refs';
     expect([refs.status, await refs.json()]).toEqual([200, { path, sub: null, bytes: 0 }]);
     const pack = Buffer.alloc(2 * 1024 * 1024, 7);
     const post = { method: 'POST', body: pack, headers: { 'content-type': 'x-git' } };
-    const up = await server.fetch('/git/mem/u_1/default.git/git-upload-pack', post);
+    const up = await server.fetch('/files/mem/u_1/default.git/git-upload-pack', post);
     expect(((await up.json()) as { bytes: number }).bytes).toBe(pack.length);
     await server.close();
   });
@@ -115,6 +115,8 @@ describe('extra mounts with a token check', () => {
     const refused = await at('/mcp/mem', call);
     const metadata = `Bearer resource_metadata="${ORIGIN}/.well-known/oauth-protected-resource/mcp/mem"`;
     expect([refused.status, refused.headers.get('www-authenticate')]).toEqual([401, metadata]);
+    const slash = await at('/mcp/mem/', call);
+    expect([slash.status, slash.headers.get('www-authenticate')]).toEqual([401, metadata]);
     const bearer = await issuer!.bearer({ scope: 'mem:read', sub: 'u_2' });
     const search = rpc(
       'tools/call',

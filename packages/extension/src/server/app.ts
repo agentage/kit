@@ -3,8 +3,8 @@ import express, { type Express, type Request, type RequestHandler } from 'expres
 import helmet, { type HelmetOptions } from 'helmet';
 import { type WellKnownEntry, type WellKnownRender } from '../api/well-known.js';
 import { agcidMiddleware } from '../agcid/scope.js';
-import { mountGit } from '../api/git.js';
-import { type GitHandler } from '../api/git-registry.js';
+import { mountFiles } from '../api/files.js';
+import { type FilesEntry } from '../api/files-registry.js';
 import { routeAccess, sameShape } from '../auth/route-access.js';
 import { setCaller, type TokenCheck } from '../auth/token-check.js';
 import {
@@ -62,8 +62,8 @@ export interface ApiAppOptions extends PartAppBase {
   routes?: { method: string; path: string }[];
   // More prefixes that serve the same router (runPart keeps /api/v1 for the cloud until phase 4).
   aliases?: string[];
-  // ctx.git: git smart-HTTP at /git/{id}/*.
-  git?: GitHandler;
+  // ctx.files: git smart-HTTP at /files/{id}/*.
+  files?: FilesEntry;
 }
 
 // api-standards section 6: CORS * without credentials on /.well-known/, /api/, /ui/ and /mcp.
@@ -179,7 +179,7 @@ const routeGuard = (options: ApiAppOptions): RequestHandler => {
 // The api routes on an app: the part's own (createApiApp) or the host's one app of all parts.
 export const mountApiRoutes = (app: Express, options: ApiAppOptions): void => {
   const { id } = options.pkg.agentage;
-  if (options.git) mountGit(app, id, options.git, options.tokenCheck);
+  if (options.files) mountFiles(app, id, options.files, options.tokenCheck);
   const prefixes = [apiPrefix(id), ...(options.aliases ?? [])];
   app.use(prefixes, cors(PUBLIC_CORS));
   for (const { name, render } of options.wellKnown ?? [])

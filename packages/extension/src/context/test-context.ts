@@ -1,4 +1,4 @@
-import { type GitRegistrar } from '../api/git-registry.js';
+import { type FilesRegistrar } from '../api/files-registry.js';
 import { createRouteRegistry, type RouteEntry, type RouteRegistrar } from '../api/routes.js';
 import { type WellKnownRegistrar } from '../api/well-known.js';
 import type { HealthCheck } from '../health/health.js';
@@ -53,7 +53,7 @@ export interface TestContext extends PartContext {
   readonly route: RouteRegistrar;
   readonly routes: RouteEntry[];
   readonly wellKnown: WellKnownRegistrar;
-  readonly git: GitRegistrar;
+  readonly files: FilesRegistrar;
   readonly jobs: ScheduledJob[];
   readonly spans: SpanRecord[];
   // When each ctx.exit() was called; a test context never exits.

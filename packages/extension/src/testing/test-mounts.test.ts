@@ -10,12 +10,14 @@ afterEach(async () => server?.close());
 
 const MCP = { 'content-type': 'application/json', accept: 'application/json, text/event-stream' };
 
-describe('the test servers serve ctx.git and ctx.connector', () => {
-  it('startTestServer: /git/{id}/* reaches ctx.git with the caller', async () => {
+describe('the test servers serve ctx.files and ctx.connector', () => {
+  it('startTestServer: /files/{id}/* reaches ctx.files with the caller', async () => {
     const create = (ctx: ApiContext) =>
-      ctx.git((req: Request, res: Response) => void res.json(ctx.auth.caller(req)?.sub ?? null));
+      ctx.files((req: Request, res: Response) => void res.json(ctx.auth.caller(req)?.sub ?? null));
     server = await startTestServer({ create, caller: { sub: 'u_1', scopes: ['test:write'] } });
-    const res = await server.fetch('/git/test/u_1/default.git/info/refs?service=git-receive-pack');
+    const res = await server.fetch(
+      '/files/test/u_1/default.git/info/refs?service=git-receive-pack'
+    );
     expect([res.status, await res.json()]).toEqual([200, 'u_1']);
   });
 

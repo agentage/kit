@@ -56,10 +56,10 @@ export const callCreate = async <C>(
 const api = async (input: RunnerInput): Promise<PartMount> => {
   const ctx = input.ctx();
   const mounted = await mountApi(ctx, (api) => callCreate(input, 'api', api));
-  const { router, routes, documents, git } = mounted;
+  const { router, routes, documents, files } = mounted;
   // Declared routes guard at their own scope, whatever the committed file says.
   const openapi = routes.length > 0 ? generatedOpenapi(input.pkg, routes) : input.openapi;
-  const options = { ...input.base, router, routes, openapi, wellKnown: documents, git };
+  const options = { ...input.base, router, routes, openapi, wellKnown: documents, files };
   const record = openapi ? { openapi: openapiPath(input.pkg.agentage.id) } : {};
   return { mount: (app) => mountApiRoutes(app, { ...options, aliases: input.apiAliases }), record };
 };

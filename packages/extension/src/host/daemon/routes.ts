@@ -88,7 +88,7 @@ const hostRoutes = (
   app.post('/host/extensions/:id/reload', json, reload);
 };
 
-// C5 and C1: /health, discovery, /host/* (host token); /api, /mcp, /connector, /git of {id} to the child.
+// C5 and C1: /health, discovery, /host/* (host token); /api, /mcp, /connector, /files of {id} to the child.
 export const daemonApp = (
   deps: SupervisorDeps,
   entries: Entries,
@@ -103,7 +103,7 @@ export const daemonApp = (
   app.use('/api/:id', proxy);
   app.use('/mcp/:id', proxy);
   app.use('/connector/:id', proxy);
-  app.use('/git/:id', proxy);
+  app.use('/files/:id', proxy);
   healthRoutes(app, deps, entries, info);
   app.use('/host', requireHostToken(hostToken));
   hostRoutes(app, deps, entries, info, deps.pending);

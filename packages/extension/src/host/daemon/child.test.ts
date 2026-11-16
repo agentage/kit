@@ -64,16 +64,16 @@ describe('forkLaunch stderr', () => {
 });
 
 describe('forkLaunch folders of a first start that fails', () => {
-  it('run/{id} and an empty data/{id} it made are removed; a data/{id} there before stays', async () => {
+  it('run/{id}, the run/ above it and an empty data/{id} it made go; folders there before stay', async () => {
     const main = await script('process.exit(3);');
     await expect(forkLaunch(main, undefined, undefined, OFF)(SPEC)).rejects.toThrow('code 3');
-    await expect(access(join(SPEC.configDir, 'run', 'probe'))).rejects.toMatchObject({
-      code: 'ENOENT',
-    });
+    await expect(access(join(SPEC.configDir, 'run'))).rejects.toMatchObject({ code: 'ENOENT' });
     await expect(access(SPEC.dataDir)).rejects.toMatchObject({ code: 'ENOENT' });
+    await mkdir(join(SPEC.configDir, 'run', 'other'), { recursive: true });
     await mkdir(SPEC.dataDir, { recursive: true });
     await expect(forkLaunch(main, undefined, undefined, OFF)(SPEC)).rejects.toThrow('code 3');
     await expect(access(SPEC.dataDir)).resolves.toBeUndefined();
+    await expect(access(join(SPEC.configDir, 'run', 'other'))).resolves.toBeUndefined();
   });
 });
 

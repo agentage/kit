@@ -24,7 +24,7 @@ A host finds the folder with `import.meta.resolve('@agentage/shell-dashboard/dis
 
 ## Rules the code enforces
 
-- Tokens: one `@theme` block in `src/styles/shell.css` puts the prototype hex values under the
+- Tokens: one `@theme` block (`@agentage/app/theme.css`, imported by `src/styles/shell.css`) puts the prototype hex values under the
   design-system names (`--color-background`, `--color-card`, `--color-accent` = hover surface,
   `--color-primary` = amber). `frame.css` reads only those names.
 - No layout shift: the pre-paint script in `index.html` sets `--nav-full`, `--aside-w`, `--bot-h`

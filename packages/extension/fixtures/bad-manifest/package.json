@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "type": "module",
   "engines": {
-    "agentage": "^0.16"
+    "agentage": "^0.17"
   },
   "agentage": {
     "id": "Probe!",
@@ -13,7 +13,7 @@
     }
   },
   "dependencies": {
-    "@agentage/extension": "^0.16.0",
+    "@agentage/extension": "^0.17.0",
     "express": "^5.1.0",
     "zod": "^4.2.0"
   }

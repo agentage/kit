@@ -20,12 +20,14 @@ export interface ServerIdentity {
 
 const text = (value: string) => [{ type: 'text' as const, text: value }];
 
-// A failed tool: isError, the REST error shape, an agcid (minted outside a request); else INTERNAL.
-const errorResult = (err: unknown, log: Log, tool: string) => {
+// A failed tool: isError, else INTERNAL; with an output schema also the REST error shape and an agcid.
+const errorResult = (entry: ToolEntry, err: unknown, log: Log, tool: string) => {
   const failure: Failure = isFailure(err) ? err : fail('INTERNAL', 'Internal error');
   if (failure.status >= 500) log.error(err, tool);
+  const content = text(failure.message);
+  if (!entry.spec.output) return { isError: true, content };
   const error = { code: failure.code, message: failure.message, agcid: agcidOf(currentAgcid()) };
-  return { isError: true, content: text(error.message), structuredContent: { error } };
+  return { isError: true, content, structuredContent: { error } };
 };
 
 // The kit, not the SDK, refuses bad arguments (C7): the SDK lists the schema, passes all through.
@@ -71,7 +73,7 @@ const callback =
     } catch (err) {
       // A 4xx is a rejection, not a failure: the row stays info.
       log.mcp({ tool, ms: ms(), ...(isFailure(err) && err.status < 500 ? {} : { error: err }) });
-      return errorResult(err, log, tool);
+      return errorResult(entry, err, log, tool);
     }
   };
 

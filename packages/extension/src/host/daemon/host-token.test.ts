@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest';
 import { createLog } from '../../log/log.js';
 import { errorHandler } from '../../server/errors.js';
 import { startOn } from '../../testing/test-server.js';
-import { carriesHostToken, newHostToken, requireHostToken } from './host-token.js';
+import { carriesHostToken, newHostToken, NO_TOKEN, requireHostToken } from './host-token.js';
 
 const guarded = (token: string) => {
   const app = express().use(requireHostToken(token));
@@ -27,8 +27,11 @@ describe('the host token (D11)', () => {
     const none = await as();
     expect([none.status, await none.json()]).toMatchObject([
       401,
-      { error: { code: 'UNAUTHORIZED' } },
+      { error: { code: 'UNAUTHORIZED', message: NO_TOKEN } },
     ]);
+    expect(NO_TOKEN).toBe(
+      'host token required: this cli is older than the daemon, update @agentage/cli or run "agentage daemon restart"'
+    );
     expect((await as('Basic abc')).status).toBe(401);
     const wrong = await as('Bearer x');
     expect([wrong.status, await wrong.json()]).toMatchObject([

@@ -5,8 +5,8 @@ import { launchSpec } from '../../test-support/launch-spec.js';
 import { tempDir } from '../../test-support/packages.js';
 import { forkLaunch } from './child.js';
 
-// Below the floor: these scripts live in a temp folder no seal grant names.
-const OFF = '24.6.0';
+// No --permission flag below 22.13: these scripts live in a temp folder no seal grant names.
+const OFF = '22.12.0';
 let SPEC: Awaited<ReturnType<typeof launchSpec>>;
 beforeEach(async () => void (SPEC = await launchSpec()));
 
@@ -60,6 +60,30 @@ describe('forkLaunch folders of a first start that fails', () => {
     await mkdir(SPEC.dataDir, { recursive: true });
     await expect(forkLaunch(main, undefined, undefined, OFF)(SPEC)).rejects.toThrow('code 3');
     await expect(access(SPEC.dataDir)).resolves.toBeUndefined();
+  });
+});
+
+describe('forkLaunch folders of a launch that throws before the fork', () => {
+  it('a live old lock beside data/{id}: refused, and no run/{id} or data/{id} is left', async () => {
+    await mkdir(join(SPEC.configDir, 'data'), { recursive: true });
+    await writeFile(`${SPEC.dataDir}.lock`, String(process.ppid));
+    const main = await script('process.exit(3);');
+    await expect(forkLaunch(main, undefined, undefined, OFF)(SPEC)).rejects.toThrow(/is open/);
+    await expect(access(join(SPEC.configDir, 'run', 'probe'))).rejects.toMatchObject({
+      code: 'ENOENT',
+    });
+    await expect(access(SPEC.dataDir)).rejects.toMatchObject({ code: 'ENOENT' });
+  });
+
+  it('a folder row whose tree holds the config dir: the seal refuses it, nothing is left', async () => {
+    const configDir = join(SPEC.dir, 'cfg');
+    const dataDir = join(configDir, 'data', 'probe');
+    const spec = { ...SPEC, dataDir, secrets: { 'api-token': 't' } };
+    await expect(forkLaunch(undefined, undefined, undefined, '24.22.1')(spec)).rejects.toThrow(
+      `seal: the folder ${SPEC.dir} would expose the agentage config folder`
+    );
+    await expect(access(join(configDir, 'run', 'probe'))).rejects.toMatchObject({ code: 'ENOENT' });
+    await expect(access(dataDir)).rejects.toMatchObject({ code: 'ENOENT' });
   });
 });
 

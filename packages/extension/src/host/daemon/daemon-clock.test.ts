@@ -22,8 +22,8 @@ const clockSeenByChild = async (rate?: number) => {
   const main = join(dir, 'main.mjs');
   const body = `import { writeFileSync } from 'node:fs'; writeFileSync(${JSON.stringify(out)}, String(process.env.AGENTAGE_CLOCK_RATE)); process.exit(1);`;
   await writeFile(main, body);
-  // Below the floor: the script is in a temp folder no seal grant names.
-  await forkLaunch(main, 2000, rate, '24.6.0')(await launchSpec()).catch(() => undefined);
+  // No --permission flag below 22.13: the script is in a temp folder no seal grant names.
+  await forkLaunch(main, 2000, rate, '22.12.0')(await launchSpec()).catch(() => undefined);
   return readFile(out, 'utf8');
 };
 

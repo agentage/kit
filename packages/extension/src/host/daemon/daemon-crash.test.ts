@@ -100,6 +100,7 @@ describe('a new install that does not start (C6)', () => {
     const file = await readFile(join(h.configDir, 'installation.json'), 'utf8');
     expect([file.includes('"word"'), file.includes('"fine"')]).toEqual([false, true]);
     expect(existsSync(dataDirOf(h.configDir, 'word'))).toBe(false);
+    expect(existsSync(join(h.configDir, 'run', 'word'))).toBe(false);
     expect(await rowOf('fine')).toMatchObject({ state: 'running' });
   });
 

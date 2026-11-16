@@ -210,14 +210,22 @@ Statuses, not codes, tell a retry: 503 `UNAVAILABLE` is worth a retry after `Ret
 A child is forked with `node --permission --no-experimental-sqlite`. It may read the `node_modules`
 that holds the kit and the tree of its package (a folder row: the folder). It may read and write
 `run/{id}` and `data/{id}`. It gets no child-process, worker, addon or WASI grant. A symlinked
-path is granted as given and as its real path.
+path is granted as given and as its real path. A kit checkout grants its package and its workspace
+root, never a folder above the user's home.
+
+A read grant that is the config folder, holds it, or is inside it (other than a cli tree in
+`extensions/trees`) refuses the start: `seal: the folder <path> would expose the agentage config
+folder`. A grant with a `*` refuses the start too, because Node reads it as a wildcard.
 
 The secrets the package declares go to `run/{id}/secrets` (0600 files, 0700 folder). They are
 removed once the child reports its port. `TMPDIR` is `run/{id}/tmp`. The seal is on from Node
-22.22.2 (22.x) and 24.14.1 (24.x and newer majors). Below that the child starts with no flags.
+22.22.2 (22.x), 24.14.1 (24.x) and on each even major above 24; an odd major is off. Below the
+floor the child still gets the flags where Node has `--permission` (22.13.0, 23.5.0, 24.0.0 and
+newer), and `/health` says `seal: "off"`. Older Node starts the child with no flags.
 
 Before the fork the daemon removes an old `data/{id}.lock` of a dead pid; a live one refuses the
-start. A first start that never reports a port removes the folders it made.
+start. It also removes a `run/{id}/store.lock` that no child of this id holds (a dead or reused
+pid). A start that throws before the port removes the folders it made.
 
 Limits: Node calls the permission model a seat belt, not a defence against hostile code. A symlink
 placed from outside the seal is followed. The network is open.

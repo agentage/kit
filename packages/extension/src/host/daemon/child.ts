@@ -34,8 +34,12 @@ export interface Child {
   stop(): Promise<void>;
 }
 
-// clockRate: the test clock every child gets (C5); seal: whether each child runs sealed (C2).
-export type Launch = ((spec: LaunchSpec) => Promise<Child>) & { clockRate?: number; seal?: Seal };
+// clockRate: the test clock every child gets (C5); seal: whether each child runs sealed on node (C2).
+export type Launch = ((spec: LaunchSpec) => Promise<Child>) & {
+  clockRate?: number;
+  seal?: Seal;
+  node?: string;
+};
 
 const HOST_MAIN = fileURLToPath(new URL('../main.js', import.meta.url));
 const STOP_MS = 5_000;
@@ -145,8 +149,8 @@ interface ForkAt {
 }
 
 const started = async (at: ForkAt, spec: LaunchSpec, run: RunFolders): Promise<Child> => {
-  await fillRun(run, spec);
   const execArgv = execArgvOf(at.node, at.main, spec, run);
+  await fillRun(run, spec);
   const stdio = ['ignore', 'pipe', 'pipe', 'ipc'] as const;
   const child = fork(at.main, [], {
     env: envOf(spec, run, at.clockRate),
@@ -183,5 +187,5 @@ export const forkLaunch = (
 ): Launch => {
   const clockRate = parseClockRate(rate);
   const launch = launchAt({ main, startMs, clockRate, node });
-  return Object.assign(launch, { clockRate, seal: sealOf(node) });
+  return Object.assign(launch, { clockRate, seal: sealOf(node), node });
 };

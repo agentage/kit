@@ -6,7 +6,7 @@ import { startHarness, type Harness } from '../../test-support/daemon-harness.js
 import { allPartsPackage } from '../../test-support/hosted-fixture.js';
 import { json, tempPackage } from '../../test-support/packages.js';
 import { forkLaunch } from './child.js';
-import { sealOf } from './seal.js';
+import { permissionFlag, sealOf } from './seal.js';
 
 const MAIN = fileURLToPath(new URL('../../../dist/host/main.js', import.meta.url));
 const SEALED = sealOf(process.versions.node) === 'on';
@@ -32,6 +32,8 @@ const SPY_MANIFEST = {
 };
 
 let h: Harness;
+const spyPackage = () =>
+  tempPackage({ 'package.json': json(SPY_MANIFEST), 'dist/api/index.js': SPY });
 const read = async (path: string) => {
   const res = await h.call('GET', `/api/spy/read?path=${encodeURIComponent(path)}`);
   return (res.body as { data: { code: string } }).data.code;
@@ -42,7 +44,7 @@ describe.runIf(SEALED)('a sealed child (C2, Node at the floor)', () => {
     vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
     vi.spyOn(process.stdout, 'write').mockImplementation(() => true);
     h = await startHarness({ launch: forkLaunch(MAIN, undefined, 60) });
-    const spy = await tempPackage({ 'package.json': json(SPY_MANIFEST), 'dist/api/index.js': SPY });
+    const spy = await spyPackage();
     await writeFile(join(h.configDir, 'secrets.json'), json({ all: { 'tick-key': 'k' } }), {
       mode: 0o600,
     });
@@ -88,4 +90,28 @@ describe.runIf(SEALED)('a sealed child (C2, Node at the floor)', () => {
       { timeout: 15_000, interval: 250 }
     );
   }, 30_000);
+});
+
+// Node 24.6.0 has --permission but not the D2 fixes: the flags still limit, /health says seal off.
+describe.runIf(permissionFlag(process.versions.node))('a child below the floor (C2)', () => {
+  beforeAll(async () => {
+    vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
+    h = await startHarness({ launch: forkLaunch(MAIN, undefined, undefined, '24.6.0') });
+    await h.call('POST', '/host/extensions', { source: await spyPackage() });
+  }, 60_000);
+  afterAll(async () => {
+    await h.daemon.stop();
+    vi.restoreAllMocks();
+  });
+
+  it('runs with the flags (secrets.json denied) and /health says seal off, degraded', async () => {
+    expect(await read(join(h.configDir, 'secrets.json'))).toBe('ERR_ACCESS_DENIED');
+    expect(await read(join(h.configDir, 'data', 'spy'))).toBe('OK');
+    expect((await h.call('GET', '/health')).body).toMatchObject({
+      status: 'degraded',
+      seal: 'off',
+      sealError: 'seal off: Node 22.22.2 or 24.14.1 needed, this is Node 24.6.0',
+      extensions: [{ id: 'spy', state: 'running', seal: 'off' }],
+    });
+  });
 });

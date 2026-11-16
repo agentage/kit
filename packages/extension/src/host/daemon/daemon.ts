@@ -103,7 +103,7 @@ const announce = (
 const launchMarks = (launch: Launch) => ({
   ...(launch.clockRate && launch.clockRate !== 1 && { clockRate: launch.clockRate }),
   ...(launch.seal && { seal: launch.seal }),
-  ...(launch.seal === 'off' && { sealError: sealOffReason(process.versions.node) }),
+  ...(launch.seal === 'off' && { sealError: sealOffReason(launch.node ?? process.versions.node) }),
 });
 
 const depsOf = (opts: DaemonOptions, launch: Launch, origin: () => string, stopping: Stopping) =>

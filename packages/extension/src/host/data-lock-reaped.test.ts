@@ -4,14 +4,16 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { tempDir } from '../test-support/packages.js';
 
 vi.mock('node:fs', async (original) => {
-  const real = await original<typeof import('node:fs')>();
+  const real = (await original()) as Record<string, unknown> & {
+    readFileSync: (...a: unknown[]) => unknown;
+  };
   return {
     ...real,
-    readFileSync: ((file: string, ...rest: never[]) => {
+    readFileSync: (file: string, ...rest: never[]) => {
       if (String(file).startsWith('/proc/'))
         throw Object.assign(new Error('gone'), { code: 'ENOENT' });
-      return (real.readFileSync as (...a: unknown[]) => unknown)(file, ...rest);
-    }) as typeof real.readFileSync,
+      return real.readFileSync(file, ...rest);
+    },
   };
 });
 

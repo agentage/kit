@@ -64,6 +64,27 @@ describe('the shell page (S1.2.1 rows 1, 5, 6, 8)', () => {
     expect((await html('/nope/x', '*/*')).status).toBe(404);
   });
 
+  it('HEAD answers like GET with no body; a daemon path stays the JSON 404', async () => {
+    await appRunning();
+    const head = (path: string) =>
+      fetch(at(path), { method: 'HEAD', headers: { accept: 'text/html' } });
+    for (const [path, status] of [
+      ['/', 200],
+      ['/nope', 404],
+    ] as const) {
+      const res = await head(path);
+      expect([path, res.status, res.headers.get('content-type')]).toEqual([
+        path,
+        status,
+        expect.stringContaining('text/html'),
+      ]);
+      expect(await res.text()).toBe('');
+    }
+    const api = await head('/api/nope/x');
+    expect(api.status).toBe(404);
+    expect(api.headers.get('content-type')).not.toContain('text/html');
+  });
+
   it('a JSON client and the daemon paths keep the JSON 404 envelope', async () => {
     await appRunning();
     for (const [path, accept] of [

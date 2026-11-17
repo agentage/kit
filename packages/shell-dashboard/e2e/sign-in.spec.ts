@@ -39,3 +39,11 @@ test('the local daemon (no signIn) keeps its hint', async ({ page }) => {
   await expect(account(page).getByRole('link')).toHaveCount(0);
   await expect(account(page)).toContainText('Alex Doe');
 });
+
+test('a signIn that is not https or a same-origin path gives no link', async ({ page }) => {
+  await page.goto('/');
+  await expect(account(page)).toContainText('Alex Doe');
+  await lab(page, 'hostile');
+  await expect(account(page)).toContainText('agentage setup');
+  await expect(account(page).getByRole('link')).toHaveCount(0);
+});

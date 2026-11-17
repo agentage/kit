@@ -71,18 +71,20 @@ describe('ShellApp', () => {
     expect(main().querySelector('h1')?.textContent).toBe('Fixture');
   });
 
-  it('signed out on a cloud host: a Sign in link to the session signIn; the daemon keeps its hint', async () => {
+  it('signed out on a cloud host: a Sign in link to a safe session signIn; else the hint', async () => {
     const signIn = 'https://auth.agentage.io/sign-in?next=x';
     host = fakeHost(structuredClone(DOC), { user: null, host: 'platform', signIn });
     await start('/');
     const account = () => el().querySelector('[data-region="account"]')!;
     expect(account().querySelector('a')?.getAttribute('href')).toBe(signIn);
-    act(() => root?.unmount());
-    document.body.innerHTML = '';
-    host = fakeHost(structuredClone(DOC), { user: null, host: 'local' });
-    await start('/');
-    expect(account().querySelector('a')).toBeNull();
-    expect(account().textContent).toContain('run agentage setup');
+    for (const session of [{ signIn: 'javascript:alert(1)' }, {}]) {
+      act(() => root?.unmount());
+      document.body.innerHTML = '';
+      host = fakeHost(structuredClone(DOC), { user: null, host: 'local', ...session });
+      await start('/');
+      expect(account().querySelector('a')).toBeNull();
+      expect(account().textContent).toContain('run agentage setup');
+    }
   });
 
   it('mounts the app with its css; api, notify and the details aside work', async () => {

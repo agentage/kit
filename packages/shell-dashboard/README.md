@@ -1,7 +1,7 @@
 # @agentage/shell-dashboard
 
 The dashboard shell: one static folder that a host serves at `/`. It is the frame of the accepted
-prototype (`shell-samples/index.html`, variant B) in React 19, styled by Tailwind v4 with the
+prototype (variant B; a copy is `e2e/prototype/index.html`) in React 19, styled by Tailwind v4 with the
 `@agentage/design-system` token files (no `base.css`) and the prototype CSS as a `components` layer.
 
 This workspace is private: it is not on npm. The root build copies `dist/` into the kit at

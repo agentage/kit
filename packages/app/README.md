@@ -3,8 +3,8 @@
 This workspace (`packages/app`, private) is published only inside the kit: the kit build copies its
 `dist` and `theme.css` to `dist/vendor/app` (`scripts/inline-app.mjs`). React 19 is an optional
 peer of the kit. `Split` imports `@agentage/design-system` (^0.20.1): an app that renders it outside
-the shell (tests) installs it; the shell's copy is in `vendor/app.js`. It is no kit peer, as the
-widget kit still pins 0.19.
+the shell (tests) installs it; the shell's copy is in `vendor/app.js`. The kit lists it as an
+optional peer (`^0.20`).
 
 The one import of an agentage app. An app is one root component (the default export of
 `src/app/index.tsx`); the shell mounts it in the `main` region and gives it these hooks. The app has
@@ -32,7 +32,7 @@ Keys of `openAside`: `inspect`, `details`, `inbox` (the shell puts the key in th
 - `api(path)` refuses a path that does not start with one `/`, has a scheme, a backslash, or `..` or
   `.` as a path segment (also URL-encoded; the query may hold them): `AppApiError` `FORBIDDEN`, no request is sent. It sends
   `X-Agentage-App: {id}` and an `agcid`; the daemon refuses a request whose header names another id.
-  The header is declared by the app itself: a guard against mistakes, not a boundary (K10).
+  The header is declared by the app itself: a guard against mistakes, not a boundary.
 - Limit: an app runs in the same JavaScript realm as the shell. A raw `fetch` with no header is not
   stopped on the machine; `extension check` warns on `fetch(` in `src/app`.
 - A `Split` is stored in `localStorage` key `ag.split.{app}.{id}` (and `.collapsed`); the CSS
@@ -45,7 +45,7 @@ Keys of `openAside`: `inspect`, `details`, `inbox` (the shell puts the key in th
 ## Theme
 
 `@agentage/extension/app/theme.css` is one Tailwind v4 `@theme` block: the shell palette (the
-`shell-samples/index.html` hex values) under the design-system token names. The shell and the app
+prototype hex values, `packages/shell-dashboard/e2e/prototype/index.html`) under the design-system token names. The shell and the app
 build import it, so an app utility such as `bg-card` or `text-primary` matches the frame.
 
 ## Tests

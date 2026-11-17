@@ -46,6 +46,8 @@ export const createLab = (here, out) => {
   };
   // POST /__lab/session/out: a cloud host signed out, with its sign-in page; /in: back to the user.
   let session = 'in';
+  // POST /__lab/deny-feed/<n>: the next n feed connections get a 502, as an edge does during a deploy.
+  let denied = 0;
   const ready = Promise.all(Object.keys(APPS).map((id) => buildApp(id)));
   return {
     ready,
@@ -53,6 +55,7 @@ export const createLab = (here, out) => {
     session: () => SESSIONS[session],
     has: (id) => rows.has(id),
     stream: (req, res) => {
+      if (denied > 0) return (denied--, res.writeHead(502).end());
       res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store' });
       res.write('retry: 1000\n\n');
       clients.add(res);
@@ -63,6 +66,7 @@ export const createLab = (here, out) => {
       if (op === 'rebuild') send('app', { id, entry: await buildApp(id, tag) });
       if (op === 'remove') rows.delete(id) && send('extensions', { op, id });
       if (op === 'add') (await buildApp(id), send('extensions', { op, id }));
+      if (op === 'deny-feed') denied = Number(id);
       if (op === 'session') ((session = id), send('session', { signedIn: id === 'in' }));
     },
   };

@@ -7,6 +7,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import tailwind from '@tailwindcss/postcss';
 import { build } from 'esbuild';
 import postcss from 'postcss';
+import { withCsp } from './csp.mjs';
 
 const pkgDir = join(dirname(fileURLToPath(import.meta.url)), '..');
 const require = createRequire(join(pkgDir, 'package.json'));
@@ -123,7 +124,7 @@ export const buildShell = async ({
     .replace('%VERSION%', await readKitVersion())
     .replace('%SPLIT_PREPAINT%', SPLIT_PREPAINT)
     .replace('%ENTRY%', name);
-  await writeFile(join(out, html), page);
+  await writeFile(join(out, html), withCsp(page));
 };
 
 export const buildAll = async (out = join(pkgDir, 'dist')) => {

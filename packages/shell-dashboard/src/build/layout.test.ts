@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync } from 'node:fs';
 import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
@@ -45,5 +46,43 @@ describe('the shell version label', () => {
     const html = readFileSync(join(out, 'index.html'), 'utf8');
     expect(html).toContain(`<meta name="agentage-shell" content="${kit.version}"`);
     expect(await (readKitVersion as () => Promise<string>)()).toBe(kit.version);
+  });
+});
+
+// Q8: the page holds a session and imports apps by URL; only its own origin and inline scripts may run.
+describe('the content security policy of the built page', () => {
+  const page = () => readFileSync(join(out, 'index.html'), 'utf8');
+  const policy = () =>
+    /<meta http-equiv="Content-Security-Policy" content="([^"]+)"/.exec(page())?.[1] ?? '';
+  const directive = (name: string) =>
+    policy()
+      .split(';')
+      .map((d) => d.trim().split(/\s+/))
+      .find(([n]) => n === name)
+      ?.slice(1) ?? [];
+
+  it('comes in <head> before any script or stylesheet', () => {
+    const head = page().split('<head>')[1] ?? '';
+    expect(head.indexOf('Content-Security-Policy')).toBeGreaterThan(-1);
+    expect(head.indexOf('Content-Security-Policy')).toBeLessThan(head.indexOf('<script'));
+    expect(head.indexOf('Content-Security-Policy')).toBeLessThan(head.indexOf('<link'));
+  });
+
+  it('allows the sha256 of each inline script and no unsafe source', () => {
+    const inline = [...page().matchAll(/<script(?![^>]*\bsrc=)[^>]*>([\s\S]*?)<\/script>/g)];
+    expect(inline.length).toBeGreaterThan(0);
+    for (const [, body] of inline) {
+      const hash = createHash('sha256').update(body!, 'utf8').digest('base64');
+      expect(directive('script-src')).toContain(`'sha256-${hash}'`);
+    }
+    expect(policy()).not.toMatch(/unsafe-(inline|eval)/);
+  });
+
+  it('limits every source to the page origin', () => {
+    expect(directive('default-src')).toEqual(["'self'"]);
+    expect(directive('connect-src')).toEqual(["'self'"]);
+    expect(directive('object-src')).toEqual(["'none'"]);
+    expect(directive('base-uri')).toEqual(["'self'"]);
+    expect(directive('form-action')).toEqual(["'self'"]);
   });
 });

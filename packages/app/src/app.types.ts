@@ -1,5 +1,6 @@
 // The contract between an app and the shell that mounts it; the shell fills it, the app reads it.
-export type RegionName = 'actions' | 'aside' | 'notices' | 'bottom' | 'side';
+// `lead` is the left of the actions bar (back, tree toggle, breadcrumb); `actions` the right group.
+export type RegionName = 'lead' | 'actions' | 'aside' | 'notices' | 'bottom' | 'side';
 
 // The aside opens only with a reserved key; the shell puts it in the URL (`?details=1`).
 export type AsideKey = 'inspect' | 'details' | 'inbox';

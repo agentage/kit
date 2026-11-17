@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="agentage-shell" content="%VERSION%" />
+    <title>agentage</title>
+    <script>
+      try {
+        var d = document.documentElement,
+          L = localStorage,
+          g = function (k, a, b) {
+            var n = parseInt(L.getItem(k), 10);
+            return n >= a && n <= b ? n : 0;
+          };
+        var w = g('ag.nav', 232, 420),
+          a = g('ag.aside', 280, 640),
+          b = g('ag.bot', 100, 420);
+        if (w) d.style.setProperty('--nav-full', w + 'px');
+        if (a) d.style.setProperty('--aside-w', a + 'px');
+        if (b) d.style.setProperty('--bot-h', b + 'px');
+        if (L.getItem('ag.navh') === '1') d.classList.add('nh');
+        if (L.getItem('ag.bot.open') === '1') d.classList.add('bo');
+      } catch (e) {}
+    </script>
+    <script>
+      %SPLIT_PREPAINT%
+    </script>
+    <script type="importmap">
+      {
+        "imports": {
+          "react": "/shell/vendor/react.js",
+          "react/jsx-runtime": "/shell/vendor/jsx-runtime.js",
+          "react-dom": "/shell/vendor/react-dom.js",
+          "react-dom/client": "/shell/vendor/react-dom-client.js",
+          "@agentage/extension/app": "/shell/vendor/app.js"
+        }
+      }
+    </script>
+    <link rel="stylesheet" href="/shell/shell.css" />
+    <script type="module" src="/shell/%ENTRY%"></script>
+  </head>
+  <body>
+    <div id="root"></div>
+  </body>
+</html>

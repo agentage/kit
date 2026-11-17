@@ -8,3 +8,6 @@ packages/extension/schemas
 packages/widget/src/ds/styles.generated.ts
 test-results
 playwright-report
+packages/shell-dashboard/dist-e2e
+packages/shell-dashboard/.vendor
+packages/shell-dashboard/shots

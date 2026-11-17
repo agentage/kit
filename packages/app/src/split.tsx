@@ -1,102 +1,72 @@
-import { useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react';
+import { ResizableSplit, type ResizableSplitApi } from '@agentage/design-system/resizable-split';
+import { useEffect, useState, type ReactNode, type Ref } from 'react';
 import { useAppContext } from './context.js';
 
-const KEY_STEP = 16;
-const SHIFT_STEP = 64;
-const NAME = /^[a-z0-9-]+$/;
+export { useResizableSplit as useSplit } from '@agentage/design-system/resizable-split';
+export type { ResizableSplitApi as SplitApi } from '@agentage/design-system/resizable-split';
 
-export const splitVar = (app: string, id: string): string => `--split-${app}-${id}`;
+const NAME = /^[a-z0-9-]+$/;
+const PHONE = '(max-width: 759px)';
+
+// The stored size key; the design-system split names its CSS variables from it.
 export const splitKey = (app: string, id: string): string => `ag.split.${app}.${id}`;
 
-// Runs in the page head before any module: sets each stored split size, so the first paint is final.
-export const SPLIT_PREPAINT = `try{var d=document.documentElement,L=localStorage;for(var i=0;i<L.length;i++){var k=L.key(i),m=/^ag\\.split\\.([a-z0-9-]+)\\.([a-z0-9-]+)$/.exec(k),n=parseInt(L.getItem(k),10);if(m&&n>0&&n<8000)d.style.setProperty('--split-'+m[1]+'-'+m[2],n+'px')}}catch(e){}`;
+// The design-system encoding of a storage key in a CSS variable name (`.` -> `_2e_`).
+const encode = (key: string) =>
+  key.replace(/[^A-Za-z0-9-]/g, (c) => `_${(c.codePointAt(0) ?? 0).toString(16)}_`);
+export const splitVar = (app: string, id: string): string => `--split-${encode(splitKey(app, id))}`;
+
+// Runs in the page head before any module: every stored `ag.split.{app}.{id}` (size and collapsed)
+// is registered by its key pattern and set as the design-system split variables, so the first
+// paint is final. A test holds the names equal to resizableSplitVar and resizableSplitCollapsedVar.
+export const SPLIT_PREPAINT = `try{var d=document.documentElement,L=localStorage,E=function(k){return k.replace(/[^A-Za-z0-9-]/g,function(c){return '_'+c.charCodeAt(0).toString(16)+'_'})};for(var i=0;i<L.length;i++){var k=L.key(i),m=/^ag\\.split\\.[a-z0-9-]+\\.[a-z0-9-]+$/.test(k),n=parseInt(L.getItem(k),10);if(m&&n>0&&n<8000)d.style.setProperty('--split-'+E(k),n+'px');if(m&&L.getItem(k+'.collapsed')==='1')d.style.setProperty('--splitc-'+E(k),'0px')}}catch(e){}`;
 
 export interface SplitProps {
   // Unique in the app, `[a-z0-9-]`; names the stored size and `data-split`.
   id: string;
-  // First pane width in px before any drag, and the clamp of a stored value.
+  // Sized pane px before any drag, and the clamp of a stored value.
   init: number;
   min: number;
   max: number;
   label?: string;
+  // `horizontal`: the first pane is sized; `vertical`: the last (bottom) one.
+  orientation?: 'horizontal' | 'vertical';
+  // The sized pane can collapse (a tree toggle: `useSplit().toggle()` or `apiRef`); kept in storage.
+  collapsible?: boolean;
+  apiRef?: Ref<ResizableSplitApi>;
+  // Below 760 px one pane shows: 0 the first, 1 the second (default); the app gives the back button.
+  pane?: 0 | 1;
   children: [ReactNode, ReactNode];
 }
 
-const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, n));
-
-const stored = (name: string, init: number): number => {
-  if (typeof document === 'undefined') return init;
-  const raw = document.documentElement.style.getPropertyValue(name);
-  return parseInt(raw, 10) || init;
+const usePhone = (): boolean => {
+  const query = () => typeof window !== 'undefined' && !!window.matchMedia?.(PHONE).matches;
+  const [phone, setPhone] = useState(query);
+  useEffect(() => {
+    const m = window.matchMedia?.(PHONE);
+    const on = () => setPhone(m.matches);
+    m?.addEventListener?.('change', on);
+    return () => m?.removeEventListener?.('change', on);
+  }, []);
+  return phone;
 };
 
-// Two panes of an app, the first one resizable; the size holds across a reload with no layout shift.
-export const Split = ({ id, init, min, max, label, children }: SplitProps) => {
+// Two panes of an app on the design-system ResizableSplit (px, pre-paint, collapsible).
+export const Split = ({ id, pane = 1, children, ...rest }: SplitProps) => {
   const { id: app } = useAppContext();
   if (!NAME.test(id)) throw new Error(`Split id "${id}" must match [a-z0-9-]+`);
-  const name = splitVar(app, id);
-  const [width, setWidth] = useState(() => clamp(stored(name, init), min, max));
-  const root = useRef<HTMLDivElement>(null);
-  const dragging = useRef(false);
-
-  useEffect(() => {
-    document.documentElement.style.setProperty(name, `${width}px`);
-    try {
-      localStorage.setItem(splitKey(app, id), String(width));
-    } catch {
-      // Storage blocked: the size lives for this page only.
-    }
-  }, [app, id, name, width]);
-
-  const set = (n: number) => setWidth(clamp(Math.round(n), min, max));
-  const style = {
-    display: 'grid',
-    gridTemplateColumns: `clamp(${min}px, var(${name}, ${init}px), ${max}px) minmax(0, 1fr)`,
-    height: '100%',
-    minHeight: 0,
-  } as CSSProperties;
+  const phone = usePhone();
+  // Both panes stay mounted (the hidden one keeps its state for the back button).
+  if (phone)
+    return (
+      <div className="split" data-split={id} data-phone={pane} style={{ height: '100%' }}>
+        <div hidden={pane !== 0}>{children[0]}</div>
+        <div hidden={pane !== 1}>{children[1]}</div>
+      </div>
+    );
   return (
-    <div className="split" data-split={id} ref={root} style={style}>
-      <div className="pane0" style={{ position: 'relative', minWidth: 0, minHeight: 0 }}>
-        {children[0]}
-        {/* The WAI splitter pattern: a focusable separator with a value, moved by keys and drag. */}
-        {/* eslint-disable-next-line jsx-a11y/no-noninteractive-element-interactions */}
-        <div
-          className="sep v"
-          role="separator"
-          aria-orientation="vertical"
-          aria-label={label ?? 'Resize panes'}
-          aria-valuenow={width}
-          aria-valuemin={min}
-          aria-valuemax={max}
-          // eslint-disable-next-line jsx-a11y/no-noninteractive-tabindex
-          tabIndex={0}
-          style={{ right: -3 }}
-          onPointerDown={(e) => {
-            e.preventDefault();
-            dragging.current = true;
-            e.currentTarget.setPointerCapture?.(e.pointerId);
-          }}
-          onPointerMove={(e) => {
-            const left = root.current?.getBoundingClientRect().left ?? 0;
-            if (dragging.current) set(e.clientX - left);
-          }}
-          onPointerUp={() => (dragging.current = false)}
-          onPointerCancel={() => (dragging.current = false)}
-          onKeyDown={(e) => {
-            const step = e.shiftKey ? SHIFT_STEP : KEY_STEP;
-            const delta = e.key === 'ArrowRight' ? step : e.key === 'ArrowLeft' ? -step : 0;
-            if (e.key === 'Home') set(min);
-            else if (e.key === 'End') set(max);
-            else if (delta) set(width + delta);
-            else return;
-            e.preventDefault();
-          }}
-        />
-      </div>
-      <div className="pane1" style={{ minWidth: 0, minHeight: 0 }}>
-        {children[1]}
-      </div>
-    </div>
+    <ResizableSplit storageKey={splitKey(app, id)} data-split={id} className="split" {...rest}>
+      {children}
+    </ResizableSplit>
   );
 };

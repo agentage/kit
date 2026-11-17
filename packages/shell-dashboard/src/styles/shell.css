@@ -1,0 +1,47 @@
+/* Tailwind v4 with the design-system token files (no base.css) and the prototype look as a layer (K2). */
+@import 'tailwindcss' source(none);
+@import '@agentage/design-system/primitives.css';
+@import '@agentage/design-system/styles/tokens.css';
+@import './frame.css' layer(components);
+@source '../';
+
+/* K11: the shell-samples/index.html hex values under the design-system token names (one source). */
+@import '@agentage/app/theme.css';
+
+/* Shell additions to the prototype layer: the React root and design-system wrappers fill their slot. */
+@layer components {
+  #root {
+    height: 100%;
+  }
+  .foot > [data-slot='dropdown-menu'] {
+    flex: 1;
+    min-width: 0;
+  }
+  a.row {
+    text-decoration: none;
+  }
+}
+
+/* The left of the actions bar: the app's lead slot (back, tree toggle, crumb), then the title. */
+@layer components {
+  .lgrp {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+  }
+  .lead {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+  }
+  .lead:empty {
+    display: none;
+  }
+  .empty-main {
+    flex: 1;
+    display: grid;
+    place-items: center;
+    padding: 24px;
+  }
+}

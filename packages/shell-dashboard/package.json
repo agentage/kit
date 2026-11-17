@@ -1,0 +1,25 @@
+{
+  "name": "@agentage/shell-dashboard",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The agentage dashboard shell source (React 19, Tailwind v4, design-system tokens); it ships built inside the kit at dist/shell, served by the daemon at /",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "verify": "npm run verify --prefix ../..",
+    "test:e2e": "playwright test"
+  },
+  "devDependencies": {
+    "@agentage/app": "*",
+    "@agentage/design-system": "^0.20.1",
+    "lucide-react": "^1.73.0"
+  },
+  "keywords": [
+    "agentage",
+    "shell",
+    "dashboard"
+  ]
+}

@@ -1,7 +1,10 @@
 # @agentage/extension/app
 
 This workspace (`packages/app`, private) is published only inside the kit: the kit build copies its
-`dist` and `theme.css` to `dist/vendor/app` (`scripts/inline-app.mjs`). React 19 is a peer of the kit.
+`dist` and `theme.css` to `dist/vendor/app` (`scripts/inline-app.mjs`). React 19 is an optional
+peer of the kit. `Split` imports `@agentage/design-system` (^0.20.1): an app that renders it outside
+the shell (tests) installs it; the shell's copy is in `vendor/app.js`. It is no kit peer, as the
+widget kit still pins 0.19.
 
 The one import of an agentage app. An app is one root component (the default export of
 `src/app/index.tsx`); the shell mounts it in the `main` region and gives it these hooks. The app has
@@ -12,15 +15,15 @@ The shell serves one copy of React and of this package through an import map: an
 
 ## The calls
 
-| Call                      | What it gives                                                                                                                                   |
-| ------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------- |
-| `useAppShell()`           | `{ id, route: { path, query }, notify({ text, kind }), openAside(key), closeAside(), navigate(page) }`; `route.path` is the page after `/{id}/` |
-| `useAppHost()`            | `{ id, user, scopes, api(path, init?) }`; `api('/echo')` calls `/api/{id}/echo` and returns the envelope `data`                                 |
-| `useAppState(key, init)`  | `[value, set]`, kept by the shell per app and key: a remount (a new build, an update) keeps it; every reader of a key sees one value            |
-| `<Region name>`           | renders its children into a frame region (`actions`, `aside`, `notices`, `bottom`, `side`) as a React portal, inside an error boundary          |
-| `<Split id init min max>` | two panes, the first one resizable (arrow keys 16 px, Shift 64 px, Home, End, drag); the size holds across a reload with no layout shift        |
-| `AppBoundary`             | the error boundary the shell puts around each app root and `Region`                                                                             |
-| `AppApiError`             | what `api` throws: `code` (the envelope code, `FORBIDDEN` for a refused path, else `HTTP_<status>`), `status`                                   |
+| Call                      | What it gives                                                                                                                                                                                                  |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `useAppShell()`           | `{ id, route: { path, query }, notify({ text, kind }), openAside(key), closeAside(), navigate(page) }`; `route.path` is the page after `/{id}/`                                                                |
+| `useAppHost()`            | `{ id, user, scopes, api(path, init?) }`; `api('/echo')` calls `/api/{id}/echo` and returns the envelope `data`                                                                                                |
+| `useAppState(key, init)`  | `[value, set]`, kept by the shell per app and key: a remount (a new build, an update) keeps it; every reader of a key sees one value                                                                           |
+| `<Region name>`           | renders its children into a frame region (`lead`, `actions`, `aside`, `notices`, `bottom`, `side`) as a React portal, inside an error boundary                                                                 |
+| `<Split id init min max>` | two panes on the design-system `ResizableSplit` (px; arrows 16 px, Shift 64 px, Home, End, drag; `orientation`, `collapsible` with `useSplit().toggle()`); the size holds across a reload with no layout shift |
+| `AppBoundary`             | the error boundary the shell puts around each app root and `Region`                                                                                                                                            |
+| `AppApiError`             | what `api` throws: `code` (the envelope code, `FORBIDDEN` for a refused path, else `HTTP_<status>`), `status`                                                                                                  |
 
 Keys of `openAside`: `inspect`, `details`, `inbox` (the shell puts the key in the URL, `?details=1`).
 
@@ -32,10 +35,12 @@ Keys of `openAside`: `inspect`, `details`, `inbox` (the shell puts the key in th
   The header is declared by the app itself: a guard against mistakes, not a boundary (K10).
 - Limit: an app runs in the same JavaScript realm as the shell. A raw `fetch` with no header is not
   stopped on the machine; `extension check` warns on `fetch(` in `src/app`.
-- A `Split` size is the CSS variable `--split-{app}-{id}`, stored in `localStorage` key
-  `ag.split.{app}.{id}`. The shell runs `SPLIT_PREPAINT` in the page head before any module, and the
-  split clamps the stored value to its own `min` and `max` in CSS, so the first paint is final.
+- A `Split` is stored in `localStorage` key `ag.split.{app}.{id}` (and `.collapsed`); the CSS
+  variables are the design-system ones (`splitVar`). The shell runs `SPLIT_PREPAINT` in the page
+  head: it registers every key by that pattern, so the first paint is final.
 - The shell owns the look of `.split`, `.sep` and `.card-err`; the app ships no layout CSS.
+- Below 760 px a `Split` shows one pane; `pane` (0 or 1) picks it and the app gives the back button.
+- There is no `base.css`: a plain `<input>` has no border. Use the design-system `Input` (or give it a class).
 
 ## Theme
 
@@ -45,7 +50,7 @@ build import it, so an app utility such as `bg-card` or `text-primary` matches t
 
 ## Tests
 
-`@agentage/extension/app/test-host` gives `TestHost`: the five regions as plain nodes and an in-memory host.
+`@agentage/extension/app/test-host` gives `TestHost`: the six regions as plain nodes and an in-memory host.
 It records notices, api calls, the aside key and pages; `reply(call)` sets the api answer.
 
 ```tsx

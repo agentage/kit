@@ -73,13 +73,19 @@ jobs:
           grep -qx 'package/dist/vendor/app/index.js' /tmp/pack/files.txt
           grep -qx 'package/dist/vendor/app/test-host.js' /tmp/pack/files.txt
           grep -qx 'package/dist/vendor/app/theme.css' /tmp/pack/files.txt
+          grep -qx 'package/dist/shell/package.json' /tmp/pack/files.txt
+          grep -qx 'package/dist/shell/dist/index.html' /tmp/pack/files.txt
+          grep -qx 'package/dist/shell/dist/shell.js' /tmp/pack/files.txt
+          grep -qx 'package/dist/shell/dist/vendor/app.js' /tmp/pack/files.txt
+          if grep -Eq '/e2e/|\.spec\.' /tmp/pack/files.txt; then echo 'shell e2e files in the tarball'; exit 1; fi
           if grep -q '\.test\.' /tmp/pack/files.txt; then echo 'test files in the tarball'; exit 1; fi
           node packages/extension/dist/tool/cli.js --help
           # The kit carries logs and the app kit inside: a clean install of the tarball alone resolves every entry.
           mkdir -p /tmp/kit-alone && cd /tmp/kit-alone && npm init -y >/dev/null
-          npm install --no-audit --no-fund /tmp/pack/agentage-extension-*.tgz express zod react react-dom
+          npm install --no-audit --no-fund /tmp/pack/agentage-extension-*.tgz express zod react react-dom @agentage/design-system
           test ! -e node_modules/@agentage/logs
           test ! -e node_modules/@agentage/app
+          test ! -e node_modules/@agentage/shell-dashboard
           node --input-type=module -e "const a = await import('@agentage/extension/app'); if (typeof a.useAppHost !== 'function') throw new Error('no useAppHost'); console.log('PASS kit app subpath')"
           node --input-type=module -e "await import('@agentage/extension'); const l = await import('@agentage/extension/logs'); const e = l.parseLine('hello', { extension: 'smoke', part: 'ci' }); l.EventSchema.parse(e); console.log('PASS kit alone', e.kind, l.KINDS.length)"
 
@@ -114,7 +120,7 @@ jobs:
         run: |
           set -euo pipefail
           npm pack -w @agentage/shell --pack-destination /tmp/pack
-          tar -tzf /tmp/pack/agentage-shell-*.tgz > /tmp/pack/shell-files.txt
+          tar -tzf /tmp/pack/agentage-shell-[0-9]*.tgz > /tmp/pack/shell-files.txt
           grep -qx 'package/dist/index.js' /tmp/pack/shell-files.txt
           grep -qx 'package/dist/mount-widgets.js' /tmp/pack/shell-files.txt
           if grep -Eq '\.test\.|test-support' /tmp/pack/shell-files.txt; then echo 'test files in the shell tarball'; exit 1; fi
@@ -234,6 +240,37 @@ jobs:
           path: |
             packages/widget/playwright-report
             packages/widget/test-results
+          retention-days: 7
+
+  shell-screenshots:
+    name: Shell screenshots
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    container:
+      image: mcr.microsoft.com/playwright:v1.64.1-noble
+      options: --user 1001
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install
+        run: npm ci
+
+      - name: Build
+        run: npm run build
+
+      - name: Frame beside the prototype at 1280 and 400 px, axe, CLS, keys (Chromium)
+        run: npm run test:e2e -w @agentage/shell-dashboard
+
+      - name: Screenshots and pixel difference
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: shell-screenshots
+          path: |
+            packages/shell-dashboard/shots
+            packages/shell-dashboard/playwright-report
+            packages/shell-dashboard/test-results
           retention-days: 7
 
   probe-local-gate:

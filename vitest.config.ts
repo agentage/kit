@@ -26,6 +26,7 @@ export default defineConfig({
         'packages/widget/src/bundle/cli.ts',
         'packages/widget/src/harness/main.ts',
         'packages/widget/src/ds/styles.generated.ts',
+        'packages/shell-dashboard/src/main.tsx',
       ],
       thresholds: {
         branches: 70,

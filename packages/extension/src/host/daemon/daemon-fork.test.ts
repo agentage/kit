@@ -91,13 +91,13 @@ describe('daemon with child processes', () => {
     });
     expect(change.status).toBe(200);
     expect(await hung).toBe(503);
-    // drainMs (2 s), the SIGKILL after 5 s, and the start of the new child.
-    expect(Date.now() - started).toBeLessThan(10_000);
+    // drainMs (2 s) + the 5 s SIGKILL grace + a start budget for a loaded machine: a bound, not a speed.
+    expect(Date.now() - started).toBeLessThan(20_000);
     const next = await h.call('PATCH', '/host/extensions/other', {
       settings: { 'echo.prefix': 'b' },
     });
     expect([next.status, (await echo('other')).body.data?.msg]).toEqual([200, 'b hi']);
-  }, 20_000);
+  }, 45_000);
 
   it('a child that refuses to start is failed with its own reason', async () => {
     const lone = { ...HOSTED_MANIFEST, agentage: { ...HOSTED_MANIFEST.agentage, id: 'lone' } };

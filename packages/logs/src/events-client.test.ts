@@ -247,9 +247,7 @@ describe('the ingest path', () => {
     const { seen, impl } = paths((path) => (path === live ? 200 : 404));
     await post('https://dies.test', impl);
     live = '';
-    await expect(post('https://dies.test', impl)).rejects.toThrow(
-      /\/api\/logs\/events answered 404/
-    );
+    await expect(post('https://dies.test', impl)).rejects.toThrow(/\/api\/v1\/events answered 404/);
     await expect(post('https://dies.test', impl)).rejects.toThrow(/404/);
     expect(seen.slice(2)).toEqual([
       ...['/api/v1/events', '/api/logs/events'],

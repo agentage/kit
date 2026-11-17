@@ -101,19 +101,23 @@ const resultOf = (reply: unknown): PostResult | undefined => {
     : undefined;
 };
 
+// The host moved under the same url: a 404 drops the pin and the other path is tried once.
+const reach = async (o: EventsClientOptions, body: string, key: string) => {
+  const first = paths.get(key) ?? ONE_IMAGE;
+  const res = await request(o, body, first);
+  if (res.status !== 404) return { res, path: first };
+  paths.delete(key);
+  const path = first === ONE_IMAGE ? LEGACY : ONE_IMAGE;
+  return { res: await request(o, body, path), path };
+};
+
 const sendOnce = async (o: EventsClientOptions, body: string): Promise<PostResult> => {
   const key = o.url.replace(/\/+$/, '');
-  let path = paths.get(key) ?? ONE_IMAGE;
-  let res = await request(o, body, path);
-  if (res.status === 404) {
-    // The host moved under the same url: the pin is dropped and the other path is tried once.
-    paths.delete(key);
-    path = path === ONE_IMAGE ? LEGACY : ONE_IMAGE;
-    res = await request(o, body, path);
-  }
+  const { res, path } = await reach(o, body, key);
   if (!res.ok) {
     if (OWN_4XX.has(res.status)) paths.set(key, path);
-    throw new IngestError(res.status, path);
+    // Both paths 404: the error names the legacy path, as before the move.
+    throw new IngestError(res.status, res.status === 404 ? LEGACY : path);
   }
   // A 2xx was taken: an unreadable or unknown answer is never retried, it would post the rows twice.
   const result = resultOf(await res.json().catch(() => null));

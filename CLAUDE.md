@@ -14,6 +14,7 @@ docker-deploy, security, backend); this file only adds what the tree does not sa
 - Test helpers: `docs/parts.md` "Tests" (proof: `src/context/test-context.ts`, `src/testing/`).
 - Build steps, six rules, image recipe, `up`, `down`, `token`, timeouts: `docs/tool.md` (proof: `src/tool/`).
 - Part image entry, port, `AGENTAGE_*` settings: `docs/part-image.md` (proof: `src/runtime/`, `src/auth/part-auth.ts`).
+- Host, daemon routes, limits, seal: `docs/part-image.md` "Host one extension" and "The daemon" (proof: `src/host/`).
 - Manifest, record, discovery, `/health` and envelope schemas: `packages/extension/schemas/*.json` (generated, never edit by hand).
 - Check report JSON, secrets: `packages/extension/README.md`.
 - Event line kinds, redaction and limits, events client: `packages/logs/README.md` (proof: `packages/logs/src/`).
@@ -28,19 +29,23 @@ Read the file named here before you read `src/` (`src/` = `packages/extension/sr
 
 ## Commands
 
-- `npm run verify` - type-check (`tsc -b` + the test tsconfig), lint, format, tests with coverage, build
+| Task    | Command                                                                                    |
+| ------- | ------------------------------------------------------------------------------------------ |
+| verify  | `npm run verify`: type-check, lint, format:check (Markdown too), test with coverage, build |
+| test    | `npm test`, or one package: `npx vitest run packages/<p>`                                  |
+| e2e     | `npm run test:e2e` (widget), `npm run test:e2e -w @agentage/shell-dashboard` (shell)       |
+| release | push the tag `v<version>` of a package on master; `release.yml` publishes                  |
+
 - `npm run build && npm run schemas` - regenerate `packages/extension/schemas/*.json` from Zod; a
   test fails when the committed files drift
-- The tool: `node packages/extension/dist/tool/cli.js build|up|down|token`; details `docs/tool.md`.
-- One package's tests: `npx vitest run packages/<p>`; its type-check:
-  `npx tsc -p packages/<p>/tsconfig.eslint.json --noEmit`
+- The tool: `node packages/extension/dist/tool/cli.js build|app|up|down|token`; details `docs/tool.md`.
+- One package's type-check: `npx tsc -p packages/<p>/tsconfig.eslint.json --noEmit`
 - A version bump touches the package's `package.json`; widget also `src/host/version.ts`; extension
   also the kit range `^<major.minor>` in `fixtures/*/package.json`, `src/test-support/packages.ts`
   and `src/tool/check.test.ts`
 - Bump a package's version only when that package's files changed (`scripts/check-bumps.mjs` gates PRs)
 - A new package: `tsconfig.json`, `tsconfig.eslint.json`, a root `tsconfig.json` reference, a
   `type-check` line, a CI pack-smoke step, then the lock (`npx npm@10 install`)
-- Release: tag `v<version>` on master (the release workflow publishes every package not on npm yet)
 - Lockfile edits go through `npx npm@10 install`; keep only the lines you mean to change
 
 ## Commits
@@ -77,7 +82,7 @@ Read the file named here before you read `src/` (`src/` = `packages/extension/sr
 - `index.test.ts` pins the three public surfaces (sealing): main keeps the author surface
 - `host/` `hostExtension` (one package's api, mcp and worker on one app: `/api/{id}/*`, `/mcp/{id}`, no token, PGlite in a data
   folder), `main.ts` (the daemon child and the one container entry `dist/host/main.js`) and
-  `daemon/` (`createDaemon`: the C5 routes, one child per extension, `installation.json`);
+  `daemon/` (`createDaemon`: the daemon routes, one child per extension, `installation.json`);
   exported as `@agentage/extension/host`
 - `schemas/` JSON Schema generation; `test-support/` fixtures, excluded from the build
 

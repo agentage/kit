@@ -8,7 +8,7 @@ The agentage event line: one JSON line per unit of work (`http`, `mcp`, `job`, `
 `event`, `log`), written to stderr by every part and shipped by the host.
 
 ```ts
-import { createLogger, createEventsClient, EventSchema, parseLine } from '@agentage/logs';
+import { createLogger, createEventsClient, EventSchema, parseLine } from '@agentage/extension/logs';
 
 const log = createLogger({ extension: 'probe', part: 'api', version: '0.6.0' });
 log.info('ready');

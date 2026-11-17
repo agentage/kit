@@ -6,6 +6,7 @@ when it runs the image. The audience (`AGENTAGE_AUDIENCE`) is the host a token i
 | Setting                                                   | Meaning                                                                                                                              |
 | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | Entry                                                     | `node node_modules/@agentage/extension/dist/runtime/main.js <part>`; port `3000` (`PORT` overrides)                                  |
+| `/api/{id}/*`, `/api/v1/*`                                | the api part's routes; the `/api/v1` prefix stays during the move                                                                    |
 | `/health`                                                 | loopback only (the container `HEALTHCHECK`, an operator on the node); `404` from any other address                                   |
 | `/.well-known/agentage-extension.json`                    | the record at `/run/agentage/agentage-extension.json` (`AGENTAGE_RECORD_FILE`) plus the host                                         |
 | `AGENTAGE_ORIGIN`                                         | the deployment's origin; pages and ui take it from the request without it                                                            |
@@ -43,7 +44,7 @@ port or at the port of `AGENTAGE_ORIGIN`. The daemon child and the one container
 | `AGENTAGE_ORIGIN`         | `ctx.extension.origin`, `http://127.0.0.1:<PORT>` by default                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `AGENTAGE_DRAIN_MS`       | how long SIGTERM may drain before exit 1, `10000` by default                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | `AGENTAGE_STORE_OPEN_MS`  | how long the store may take to open (and to close), `120000` by default; then the api starts and `/health` says the store is `unavailable` until it opens. Under the daemon it is the daemon's `healthMs` (raise both with `createDaemon({ healthMs })`, and `startMs` with it)                                                                                                                                                                                                                                                          |
-| `AGENTAGE_STORE_URL_FILE` | the estate's store (G1, G2): a file with a `postgres://` URL for a postgres store, an `http://` URL for a clickhouse store. Set, the host opens it in place of PGlite (never both); see [Estate stores in the host](#estate-stores-in-the-host)                                                                                                                                                                                                                                                                                          |
+| `AGENTAGE_STORE_URL_FILE` | the estate's store: a file with a `postgres://` URL for a postgres store, an `http://` URL for a clickhouse store. Set, the host opens it in place of PGlite (never both); see [Estate stores in the host](#estate-stores-in-the-host)                                                                                                                                                                                                                                                                                                   |
 | `AGENTAGE_HOST_BIND=all`  | listen on every address. It needs a token check (`AGENTAGE_ISSUER`, `AGENTAGE_AUDIENCE`, `AGENTAGE_ORIGIN`) or `AGENTAGE_HOST_AUTH=off`                                                                                                                                                                                                                                                                                                                                                                                                  |
 | `AGENTAGE_USER_SUB`       | set by the daemon from the signed-in cli (`auth.json`: the platform token of its `issuer`, else the issuer's get-session for the session bearer; no `issuer`, no user). On loopback every request acts as this user with `{id}:read` and `{id}:write`; an admin route stays anonymous. Trust: any local process that reaches the port acts as the user (browsers are blocked by the Host and Origin guard). The daemon reads `auth.json` every `userPollMs` (2 s): a sign-in or sign-out restarts the running children. Unset: no caller |
 
@@ -62,6 +63,10 @@ docker run -p 8080:8080 -e AGENTAGE_HOST_AUTH=off -v probe-data:/data ghcr.io/ag
 - The drain ends within 8 s, under the 10 s of `docker stop`. A longer drain needs both a higher
   `AGENTAGE_DRAIN_MS` and `docker run --stop-timeout <s>`.
 - `--read-only` works: only `/data` is written, and `/tmp` needs no tmpfs.
+
+On loopback there is no token check. SIGTERM drains the open requests, waits for a job run still
+going (3 s at most), closes the store and exits 0. `ctx.exit()` does the same. The host brings `@electric-sql/pglite`; the package does not
+need it.
 
 ### Estate stores in the host
 
@@ -135,6 +140,8 @@ retried batch is a no-op. A `Date` parameter goes as epoch seconds; one with mil
 parameter. A read waits for the whole answer (`wait_end_of_query`), so a late error is an error,
 not a row.
 
+## The daemon
+
 `localOnly(port)` from `@agentage/extension/host` is the guard of the daemon, as Express middleware.
 A request needs the Host `127.0.0.1` or `localhost` at that port (`[::1]` is refused: nothing
 listens there), no other Origin, and no cross-site `Sec-Fetch-Site`, or it throws a 403
@@ -143,10 +150,6 @@ the request came in on. `hostExtension(dir, { localOnly: true })` mounts it befo
 the port of the socket. A client checks support with `capabilities` from `/tool` or `/host`:
 `container` (`build --container`), `localOnly`, `installDisabled` (`POST /host/extensions` takes
 `enabled: false`), `updateInstallation` and `withFileLock` (the exports below).
-
-On loopback there is no token check. SIGTERM drains the open requests, waits for a job run still
-going (3 s at most), closes the store and exits 0. `ctx.exit()` does the same. The host brings `@electric-sql/pglite`; the package does not
-need it.
 
 The daemon (`createDaemon`) answers `/api/{id}/*` from the child of that extension. It answers 404
 `NOT_FOUND` for an id that is not installed or is disabled; a client does not retry it. It answers
@@ -184,7 +187,7 @@ put-back fails too, the daemon writes one warn line and `/health` lists the id i
 When `installation.json` cannot be read (`EACCES`, `EISDIR`), the daemon never writes it:
 `/health` says `installation: "unreadable"` and `installationError`, and each change is 409
 `INSTALLATION_UNREADABLE` until the file is fixed (unreadable at boot: also a restart). A file at
-boot that is not JSON, has rows C3 refuses or an id twice, is kept as `installation.json.bad` and
+boot that is not JSON, has rows the installation schema refuses or an id twice, is kept as `installation.json.bad` and
 replaced by the valid rows (the first of each id) the daemon runs; `/health` says
 `installation: "invalid"`. A file that turns not JSON after boot is never written: each change is
 409 `INSTALLATION_UNREADABLE` ("not JSON") until it is fixed. A `settings.json` or `secrets.json` that is not JSON,
@@ -199,7 +202,7 @@ exclusive create on a volume with no hard links; an empty lock file is taken as 
 1 s, then as stale. One starter at a time removes a stale lock (it holds `<dataDir>.lock.break`),
 so of many starters at once only one takes it.
 
-Refuse and restart (C6). A new id whose first start fails is 400 `VALIDATION_ERROR` with
+Refuse and restart. A new id whose first start fails is 400 `VALIDATION_ERROR` with
 `details: { code: "START_FAILED", reason }`: its `installation.json` row goes, and its `data/{id}/`
 only when this start made it (the data of an id that had a folder, and its settings and secrets
 rows, stay). A `PATCH` that fails to start answers the same envelope and the old child runs again.
@@ -218,7 +221,7 @@ on one child resets the count. A restart runs in the change queue; a change, rem
 cancels it. A store open that finds the data lock held by a live process retries every 100 ms up
 to the open limit, then fails as before; on Linux a holder in state `Z` (exited, not reaped) is dead.
 
-Reload (D14). `POST /host/extensions/{id}/reload`, body `{}`, for a folder row only (a market row
+Reload. `POST /host/extensions/{id}/reload`, body `{}`, for a folder row only (a market row
 is 400 `VALIDATION_ERROR`, a disabled one 409 `CONFLICT`, an unreadable `installation.json` 409
 `INSTALLATION_UNREADABLE`). In the change queue (a second reload waits): requests wait at the gate
 (`gateMs`), the child stops and its exit is awaited, `dist` is renamed to `dist.prev` and
@@ -237,8 +240,8 @@ Two exports from `/host` write the daemon files under the kit's lock, for a clie
 older files before the daemon starts:
 
 - `updateInstallation(configDir, change, waitMs?)`: read, change and write `installation.json`,
-  the path the daemon uses. It refuses a row C3 refuses or an id twice, and keeps a file that is
-  not C3 as `installation.json.bad` first. Call it only while no daemon runs on `configDir`: the
+  the path the daemon uses. It refuses a row the installation schema refuses or an id twice, and keeps a file that is
+  not valid as `installation.json.bad` first. Call it only while no daemon runs on `configDir`: the
   daemon reads the file at its start and owns it after. When `daemon.json` names a live process
   that answers `/health` as that daemon, it is 409 `DAEMON_RUNNING`, unless the caller is that
   process.
@@ -259,6 +262,7 @@ Each wait of the daemon has a bound, a `createDaemon` option:
 | `backoffMs`                   | `[1000, 2000, 4000, 8000, 16000]` | the wait before each restart of a child that exited                                     |
 | `crashLimit`, `crashWindowMs` | `5`, `600000`                     | this many exits in the window is `failed`                                               |
 | `healthyResetMs`              | `600000`                          | a child healthy this long has its restart count reset                                   |
+| `userPollMs`                  | `2000`                            | how often the daemon reads `auth.json`                                                  |
 
 The 11 min of `installMs` is above the cli's npm bound (10 min) and below its client wait (12 min).
 
@@ -277,7 +281,7 @@ shows it).
 Statuses, not codes, tell a retry: 503 `UNAVAILABLE` is worth a retry after `Retry-After`; 504
 `TIMEOUT` means the call may still be applied.
 
-## The daemon: routes, host token, seal
+### Routes, host token and seal
 
 | Route                                 | Answer                                                                                                                                                                                                           |
 | ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -285,12 +289,11 @@ Statuses, not codes, tell a retry: 503 `UNAVAILABLE` is worth a retry after `Ret
 | `GET /.well-known/agentage-host.json` | `{ host: "local", shell?: { package, version }, extensions: [{ id, version, parts, app? }] }` of the running extensions; `app` = `{ title, icon?, order?, entry, css }` of an enabled, built app part; anonymous |
 | `GET /health`                         | each entry adds `parts`, `seal` (`on`/`partial`/`off`), `restarts`; below the Node floor `seal: "off"`, `sealError`, `status: "degraded"`                                                                        |
 | `/host/*`                             | `Authorization: Bearer <hostToken>`: 401 `UNAUTHORIZED` with none, 403 `FORBIDDEN` with another                                                                                                                  |
-
-| `GET /`, `GET /{id}/*` | for a client that prefers HTML: the shell `index.html` (`no-cache`), 404 when `id` has no app; others get the JSON 404 |
-| `GET /shell/*` | the kit's own `dist/shell` (the kit build writes it), or the `dist/` of the `shellDir` option; neither, no page and no `shell` key |
-| `GET /shell/session` | `{ user: { id, email?, name? } \| null, host: "local" }`: `id` is the user the children run as (issuer checked, as the cli does), `email` and `name` from that `auth.json`; never a token |
-| `GET /shell/events` | server-sent events: `extensions` after each change, `app { id, entry, css }` after an app reload, `session { signedIn }` after a sign-in, sign-out or other change of `auth.json` (fetch `/shell/session` again) |
-| `GET /app/{id}/*` | the package's `dist/app`, also while the child is down; hashed files `immutable`, `index.js` and `app.json` `no-cache` |
+| `GET /`, `GET /{id}/*`                | for a client that prefers HTML: the shell `index.html` (`no-cache`), 404 when `id` has no app; others get the JSON 404                                                                                           |
+| `GET /shell/*`                        | the kit's own `dist/shell` (the kit build writes it), or the `dist/` of the `shellDir` option; neither, no page and no `shell` key                                                                               |
+| `GET /shell/session`                  | `{ user: { id, email?, name? } \| null, host: "local" }`: `id` is the user the children run as (issuer checked, as the cli does), `email` and `name` from that `auth.json`; never a token                        |
+| `GET /shell/events`                   | server-sent events: `extensions` after each change, `app { id, entry, css }` after an app reload, `session { signedIn }` after a sign-in, sign-out or other change of `auth.json` (fetch `/shell/session` again) |
+| `GET /app/{id}/*`                     | the package's `dist/app`, also while the child is down; hashed files `immutable`, `index.js` and `app.json` `no-cache`                                                                                           |
 
 `X-Agentage-App: <id>` on `/api/{other}/*`, `/files/{other}/*` or `/connector/{other}` is 403 `FORBIDDEN`: an app calls only its own
 extension. The header is self-declared, so it is a guard against mistakes, not a boundary: a
@@ -303,13 +306,10 @@ request with no header, or with a false one, is not stopped. `POST /host/extensi
 A child is forked with `node --permission --no-experimental-sqlite`. It may read the `node_modules`
 that holds the kit and the tree of its package (a folder row: the folder). It may read and write
 `run/{id}` and `data/{id}`. It gets no child-process, worker, addon or WASI grant, with one
-exception: a package with `store: git` gets `--allow-child-process`, because its part runs `git`
-(PD2). Its entry in `/health` says `seal: "partial"`; the daemon status stays `ok`. The `git`
+exception: a package with `store: git` gets `--allow-child-process`, because its part runs `git`. Its entry in `/health` says `seal: "partial"`; the daemon status stays `ok`. The `git`
 process runs outside the permission model: it can read and write any path the user can. The grant
 is not limited to `git`: the child may start any program (`sh`, `cat`), so for code the seal of this
-child is off. This is accepted for first-party extensions only (memory). Before a third-party
-extension installs from the market, the grant gets an allowlist (an installation flag or host
-config) and the install shows `seal: partial`. A symlinked
+child is off. This is accepted for first-party extensions only (memory). A symlinked
 path is granted as given and as its real path. A kit checkout grants its package and its workspace
 root, never a folder above the user's home.
 

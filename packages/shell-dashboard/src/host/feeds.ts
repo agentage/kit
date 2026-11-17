@@ -71,5 +71,5 @@ export const useHostFeeds = (deps: ShellDeps) => {
       });
     });
   }, [deps, loadDiscovery, loadSession]);
-  return { discovery, session, seen };
+  return { discovery, session, seen, reloadSession: loadSession };
 };

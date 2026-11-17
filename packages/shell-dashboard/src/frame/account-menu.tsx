@@ -62,15 +62,16 @@ const trigger = ({ account, version, compact }: Pick<Props, 'account' | 'version
 // Settings, Tokens and Sign out link to the account extension; absent routes hide the item.
 const links = (account: Account, go: (href: string) => void): ReactNode[] => {
   const l = account.links ?? {};
-  const rows: [string | undefined, string, ReactNode][] = [
-    [l.settings, 'Settings', <Settings key="i" {...I} />],
-    [l.tokens, 'Tokens', <KeyRound key="i" {...I} />],
-    [l.signOut, 'Sign out', <LogOut key="i" {...I} />],
+  const to = (href?: string) => (href ? () => go(href) : undefined);
+  const rows: [(() => void) | undefined, string, ReactNode][] = [
+    [to(l.settings), 'Settings', <Settings key="i" {...I} />],
+    [to(l.tokens), 'Tokens', <KeyRound key="i" {...I} />],
+    [account.onSignOut ?? to(l.signOut), 'Sign out', <LogOut key="i" {...I} />],
   ];
   return rows
-    .filter((r): r is [string, string, ReactNode] => !!r[0])
-    .map(([href, label, icon]) => (
-      <DropdownMenuItem key={label} onClick={() => go(href)}>
+    .filter((r): r is [() => void, string, ReactNode] => !!r[0])
+    .map(([run, label, icon]) => (
+      <DropdownMenuItem key={label} onClick={run}>
         {icon}
         {label}
       </DropdownMenuItem>

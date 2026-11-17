@@ -68,12 +68,20 @@ change.
 1. Build the same images and write `.agentage/record.json` from the local digests.
 2. Render one compose file. It holds postgres 18 (migrate job first, `seeds/` mounted) and a dev
    token issuer on `localhost:4281`. It also holds a Traefik gateway on `localhost:4280` and one
-   container per part.
+   container per part. A git store is the volume `store` at `/data`, shared by every part but ui;
+   the gateway sends `/files/{id}/` (git smart HTTP) to the api part. As on the app host, `/mcp/{id}`,
+   `/connector/{id}` and their `/.well-known/oauth-protected-resource/...` documents go to the mcp part;
+   bare `/mcp` and `/connector` stay for the e2e docker and next targets.
 3. Print one line per step, ending `ready N parts healthy`.
 
 Each working copy is its own compose project (`agentage-{id}-{8 hex of the folder}`). `up`
 refuses while another copy holds 4280 or 4281, and names that copy. `down` removes this copy's
 project only; `--keep-data` keeps the store volume.
+
+A git store can have more than one writer process: the api and mcp parts here, and the same on an
+app host. The kit holds no lock across containers (each part's store lock is in its own `/tmp`).
+The guard is the store's own compare-and-swap on `update-ref`, with bounded retries
+(memory-core), so a concurrent write never loses an update.
 
 `token` mints a dev token: `aga_` plus an EdDSA JWT, `{id}:{verb}` scopes, valid 1 hour. `--scope`
 is required. The parts of `up` check it like a deployment's. The issuer also takes `ttlSeconds`,

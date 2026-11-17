@@ -14,10 +14,10 @@ import { buildInfoFromEnv, type Env } from '../runtime/build-info.js';
 import { type PartAppBase } from '../server/app.js';
 import { hostClockRate } from '../worker/clock.js';
 import { localOnly } from './daemon/guard.js';
-import { openGitStore } from './host-git-store.js';
 import { hostPartsOf, type HostedParts, type Hosting } from './host-parts.js';
 import { openHostStore, STORE_OPEN_MS } from './host-store.js';
-import { hostStoreChecks, openUrlStore } from './host-url-store.js';
+import { hostStoreChecks } from './host-url-store.js';
+import { openStore } from './open-store.js';
 
 export interface HostOptions {
   dataDir: string;
@@ -106,10 +106,8 @@ export const hostWith = async (dir: string, opts: HostOptions, extras: HostExtra
   const log = createLog({ extension: pkg.agentage.id, part: 'api', version: pkg.version });
   const openMs = opts.storeOpenMs ?? STORE_OPEN_MS;
   const at = { dir, dataDir: opts.dataDir, runDir: opts.runDir, openMs };
-  const url = { dir, file: opts.storeUrlFile, openMs };
   const store =
-    (await openGitStore(pkg, { ...at, file: opts.storeUrlFile }, log)) ??
-    (await openUrlStore(pkg, url, log)) ??
+    (await openStore(pkg, { ...at, file: opts.storeUrlFile }, log)) ??
     (await openHostStore(pkg, at, log));
   const onExit = once(opts.onExit ?? (() => undefined));
   const build = extras.build ?? (await hostBuildInfo({}, dir));

@@ -1,6 +1,7 @@
 import { type ExtensionPackage } from '../../manifest/manifest.schema.js';
 import { hasStore, imageParts, mountedIn } from '../../manifest/parts.js';
 import { type ImagePartKind } from '../../manifest/primitives.schema.js';
+import { DATA_VOLUME } from '../container-recipe.js';
 import { DEV_AUDIENCE, DEV_ISSUER, UP_ISSUER } from './dev-issuer-app.js';
 import { GATEWAY_PORT, ISSUER_PORT, PART_PORT, TRAEFIK_COMMAND, TRAEFIK_IMAGE } from './gateway.js';
 
@@ -40,6 +41,9 @@ export const clickhouseUrl = (id: string): string =>
 export const runsStore = (pkg: ExtensionPackage) =>
   hasStore(pkg, 'postgres') || hasStore(pkg, 'clickhouse');
 const servesStore = (pkg: ExtensionPackage, part: ImagePartKind) => runsStore(pkg) && part !== 'ui';
+// A git store: the parts share its folder on one volume; each keeps its own lock in /tmp (no lock across containers: docs/tool.md).
+const gitPart = (pkg: ExtensionPackage, part: ImagePartKind | 'migrate') =>
+  hasStore(pkg, 'git') && part !== 'ui' && part !== 'migrate';
 
 // Only the ui under `up` names the dev issuer: its CSP then lets the harness ask it for a token.
 const partEnv = (pkg: ExtensionPackage, part: ImagePartKind | 'migrate') => ({
@@ -53,6 +57,7 @@ const partEnv = (pkg: ExtensionPackage, part: ImagePartKind | 'migrate') => ({
   ...(hasStore(pkg, 'clickhouse') && part !== 'ui' && part !== 'migrate'
     ? { AGENTAGE_STORE_URL_FILE: STORE_URL_FILE }
     : {}),
+  ...(gitPart(pkg, part) ? { AGENTAGE_RUN_DIR: '/tmp' } : {}),
   ...(part === 'ui' ? { AGENTAGE_DEV_ISSUER: DEV_ISSUER } : {}),
 });
 
@@ -95,7 +100,10 @@ const withSecrets = (names: string[]) => (names.length ? { secrets: names } : {}
 const partService = (input: ComposeInput, part: ImagePartKind) => ({
   image: input.tags[part],
   environment: partEnv(input.pkg, part),
-  volumes: [`${input.recordFile}:${RECORD_TARGET}:ro`],
+  volumes: [
+    `${input.recordFile}:${RECORD_TARGET}:ro`,
+    ...(gitPart(input.pkg, part) ? [`store:${DATA_VOLUME}`] : []),
+  ],
   ...withSecrets(mountedIn(input.pkg, part, Object.keys(input.secretFiles ?? {}))),
   depends_on: dependsOn(input.pkg, part),
 });
@@ -142,7 +150,7 @@ export const composeFile = (input: ComposeInput) => {
   }
   if (hasStore(input.pkg, 'clickhouse'))
     services['store'] = clickhouseService(input.pkg.agentage.id);
-  const volumes = runsStore(input.pkg) ? { store: {} } : {};
+  const volumes = runsStore(input.pkg) || hasStore(input.pkg, 'git') ? { store: {} } : {};
   const secrets = input.secretFiles ? { secrets: secretsOf(input.secretFiles) } : {};
   return { name: input.project, services, volumes, ...secrets };
 };

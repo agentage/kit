@@ -24,6 +24,7 @@ describe('up files', () => {
     expect(Object.keys(gateway.routers).sort()).toEqual([
       'api',
       'api-v1',
+      'files',
       'mcp',
       'pages',
       'reserved',

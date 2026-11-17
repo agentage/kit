@@ -27,12 +27,35 @@ describe('postgresStore', () => {
       query: async (text) => (queries.push(text), { rows: [] }),
       end: async () => void (ended += 1),
     });
-    const store = postgresStore('postgres://x', await hostedPackage(), recordedLog().log, pool);
+    const at = { dir: await hostedPackage() };
+    const store = await postgresStore('postgres://x', at, recordedLog().log, pool);
     await store.query('select 1');
     expect(queries).toEqual(['select 1']);
     expect(Object.keys(store.checks ?? {})).toEqual(['store:migrations']);
     await store.close();
     expect([store.kind, ended]).toEqual(['postgres', 1]);
+  });
+});
+
+describe('postgresStore in a part image', () => {
+  // _migrations does not exist: every migration is pending.
+  const pool = (): PoolStore => ({
+    query: async () => {
+      throw Object.assign(new Error('no table'), { code: '42P01' });
+    },
+    end: async () => undefined,
+  });
+
+  it('a part with migrations: pending is degraded, never unavailable', async () => {
+    const at = { dir: await hostedPackage(), partImage: true };
+    const store = await postgresStore('postgres://x', at, recordedLog().log, pool);
+    expect(await store.checks?.['store:migrations']?.()).toBe('degraded');
+  });
+
+  it('a part with no migrations/ has no store:migrations check', async () => {
+    const at = { dir: await tempPackage({ 'package.json': '{}' }), partImage: true };
+    const store = await postgresStore('postgres://x', at, recordedLog().log, pool);
+    expect(store.checks).toBeUndefined();
   });
 });
 

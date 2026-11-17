@@ -11,12 +11,16 @@ import { createLog, type Log } from '../log/log.js';
 import { type HealthCheck } from '../health/health.js';
 import { type ImportModule } from '../manifest/entry.js';
 import { type ExtensionPackage } from '../manifest/manifest.schema.js';
-import { hasStore, imageParts } from '../manifest/parts.js';
+import { hasStore, imageParts, storeOf } from '../manifest/parts.js';
 import { type ImagePartKind } from '../manifest/primitives.schema.js';
 import { readManifest } from '../manifest/read-manifest.js';
 import { type PartAppBase } from '../server/app.js';
 import { serve, type ServeOptions } from '../server/serve.js';
-import { createStore, storeCheck } from '../store/store.js';
+import { MCP_PATH, mcpPathOf } from '../mcp/mcp-app.js';
+import { hostEnvOf } from '../host/host-env.js';
+import { hostStoreChecks, type HostStore } from '../host/host-url-store.js';
+import { openStore } from '../host/open-store.js';
+import { createStore } from '../store/store.js';
 import { type Store } from '../store/store.types.js';
 import { buildInfoFromEnv, portFromEnv, type Env } from './build-info.js';
 import { RUNNERS, type RunnerInput } from './part-runners.js';
@@ -53,9 +57,18 @@ export const partOf = (pkg: ExtensionPackage, part: string): ImagePartKind => {
   return part as ImagePartKind;
 };
 
-// ui serves files and gets no ctx; every other part gets the store when the manifest has postgres.
-const storeFor = ({ pkg, part, env, log }: Start) =>
-  part !== 'ui' && hasStore(pkg, 'postgres') ? createStore(env, log) : undefined;
+const poolOf = (env: Env, log: Log): HostStore => {
+  const pool = createStore(env, log);
+  return { query: pool.query, close: () => pool.end() };
+};
+
+// ui gets no ctx; the others get the daemon's store (git, a URL file), else a postgres pool.
+const storeFor = async ({ pkg, part, env, log }: Start, dir: string) => {
+  if (part === 'ui' || !storeOf(pkg)) return undefined;
+  const { dataDir, runDir, storeOpenMs: openMs, storeUrlFile: file } = hostEnvOf(env);
+  const opened = await openStore(pkg, { dir, dataDir, runDir, openMs, file, partImage: true }, log);
+  return opened ?? (hasStore(pkg, 'postgres') ? poolOf(env, log) : undefined);
+};
 
 const contextFor = (
   start: Start,
@@ -95,7 +108,7 @@ const guardFor = async (start: Start, openapi: Openapi, record: ExtensionRecord 
   return partAuth(start.env, id, start.log, declaredScopes(id, openapi, record?.tools));
 };
 
-const baseFor = async (start: Start, store: Store | undefined, openapi: Openapi) => {
+const baseFor = async (start: Start, store: HostStore | undefined, openapi: Openapi) => {
   const { pkg, env, log } = start;
   const record = await recordFor(env, log);
   const guard: Partial<PartAppBase> = await guardFor(start, openapi, record);
@@ -104,7 +117,7 @@ const baseFor = async (start: Start, store: Store | undefined, openapi: Openapi)
     log,
     record,
     ...guard,
-    checks: { ...(store ? { store: storeCheck(store) } : {}), ...guard.checks },
+    checks: { ...hostStoreChecks(store), ...guard.checks },
     build: buildInfoFromEnv(env),
     origin: env['AGENTAGE_ORIGIN'] || undefined,
     ownImage: env['AGENTAGE_IMAGE'],
@@ -112,7 +125,7 @@ const baseFor = async (start: Start, store: Store | undefined, openapi: Openapi)
 };
 
 const inputFor = async (options: RunPartOptions, start: Start): Promise<RunnerInput> => {
-  const store = storeFor(start);
+  const store = await storeFor(start, options.dir);
   const openapi = await readOpenapi(options.dir);
   const base = await baseFor(start, store, openapi);
   return {
@@ -125,6 +138,8 @@ const inputFor = async (options: RunPartOptions, start: Start): Promise<RunnerIn
     importModule: options.importModule,
     // The old prefix as a second mount, so next stays green; it goes in phase 4.
     apiAliases: ['/api/v1'],
+    // /mcp/{id} (and /connector/{id}) as the app host routes it; bare /mcp for the estate gateway.
+    mcpPaths: [MCP_PATH, mcpPathOf(start.pkg.agentage.id)],
   };
 };
 

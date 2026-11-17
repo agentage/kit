@@ -67,7 +67,7 @@ describe('container recipe', () => {
   it('a git store brings the git binary and the /data volume, no PGlite', () => {
     const runner = runnerOf(containerRecipe({ git: true }));
     for (const line of [
-      'RUN apk add --no-cache git',
+      'RUN apk add --no-cache git git-daemon',
       'AGENTAGE_DATA_DIR=/data/store',
       'VOLUME /data',
     ])

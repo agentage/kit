@@ -26,7 +26,12 @@ export const pendingMigrations = async (store: Store, dir: string): Promise<stri
 };
 
 // checks["store:migrations"]: the serving host never migrates; ok once, it stays ok (one image, one set).
-export const migrationsCheck = (store: Store, dir: string, log: Log): HealthCheck => {
+export const migrationsCheck = (
+  store: Store,
+  dir: string,
+  log: Log,
+  pendingIs: 'unavailable' | 'degraded' = 'unavailable'
+): HealthCheck => {
   let applied = false;
   let warned = false;
   return async () => {
@@ -36,7 +41,7 @@ export const migrationsCheck = (store: Store, dir: string, log: Log): HealthChec
     if (!applied && !warned)
       log.warn('migrations not applied: run the migrate job', { pending: pending.join(', ') });
     warned ||= !applied;
-    return applied ? 'ok' : 'unavailable';
+    return applied ? 'ok' : pendingIs;
   };
 };
 

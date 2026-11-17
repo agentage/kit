@@ -8,7 +8,7 @@ export const TRAEFIK_IMAGE =
 
 // The URL layout of api-standards section 1, as the estate's gateway renders it.
 const RESERVED =
-  'PathPrefix(`/api/`) || Path(`/mcp`) || PathPrefix(`/mcp/`) || PathPrefix(`/ui/`) || PathPrefix(`/.well-known/`) || PathPrefix(`/git/`) || Path(`/health`)';
+  'PathPrefix(`/api/`) || Path(`/mcp`) || PathPrefix(`/mcp/`) || PathPrefix(`/ui/`) || PathPrefix(`/.well-known/`) || PathPrefix(`/git/`) || PathPrefix(`/files/`) || Path(`/connector`) || PathPrefix(`/connector/`) || Path(`/health`)';
 
 // Each routed part's path, in the order `up` prints them; /mcp is exact, the rest are prefixes.
 export const PART_PATHS = { pages: '/', ui: '/ui/{version}/', api: '/api/{id}/', mcp: '/mcp' };
@@ -26,8 +26,21 @@ export interface PathOf {
 export const partPath = (part: RoutedPart, { id, version }: PathOf): string =>
   PART_PATHS[part].replace('{version}', version).replace('{id}', id);
 
+// mcp: bare /mcp, and /mcp/{id}, /connector/{id} and their RFC 9728 documents as the app host routes them.
+const mcpRule = ({ id }: PathOf): string =>
+  [
+    'Path(`/mcp`)',
+    `Path(\`/mcp/${id}\`)`,
+    'Path(`/connector`)',
+    `Path(\`/connector/${id}\`)`,
+    `PathRegexp(\`^/\\.well-known/oauth-protected-resource/(mcp|connector)(/${id})?$\`)`,
+  ].join(' || ');
+
 const ruleOf = (part: RoutedPart, of: PathOf): string =>
-  part === 'mcp' ? 'Path(`/mcp`)' : `PathPrefix(\`${partPath(part, of)}\`)`;
+  part === 'mcp' ? mcpRule(of) : `PathPrefix(\`${partPath(part, of)}\`)`;
+
+// mcp above well-known (api): it serves its own RFC 9728 documents.
+const PRIORITY: Partial<Record<RoutedPart, number>> = { pages: 1, mcp: 110 };
 
 const router = (rule: string, priority: number, service: string) => ({
   rule,
@@ -39,10 +52,12 @@ const router = (rule: string, priority: number, service: string) => ({
 
 const partRouters = (routed: RoutedPart[], of: PathOf) => {
   const routers: Record<string, ReturnType<typeof router>> = {};
-  for (const part of routed)
-    routers[part] = router(ruleOf(part, of), part === 'pages' ? 1 : 100, part);
+  for (const part of routed) routers[part] = router(ruleOf(part, of), PRIORITY[part] ?? 100, part);
   // The old api prefix, as runPart serves it, until phase 4.
   if (routed.includes('api')) routers['api-v1'] = router('PathPrefix(`/api/v1/`)', 100, 'api');
+  // ctx.files (git smart-HTTP) is on the api part.
+  if (routed.includes('api'))
+    routers['files'] = router(`PathPrefix(\`/files/${of.id}/\`)`, 100, 'api');
   if (routed[0]) routers['well-known'] = router('PathPrefix(`/.well-known/`)', 100, routed[0]);
   return routers;
 };

@@ -67,4 +67,13 @@ describe('server part recipe', () => {
       expect(await healthcheckExit(healthcheck, status as number)).toBe(exit);
     }
   );
+
+  it('a git store part gets git with http-backend and its repos on the /data volume', () => {
+    const git = serverPartRecipe('api', true).split('\n');
+    expect(git).toContain('ENV AGENTAGE_DATA_DIR=/data/store');
+    expect(git).toContain('RUN apk add --no-cache git git-daemon');
+    expect(git).toContain('VOLUME /data');
+    expect(git.indexOf('VOLUME /data')).toBeLessThan(git.indexOf('USER node'));
+    expect(recipe).not.toContain('git');
+  });
 });

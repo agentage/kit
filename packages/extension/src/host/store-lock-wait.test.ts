@@ -44,8 +44,10 @@ const zombieOf = () =>
     parent.stdout!.once('data', (chunk: Buffer) => {
       const pid = Number(String(chunk));
       const exec = () => {
-        if (readFileSync(`/proc/${parent.pid}/comm`, 'utf8').trim() !== 'sleep')
-          return setTimeout(exec, 5);
+        if (readFileSync(`/proc/${parent.pid}/comm`, 'utf8').trim() !== 'sleep') {
+          setTimeout(exec, 5);
+          return;
+        }
         (parent.stdio[3] as NodeJS.WritableStream).end();
         resolve({ pid, parent });
       };

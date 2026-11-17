@@ -15,8 +15,9 @@ describe('the store open waits for a lock holder that is going away', () => {
     const data = join(await tempDir(), 'data');
     const other = holder();
     await writeFile(`${data}.lock`, String(other.pid));
-    setTimeout(() => other.kill('SIGKILL'), 300);
-    const release = await lockWithin(data, 5_000);
+    const taking = lockWithin(data, 5_000);
+    other.kill('SIGKILL');
+    const release = await taking;
     expect(readFileSync(`${data}.lock`, 'utf8')).toBe(String(process.pid));
     await release();
   });
@@ -37,13 +38,15 @@ describe('the store open waits for a lock holder that is going away', () => {
 // sh forks `cat` on fd 3 and execs into a sleep that never reaps it; the test ends cat after the exec,
 // so the exit comes later than the exec (an earlier exit is reaped by sh itself).
 const zombieOf = () =>
-  new Promise<{ pid: number; parent: ReturnType<typeof spawn> }>((resolve) => {
+  new Promise<{ pid: number; parent: ReturnType<typeof spawn> }>((resolve, reject) => {
     const parent = spawn('sh', ['-c', 'cat <&3 >/dev/null & echo $!; exec sleep 30'], {
       stdio: ['ignore', 'pipe', 'inherit', 'pipe'],
     });
     parent.stdout!.once('data', (chunk: Buffer) => {
       const pid = Number(String(chunk));
+      let polls = 0;
       const exec = () => {
+        if (++polls > 1_000) return reject(new Error('sh never exec-ed into sleep'));
         if (readFileSync(`/proc/${parent.pid}/comm`, 'utf8').trim() !== 'sleep') {
           setTimeout(exec, 5);
           return;

@@ -18,7 +18,7 @@ The shell serves one copy of React and of this package through an import map: an
 | Call                      | What it gives                                                                                                                                                                                                        |
 | ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `useAppShell()`           | `{ id, route: { path, query }, notify({ text, kind }), openAside(key), closeAside(), navigate(page), setPages([{ title, path }]), setBottomBar({ title, count } \| null) }`; `route.path` is the page after `/{id}/` |
-| `useAppHost()`            | `{ id, user, scopes, api(path, init?) }`; `api('/echo')` calls `/api/{id}/echo` and returns the envelope `data`                                                                                                      |
+| `useAppHost()`            | `{ id, extension: { id, version }, host: { kind, url }, user, scopes, api(path, init?) }` (C7; `kind` is `local`, `desktop` or `cloud`); `api('/echo')` calls `/api/{id}/echo` and returns the envelope `data`       |
 | `useAppState(key, init)`  | `[value, set]`, kept by the shell per app and key: a remount (a new build, an update) keeps it; every reader of a key sees one value                                                                                 |
 | `<Region name>`           | renders its children into a frame region (`lead`, `actions`, `aside`, `notices`, `bottom`, `side`) as a React portal, inside an error boundary                                                                       |
 | `<Split id init min max>` | two panes on the design-system `ResizableSplit` (px; arrows 16 px, Shift 64 px, Home, End, drag; `orientation`, `collapsible` with `useSplit().toggle()`); the size holds across a reload with no layout shift       |
@@ -67,6 +67,6 @@ render(
 
 ## Host adapters
 
-`HostAdapter` (`user`, `scopes`, `request(id, path, init)`) is the one seam per host kind. The shell
+`HostAdapter` (`kind`, `url`, `version`, `user`, `scopes`, `request(id, path, init)`) is the one seam per host kind. The shell
 gives the local adapter (the daemon, no token); a cloud adapter comes later. The path a hook passes is
 already checked.

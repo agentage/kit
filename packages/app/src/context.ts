@@ -20,6 +20,8 @@ export const useAppHost = (): AppHost => {
   return useMemo(
     () => ({
       id,
+      extension: { id, version: host.version },
+      host: { kind: host.kind, url: host.url },
       user: host.user,
       scopes: host.scopes,
       api: <T>(path: string, init?: RequestInit) => callApi<T>(host, id, path, init),

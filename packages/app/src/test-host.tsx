@@ -6,6 +6,7 @@ import type {
   AsideKey,
   BottomBar,
   HostAdapter,
+  HostInfo,
   Notice,
   PageLink,
   RegionHost,
@@ -38,6 +39,9 @@ export interface TestHostProps {
   children: ReactNode;
   user?: AppUser | null;
   scopes?: string[];
+  // C7 `extension.version` and `host`; defaults 0.0.0 and a local host.
+  version?: string;
+  at?: HostInfo;
   // The api reply for a path; the default echoes `{ path }` in an ok envelope.
   reply?: (call: TestCall) => unknown;
   record?: TestRecord;
@@ -48,6 +52,7 @@ export interface TestHostProps {
 const REGIONS: RegionName[] = ['lead', 'actions', 'aside', 'notices', 'bottom', 'side'];
 const TEST_USER: AppUser = { id: 'u-test', name: 'Test User' };
 const NO_SCOPES: string[] = [];
+const TEST_AT: HostInfo = { kind: 'local', url: 'http://127.0.0.1:4243' };
 const HOME: AppRoute = { path: '', query: {} };
 const echo = (call: TestCall): unknown => ({ path: call.path });
 
@@ -105,16 +110,17 @@ export const TestHost = (props: TestHostProps) => {
   const [store] = useState(() => props.store ?? createStateStore());
   const [regions, regionRef] = useRegionHost();
   const { id, user = TEST_USER, scopes = NO_SCOPES, reply = echo, route = HOME } = props;
+  const { version = '0.0.0', at = TEST_AT } = props;
   const value = useMemo<AppContextValue>(
     () => ({
       id,
       route,
       store,
       regions,
-      host: { user, scopes, request: testRequest(record, reply) },
+      host: { ...at, version, user, scopes, request: testRequest(record, reply) },
       shell: testShell(record),
     }),
-    [id, route, store, regions, user, scopes, record, reply]
+    [id, route, store, regions, user, scopes, record, reply, version, at]
   );
   return (
     <AppContext.Provider value={value}>

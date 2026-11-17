@@ -6,6 +6,9 @@ correlation id, the response envelope, the store pool, the scheduler and argumen
 `@agentage/extension/tool` is the tool behind `agentage extension build | up | down | token`.
 `@agentage/extension/logs` is the event line (`EventSchema`, `parseLine`, `createLogger`,
 `createEventsClient`, `KINDS`, `LEVELS`, `USER_TYPES`), built into the kit's own tarball.
+`@agentage/extension/app` is the app part: `useAppShell()` (route, regions, notices, state) and
+`useAppHost()` (`user`, `scopes`, `api`, and since 0.18.2 `extension { id, version }` and
+`host { kind, url }`, kind `local`, `desktop` or `cloud`).
 
 ```bash
 npm install @agentage/extension express zod

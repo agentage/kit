@@ -5,7 +5,8 @@ import { type FilesEntry } from '../api/files-registry.js';
 import { createRouteRegistry, type ApiContext, type RouteEntry } from '../api/routes.js';
 import { type WellKnownEntry } from '../api/well-known.js';
 import { type PartContext } from '../context/context.js';
-import { isReply, ok, reply } from '../envelope/envelope.js';
+import { clearedAt, rank } from '../auth/token-check.js';
+import { fail, isReply, ok, reply } from '../envelope/envelope.js';
 import { parse } from '../envelope/parse.js';
 import { type ApiHandler } from './part.types.js';
 import { sendDownload } from './send-download.js';
@@ -37,6 +38,15 @@ const sendJson = (req: Request, res: Response, spec: RouteEntry['spec'], answer:
   res.status(status).json(body);
 };
 
+// A scoped handler never runs for a request the route guard did not check at its scope.
+const refuseUncleared = (req: Request, { spec }: RouteEntry): void => {
+  const need = spec.scope ?? 'read';
+  if (need === 'public' || need === 'optional') return;
+  const at = clearedAt(req);
+  if (at === 'open' || (at !== undefined && rank(at) >= rank(need))) return;
+  throw fail('UNAUTHORIZED', 'The route was not checked for a token');
+};
+
 // Validated in, the handler's data (bare or a reply) parsed by its output schema and sent in the envelope;
 // a file as it is.
 const handlerOf =
@@ -45,6 +55,7 @@ const handlerOf =
     const input = inputOf(entry, req.query, req.body);
     const { query: shape } = entry.spec;
     const query = shape ? parse(shape, req.query, 'Invalid query') : {};
+    refuseUncleared(req, entry);
     const caller = ctx.auth.caller(req);
     const { params: schema } = entry.spec;
     const params = schema ? parse(schema, req.params, 'Invalid path') : req.params;

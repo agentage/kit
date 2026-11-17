@@ -53,7 +53,7 @@ const trigger = ({ account, version, compact }: Pick<Props, 'account' | 'version
             Not signed in<span className="sr-only">, run agentage setup</span>
           </b>
         )}
-        <span data-shell-version={version}>shell {version}</span>
+        <span data-shell-version={version}>kit {version}</span>
       </span>
       <ChevronUp {...I} />
     </button>
@@ -77,7 +77,7 @@ const links = (account: Account, go: (href: string) => void): ReactNode[] => {
     ));
 };
 
-// The account region: who is signed in, the shell version (`shell 0.1.0`), the account links.
+// The account region: who is signed in, the shell version (`kit 0.18.4`), the account links.
 export const AccountMenu = ({ account, version, apps = [], compact, ...on }: Props) => {
   if (!account.label && account.signIn)
     return <SignInLink href={account.signIn} version={version} compact={compact} />;
@@ -90,7 +90,7 @@ export const AccountMenu = ({ account, version, apps = [], compact, ...on }: Pro
     >
       <DropdownMenuLabel>{account.label ?? SIGNED_OUT}</DropdownMenuLabel>
       <DropdownMenuSeparator />
-      <DropdownMenuLabel>shell {version}</DropdownMenuLabel>
+      <DropdownMenuLabel>kit {version}</DropdownMenuLabel>
       {apps.map((a) => (
         <DropdownMenuLabel key={a.id}>{`${a.id} ${a.version}`}</DropdownMenuLabel>
       ))}

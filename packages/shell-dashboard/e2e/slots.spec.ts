@@ -28,7 +28,7 @@ for (const width of [1280, 400]) {
       await expect(aside).toBeVisible();
       expect(await axe(page)).toEqual([]);
       await page.keyboard.press('Escape');
-      expect(new URL(page.url()).search).toBe('');
+      await expect.poll(() => new URL(page.url()).search).toBe('');
     });
 
     test('with no extension, main says how to install one; axe 0', async ({ page }) => {

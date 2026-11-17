@@ -67,7 +67,7 @@ describe('Frame', () => {
       expect(el.querySelector(`[data-region="${r}"]`), r).not.toBeNull();
     for (const r of ['lead', 'actions', 'aside', 'notices', 'bottom', 'side'] as const)
       expect(regions.node(r), r).not.toBeNull();
-    expect(el.querySelector('[data-region="account"]')?.textContent).toContain('shell 0.1.0');
+    expect(el.querySelector('[data-region="account"]')?.textContent).toContain('kit 0.1.0');
     expect(el.querySelector('[aria-current="page"]')?.textContent).toBe('Probe');
   });
 
@@ -188,7 +188,7 @@ describe('Frame', () => {
     const link = el.querySelector<HTMLAnchorElement>('[data-region="account"] a.acct');
     expect(link?.href).toBe(signIn);
     expect(link?.textContent).toContain('Sign in');
-    expect(link?.textContent).toContain('shell 0.1.0');
+    expect(link?.textContent).toContain('kit 0.1.0');
     expect(el.textContent).not.toContain('run agentage setup');
   });
 

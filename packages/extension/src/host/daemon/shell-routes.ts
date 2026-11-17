@@ -22,11 +22,12 @@ export interface Shell {
   version: string;
 }
 
-export const readShell = async (dir: string): Promise<Shell> => {
+// `version` overrides the package's: the kit's own shell reports the kit that built it.
+export const readShell = async (dir: string, version?: string): Promise<Shell> => {
   const pkg = JSON.parse(await readFile(join(dir, 'package.json'), 'utf8')) as Partial<Shell>;
   if (typeof pkg.version !== 'string' || typeof (pkg as { name?: unknown }).name !== 'string')
     throw new Error(`${dir}/package.json has no name or version: not a shell package`);
-  return { dir, package: (pkg as { name: string }).name, version: pkg.version };
+  return { dir, package: (pkg as { name: string }).name, version: version ?? pkg.version };
 };
 
 type User = { id: string; email?: string; name?: string };

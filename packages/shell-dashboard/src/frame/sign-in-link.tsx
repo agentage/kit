@@ -19,7 +19,7 @@ export const SignInLink = ({ href, version, compact }: Props) =>
       </span>
       <span className="who">
         <b>Sign in</b>
-        <span data-shell-version={version}>shell {version}</span>
+        <span data-shell-version={version}>kit {version}</span>
       </span>
     </a>
   );

@@ -41,6 +41,7 @@ describe('createBridge', () => {
       props: {},
     });
     await expect(host.api('/one')).resolves.toBe(1);
+    expect(calls[0]?.url).toBe('/api/probe/one');
     expect(new Headers(calls[0]?.init.headers).has('authorization')).toBe(false);
   });
 

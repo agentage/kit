@@ -8,21 +8,24 @@ const MAX_MS = 30_000;
 export const openFeed = (
   events: (url: string) => EventSourceLike,
   url: string,
-  wire: (source: EventSourceLike) => void
+  wire: (source: EventSourceLike) => void,
+  random: () => number = Math.random
 ): (() => void) => {
   let source: EventSourceLike;
   let timer: ReturnType<typeof setTimeout> | undefined;
-  let delay = FIRST_MS;
+  let span = 2 * FIRST_MS;
+  // Full jitter above a 1 s floor: the pages one deploy cut off do not all come back at once.
+  const waitMs = () => FIRST_MS + Math.floor(random() * (span - FIRST_MS));
   const connect = () => {
     timer = undefined;
     const current = (source = events(url));
     wire(current);
-    current.addEventListener('open', () => (delay = FIRST_MS));
+    current.addEventListener('open', () => (span = 2 * FIRST_MS));
     current.addEventListener('error', () => {
       if (current.readyState !== CLOSED || timer) return;
       current.close();
-      timer = setTimeout(connect, delay);
-      delay = Math.min(delay * 2, MAX_MS);
+      timer = setTimeout(connect, waitMs());
+      span = Math.min(span * 2, MAX_MS);
     });
   };
   connect();

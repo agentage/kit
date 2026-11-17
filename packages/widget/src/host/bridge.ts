@@ -1,4 +1,4 @@
-import { callApi } from './api.js';
+import { callApi, type ApiTarget } from './api.js';
 import { hostError } from './host-error.js';
 import {
   type FetchLike,
@@ -37,7 +37,7 @@ const contextOf = (options: BridgeOptions): HostContext => ({
   props: options.props ?? {},
 });
 
-// POST {baseUrl}/mcp and {baseUrl}/api/v1, same origin by default; the token stays in here.
+// POST {baseUrl}/mcp and {baseUrl}/api/{id} (else /api/v1), same origin by default; the token stays in here.
 export const createBridge = (options: BridgeOptions): Host => {
   const base = (options.baseUrl ?? '').replace(/\/+$/, '');
   const fetchFn: FetchLike = (input, init) => (options.fetch ?? fetch)(`${base}${input}`, init);
@@ -45,13 +45,14 @@ export const createBridge = (options: BridgeOptions): Host => {
   let lastId = 0;
   const clientInfo = { name: options.clientName ?? 'agentage-widget', version: WIDGET_VERSION };
   const tool = { fetch: fetchFn, token, clientInfo, nextId: () => ++lastId };
+  const api: ApiTarget = { fetch: fetchFn, token, id: options.id, bases: {} };
   return {
     // The cast is the typed view an extension declares through ToolOutputs.
     tool: <N extends string>(name: N, args: Record<string, unknown> = {}) =>
       (own(options.id, name)
         ? callTool(tool, name, args)
         : Promise.reject(foreign(options.id ?? ''))) as Promise<ToolOutput<N>>,
-    api: (path, init) => callApi(fetchFn, token, path, init),
+    api: (path, init) => callApi(api, path, init),
     context: contextOf(options),
   };
 };

@@ -71,7 +71,7 @@ a shell page calls it with a loaded bundle's map to define the elements.
 - `@agentage/widget/bundle`: `bundle({ dir })`, also the bin `agentage-widget bundle`.
 
 `useHost()` gives `tool(name, args)`, which resolves the tool's `structuredContent` and rejects
-with its `error.code`. It also gives `api(path, init)`, which resolves the `/api/v1` envelope's
+with its `error.code`. It also gives `api(path, init)`, which resolves the `/api/{id}` envelope's
 `data`, and `context` (extension, version, path, theme, props).
 
 ## Bundle output
@@ -87,7 +87,7 @@ The bundler reads `agentage.id` and `version` from the extension's `package.json
 ## The harness page
 
 - It mounts every widget from `widgets.json`, or the one in `?widget=<name>`.
-- `tool` becomes a 2026-07-28 JSON-RPC `tools/call` on `POST /mcp`. `api` becomes `/api/v1{path}`.
+- `tool` becomes a 2026-07-28 JSON-RPC `tools/call` on `POST /mcp`. `api` becomes `/api/{id}{path}` (the daemon and the one-image host). Only a 404 there that the route does not own (a host with no such base) tries `/api/v1{path}` once; the base that answers with a 2xx or a 4xx other than 404 is kept for the bridge. A bridge with no id calls `/api/v1{path}`.
 - Each call stops after 30 s. A refusal before the tool runs (401, 403, 503) rejects with the
   envelope's code.
 - Token: `?token=` wins. On `localhost` or `127.0.0.1` it asks the dev issuer at

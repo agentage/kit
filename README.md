@@ -136,6 +136,21 @@ Before that, CI builds [extension-probe](https://github.com/agentage/extension-p
 packed packages, runs `up`, and checks every part image and the served discovery document. A kit
 change is proven in containers before it ships.
 
+### When a release run fails
+
+Run the failed run of the tag again (`gh run rerun <id> -R agentage/platform`). Do not open a
+version-only PR: CI refuses a package version that moves with no other change in that package
+(`scripts/check-bumps.mjs`). A second attempt is safe:
+
+- it passes the "release already exists" guard, which stops only a first attempt;
+- the publish step skips each version that is already on npm, so it publishes only what is missing;
+- a package whose `@agentage` dependency is not on npm yet waits, and the next attempt publishes it.
+
+A version that the run staged (`STAGED for approval` in the log) needs the owner: approve or discard
+it on npmjs.com, then run the attempt again. A run that failed in `Verify` on a known flaky test is
+the same case. A real defect is a fix PR with a new version; that PR changes the package, so the
+check passes.
+
 ## License
 
 MIT. See [LICENSE](LICENSE).

@@ -47,6 +47,14 @@ export const setCaller = (request: object, caller: Caller | null): void => {
 
 export const callerOf = (request: object): Caller | null => callers.get(request) ?? null;
 
+// The access the route guard let a request through at; open: the host takes no token by design.
+const cleared = new WeakMap<object, Access | 'open'>();
+
+export const setCleared = (request: object, access: Access | 'open'): void =>
+  void cleared.set(request, access);
+
+export const clearedAt = (request: object): Access | 'open' | undefined => cleared.get(request);
+
 export const rank = (access: Access): number => ACCESS.indexOf(access);
 
 export const scopeOf = (id: string, access: Access = 'read'): string =>

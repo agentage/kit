@@ -5,8 +5,8 @@ import { type WellKnownEntry, type WellKnownRender } from '../api/well-known.js'
 import { agcidMiddleware } from '../agcid/scope.js';
 import { mountFiles } from '../api/files.js';
 import { type FilesEntry } from '../api/files-registry.js';
-import { routeAccess, sameShape } from '../auth/route-access.js';
-import { setCaller, type TokenCheck } from '../auth/token-check.js';
+import { methodsOf, routeAccess, sameShape } from '../auth/route-access.js';
+import { setCaller, setCleared, type TokenCheck } from '../auth/token-check.js';
 import {
   discoveryDocument,
   recordOf,
@@ -162,16 +162,20 @@ const routeGuard = (options: ApiAppOptions): RequestHandler => {
   const prefix = apiPrefix(options.pkg.agentage.id);
   return async (req, res, next) => {
     const { routes } = options;
-    const known = routes?.find(
-      (r) => r.method === req.method.toLowerCase() && sameShape(r.path, req.path)
-    );
+    const methods = methodsOf(req.method);
+    const known = routes?.find((r) => methods.includes(r.method) && sameShape(r.path, req.path));
     // The mount as called (an alias too), so the row counts the callers of each prefix.
     if (known) res.locals['route'] = `${req.baseUrl.toLowerCase()}${known.path}`;
-    if (!options.tokenCheck || (routes?.length && !known)) return next();
+    if (routes?.length && !known) return next();
+    if (!options.tokenCheck) {
+      setCleared(req, 'open');
+      return next();
+    }
     const access = routeAccess(options.openapi, req.method, `${prefix}${req.path}`);
     const caller = await options.tokenCheck(req.get('authorization'), access);
     if (caller) res.setHeader('Cache-Control', 'no-store');
     setCaller(req, caller);
+    setCleared(req, access);
     next();
   };
 };

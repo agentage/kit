@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 import type { ReactNode } from 'react';
 import type { Account } from './frame.types.js';
+import { SignInLink } from './sign-in-link.js';
 
 interface Props {
   account: Account;
@@ -78,6 +79,8 @@ const links = (account: Account, go: (href: string) => void): ReactNode[] => {
 
 // The account region: who is signed in, the shell version (`shell 0.1.0`), the account links.
 export const AccountMenu = ({ account, version, apps = [], compact, ...on }: Props) => {
+  if (!account.label && account.signIn)
+    return <SignInLink href={account.signIn} version={version} compact={compact} />;
   const items = links(account, on.onNavigate);
   return (
     <DropdownMenu

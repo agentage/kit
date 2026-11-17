@@ -31,6 +31,8 @@ export interface SessionUser {
 export interface Session {
   user: SessionUser | null;
   host: string;
+  // A cloud app host signed out: its auth sign-in page, back to this page. The daemon never sends it.
+  signIn?: string;
 }
 
 // GET /shell/events (SSE): `extensions` and `session` say "fetch again"; `app` names the new build.

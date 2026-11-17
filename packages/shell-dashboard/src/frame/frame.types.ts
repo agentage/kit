@@ -16,6 +16,8 @@ export interface Account {
   pending?: boolean;
   // Routes of the account extension; a missing one hides its menu item.
   links?: { settings?: string; tokens?: string; signOut?: string };
+  // A cloud host's sign-in page; signed out with it, the account region is a Sign in link.
+  signIn?: string;
 }
 
 export interface AsideState {

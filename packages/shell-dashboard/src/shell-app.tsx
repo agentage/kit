@@ -73,7 +73,13 @@ export const ShellApp = ({ deps, version }: { deps: ShellDeps; version: string }
     <Toasts notices={notices}>
       <Frame
         rows={navRowsOf(rows, route.id)}
-        account={{ label, initials: initials(label), pending: !session, links: accountLinks(rows) }}
+        account={{
+          label,
+          initials: initials(label),
+          pending: !session,
+          links: accountLinks(rows),
+          ...(!user && session?.signIn && { signIn: session.signIn }),
+        }}
         apps={rows.map((r) => ({ id: r.id, version: r.version }))}
         version={version}
         title={title}

@@ -12,7 +12,7 @@ export const wordPackage = (word: string, id = 'word') =>
       name: `@agentage/extension-${id}`,
       version: '1.0.0',
       type: 'module',
-      engines: { agentage: '^0.17' },
+      engines: { agentage: '^0.18' },
       agentage: { id, parts: { api: true } },
     }),
     'dist/api/index.js': 'export const create = () => (_req, _res, next) => next();\n',

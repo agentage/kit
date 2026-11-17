@@ -3,6 +3,7 @@ import { Box, Brain, Cloud, List, Store } from 'lucide-react';
 import { createRoot } from 'react-dom/client';
 import { Frame } from '../src/frame/frame.js';
 import { createRegionHost } from '../src/frame/regions.js';
+import { shellVersion } from '../src/version.js';
 
 const ICON = { className: 'i', 'aria-hidden': true } as const;
 // One row per installed extension with `agentage.app`; the shell has no rows of its own.
@@ -34,7 +35,7 @@ createRoot(document.getElementById('root')!).render(
       current: id === 'platform',
     }))}
     account={{ label: 'Alex Doe', initials: 'AD' }}
-    version="0.1.0"
+    version={shellVersion()}
     title="Overview"
     pages={PAGES}
     unread={3}

@@ -31,7 +31,12 @@ const alive = (pid: number): boolean => {
 // for EMPTY_LOCK_MS, then stale.
 export const EMPTY_LOCK_MS = 1_000;
 
-const pidIn = (file: string) => readFile(file, 'utf8').catch(() => '0');
+// A missing file was just removed by a breaker or a release: nothing to break, take it once more.
+const GONE = -1;
+const pidIn = (file: string) =>
+  readFile(file, 'utf8').catch((err: NodeJS.ErrnoException) =>
+    err.code === 'ENOENT' ? String(GONE) : '0'
+  );
 
 const holder = async (file: string): Promise<number> => {
   const until = Date.now() + EMPTY_LOCK_MS;
@@ -95,8 +100,9 @@ const take = async (lock: string): Promise<boolean> => {
 
 // A guard left by a breaker that died is removed and taken once more.
 const takeDeadGuard = async (guard: string): Promise<boolean> => {
-  if (live(guard, await holder(guard))) return false;
-  await unlink(guard).catch(() => undefined);
+  const pid = await holder(guard);
+  if (live(guard, pid)) return false;
+  if (pid !== GONE) await unlink(guard).catch(() => undefined);
   return take(guard);
 };
 
@@ -135,7 +141,7 @@ const acquire = async (lock: string): Promise<void> => {
   if (await take(lock)) return;
   const pid = await holder(lock);
   if (live(lock, pid)) throw locked(lock, pid);
-  await breakStale(lock, pid);
+  if (pid !== GONE) await breakStale(lock, pid);
   if (!(await take(lock))) throw locked(lock, await holder(lock));
 };
 

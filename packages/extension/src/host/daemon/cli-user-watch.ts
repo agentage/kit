@@ -36,8 +36,8 @@ export const syncCliUser = async (
   const sub = await cliUserOf(text);
   const changed = sub !== deps.user.sub;
   Object.assign(deps.user, { text, sub });
-  // The shell shows the email and name of the file too, so any new text says "fetch the session again".
-  events?.send('session', { signedIn: sub !== undefined });
+  // A signed-in file shows its email and name too; signed out says it once, not on each offline retry.
+  if (changed || sub !== undefined) events?.send('session', { signedIn: sub !== undefined });
   if (!changed) return false;
   deps.log.info('cli user changed: running extensions restart', { signedIn: sub !== undefined });
   for (const entry of entries.values()) if (entry.lane) await restart(deps, entry);

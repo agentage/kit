@@ -72,9 +72,10 @@ const paths = new Map<string, string>();
 class IngestError extends Error {
   constructor(
     readonly status: number,
-    path = LEGACY
+    path = LEGACY,
+    what = `answered ${status}`
   ) {
-    super(`POST ${path} answered ${status}`);
+    super(`POST ${path} ${what}`);
   }
 }
 
@@ -90,6 +91,16 @@ const request = (o: EventsClientOptions, body: string, path: string) =>
     signal: AbortSignal.timeout(o.timeoutMs ?? 5000),
   });
 
+// Statuses the ingest route itself answers: a different route would be a 404 or a proxy's 401, 403, 429 or 5xx.
+const OWN_4XX = new Set([400, 413, 422]);
+
+const resultOf = (reply: unknown): PostResult | undefined => {
+  const data = (reply as { data?: Partial<PostResult> } | null)?.data;
+  return typeof data?.accepted === 'number' && typeof data.rejected === 'number'
+    ? { accepted: data.accepted, rejected: data.rejected }
+    : undefined;
+};
+
 const sendOnce = async (o: EventsClientOptions, body: string): Promise<PostResult> => {
   const key = o.url.replace(/\/+$/, '');
   let path = paths.get(key) ?? ONE_IMAGE;
@@ -98,11 +109,16 @@ const sendOnce = async (o: EventsClientOptions, body: string): Promise<PostResul
     path = LEGACY;
     res = await request(o, body, path);
   }
-  if (res.status !== 404 || path === LEGACY) paths.set(key, path);
-  if (!res.ok) throw new IngestError(res.status, path);
-  // A 2xx was taken: an unreadable answer is never retried, it would post the rows twice.
-  const reply = (await res.json().catch(() => ({}))) as { data?: PostResult };
-  return reply.data ?? { accepted: 0, rejected: 0 };
+  if (!res.ok) {
+    if (OWN_4XX.has(res.status)) paths.set(key, path);
+    throw new IngestError(res.status, path);
+  }
+  // A 2xx was taken: an unreadable or unknown answer is never retried, it would post the rows twice.
+  const result = resultOf(await res.json().catch(() => null));
+  if (!result)
+    throw new IngestError(res.status, path, 'answered a body that is not the ingest result');
+  paths.set(key, path);
+  return result;
 };
 
 const pause = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));

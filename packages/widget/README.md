@@ -87,7 +87,7 @@ The bundler reads `agentage.id` and `version` from the extension's `package.json
 ## The harness page
 
 - It mounts every widget from `widgets.json`, or the one in `?widget=<name>`.
-- `tool` becomes a 2026-07-28 JSON-RPC `tools/call` on `POST /mcp`. `api` becomes `/api/{id}{path}` (the daemon and the one-image host). A 2xx, or an envelope on 400 or 422, pins that base for the bridge. Before a base is pinned, a 404, 401 or 403 (no such base, or an edge of a v13 host) tries `/api/v1{path}` once; 429 and 5xx never pin and never fall back. A bridge with no id calls `/api/v1{path}`.
+- `tool` becomes a 2026-07-28 JSON-RPC `tools/call` on `POST /mcp`. `api` becomes `/api/{id}{path}` (the daemon and the one-image host). A 2xx, or an envelope on 400 or 422, pins that base for the bridge. Before a base is pinned, a 404, 401 or 403 (no such base, or an edge of a v13 host) tries `/api/v1{path}` once; After a base is pinned, only a 404 (the host moved) drops the pin and tries the other base once. 429 and 5xx never pin and never fall back. A bridge with no id calls `/api/v1{path}`.
 - Each call stops after 30 s. A refusal before the tool runs (401, 403, 503) rejects with the
   envelope's code.
 - Token: `?token=` wins. On `localhost` or `127.0.0.1` it asks the dev issuer at

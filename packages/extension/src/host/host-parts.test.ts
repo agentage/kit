@@ -35,6 +35,12 @@ const rpc = (method: string, params?: object) => ({
 
 describe('one host process runs every server part', () => {
   it('api at /api/{id}, mcp at /mcp/{id} only, one /health with parts, store and job checks', async () => {
+    // Mid-minute: the per-minute tick job must not fire before total 0 is read on a slow runner.
+    vi.useFakeTimers({
+      toFake: ['Date'],
+      now: new Date().setSeconds(10, 0),
+      shouldAdvanceTime: true,
+    });
     const { h, server } = await host({ dataDir: await dataDir(), secrets: SECRETS });
     expect(h.parts).toEqual(['api', 'mcp', 'worker']);
     const ticks = await (await server.fetch('/api/all/ticks')).json();

@@ -225,6 +225,38 @@ describe('the ingest path', () => {
     }
   });
 
+  it('a 404 on a pinned path tries the other path once and pins it: the move and the move back, each 2xx once', async () => {
+    let [live, taken] = ['/api/v1/events', 0];
+    const { seen, impl } = paths((path) => (path === live ? (taken++, 200) : 404));
+    expect((await post('https://moves.test', impl)).accepted).toBe(1);
+    live = '/api/logs/events';
+    expect((await post('https://moves.test', impl)).accepted).toBe(1);
+    expect((await post('https://moves.test', impl)).accepted).toBe(1);
+    live = '/api/v1/events';
+    expect((await post('https://moves.test', impl)).accepted).toBe(1);
+    expect(seen).toEqual([
+      ...['/api/logs/events', '/api/v1/events'],
+      ...['/api/v1/events', '/api/logs/events', '/api/logs/events'],
+      ...['/api/logs/events', '/api/v1/events'],
+    ]);
+    expect(taken).toBe(4);
+  });
+
+  it('a pinned path and the other path both 404: the error, and no pin is kept', async () => {
+    let live = '/api/v1/events';
+    const { seen, impl } = paths((path) => (path === live ? 200 : 404));
+    await post('https://dies.test', impl);
+    live = '';
+    await expect(post('https://dies.test', impl)).rejects.toThrow(
+      /\/api\/logs\/events answered 404/
+    );
+    await expect(post('https://dies.test', impl)).rejects.toThrow(/404/);
+    expect(seen.slice(2)).toEqual([
+      ...['/api/v1/events', '/api/logs/events'],
+      ...['/api/logs/events', '/api/v1/events'],
+    ]);
+  });
+
   it('pins a route-owned 4xx: a 422 from the legacy path is remembered', async () => {
     const { seen, impl } = paths((path) => (path === '/api/logs/events' ? 404 : 422));
     await expect(post('https://own.test', impl)).rejects.toThrow(/422/);

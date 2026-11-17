@@ -50,16 +50,22 @@ const routeOwned = ({ res, body }: Answer) =>
 // A missing base (404), or an edge of a v13 host that answers before routing (401, 403).
 const FOREIGN = new Set([401, 403, 404]);
 
-// Tries /api/{id} first; a foreign answer on an unpinned base tries /api/v1 once, else it stands.
+const otherBase = (t: ApiTarget, base: string): string | undefined =>
+  base !== LEGACY ? LEGACY : t.id ? `/api/${t.id}` : undefined;
+
+// A foreign answer on an unpinned base, or a 404 on a pinned one (the host moved), tries the other base once.
 const reach = async (t: ApiTarget, path: string, init: RequestInit): Promise<Answer> => {
   const pinned = t.bases.pinned;
   const first = pinned ?? (t.id ? `/api/${t.id}` : LEGACY);
   const answer = await ask(t, `${first}${path}`, init);
   if (routeOwned(answer)) t.bases.pinned = first;
-  if (pinned || first === LEGACY || !FOREIGN.has(answer.res.status)) return answer;
-  const legacy = await ask(t, `${LEGACY}${path}`, init);
-  if (routeOwned(legacy)) t.bases.pinned = LEGACY;
-  return FOREIGN.has(legacy.res.status) ? answer : legacy;
+  const second = otherBase(t, first);
+  const status = answer.res.status;
+  if (!second || (pinned ? status !== 404 : !FOREIGN.has(status))) return answer;
+  delete t.bases.pinned;
+  const other = await ask(t, `${second}${path}`, init);
+  if (routeOwned(other)) t.bases.pinned = second;
+  return FOREIGN.has(other.res.status) ? answer : other;
 };
 
 export const callApi = async (t: ApiTarget, path: string, init?: RequestInit): Promise<unknown> => {

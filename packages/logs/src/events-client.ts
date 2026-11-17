@@ -105,8 +105,10 @@ const sendOnce = async (o: EventsClientOptions, body: string): Promise<PostResul
   const key = o.url.replace(/\/+$/, '');
   let path = paths.get(key) ?? ONE_IMAGE;
   let res = await request(o, body, path);
-  if (res.status === 404 && path === ONE_IMAGE) {
-    path = LEGACY;
+  if (res.status === 404) {
+    // The host moved under the same url: the pin is dropped and the other path is tried once.
+    paths.delete(key);
+    path = path === ONE_IMAGE ? LEGACY : ONE_IMAGE;
     res = await request(o, body, path);
   }
   if (!res.ok) {

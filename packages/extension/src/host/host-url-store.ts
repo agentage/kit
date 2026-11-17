@@ -14,6 +14,7 @@ import {
 } from '../store/store-url.js';
 import { type Store } from '../store/store.types.js';
 import { migrationsCheck } from './host-migrations.js';
+import { within } from './host-store.js';
 
 // The host's store, whichever opened it: queries, and a close on stop.
 export interface HostStore extends Store {
@@ -52,9 +53,6 @@ export const postgresStore = async (
   const pending = at.partImage ? 'degraded' : 'unavailable';
   return { ...store, checks: { 'store:migrations': migrationsCheck(parts, at.dir, log, pending) } };
 };
-
-const within = <T>(work: Promise<T>, ms: number): Promise<T | 'late'> =>
-  Promise.race([work, new Promise<'late'>((ok) => setTimeout(() => ok('late'), ms).unref())]);
 
 // The start waits up to openMs for the store (a part image: not at all); /health says 503 until it opens.
 const firstUse = async (store: HostStore, kind: UrlStoreKind, at: UrlStoreAt, log: Log) => {

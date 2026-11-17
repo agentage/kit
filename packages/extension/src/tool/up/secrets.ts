@@ -1,9 +1,10 @@
 import { chmod, mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { type ExtensionPackage } from '../../manifest/manifest.schema.js';
-import { secretNames } from '../../manifest/parts.js';
+import { hasStore, secretNames } from '../../manifest/parts.js';
 import { readJsonIfExists } from '../../manifest/read-manifest.js';
 import { type Env } from '../../runtime/build-info.js';
+import { clickhouseUrl, STORE_URL_SECRET } from './compose.js';
 import { LOCAL_DIR } from './local-record.js';
 
 const FILE = `${LOCAL_DIR}/secrets.json`;
@@ -44,4 +45,23 @@ export const writeUpSecrets = async (dir: string, pkg: ExtensionPackage, env: En
   for (const { path, value } of files)
     await writeFile(path, value, { mode: 0o644 }).then(() => chmod(path, 0o644));
   return Object.fromEntries(files.map(({ name, path }) => [name, path]));
+};
+
+// A clickhouse store's URL as one more secret file: mounted at /run/secrets/store-url like the estate does.
+export const withStoreUrl = async (
+  dir: string,
+  pkg: ExtensionPackage,
+  files: Record<string, string> | undefined
+) => {
+  if (!hasStore(pkg, 'clickhouse')) return files;
+  if (files?.[STORE_URL_SECRET])
+    throw new Error(
+      `up stopped: the declared secret ${STORE_URL_SECRET} would be replaced by the clickhouse store URL: rename it`
+    );
+  const path = join(dir, LOCAL_DIR, 'secrets', STORE_URL_SECRET);
+  await mkdir(join(dir, LOCAL_DIR, 'secrets'), { recursive: true, mode: 0o700 });
+  await writeFile(path, clickhouseUrl(pkg.agentage.id), { mode: 0o644 }).then(() =>
+    chmod(path, 0o644)
+  );
+  return { ...files, [STORE_URL_SECRET]: path };
 };

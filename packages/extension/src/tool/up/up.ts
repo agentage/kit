@@ -9,12 +9,12 @@ import { quietly, runCommand } from '../exec.js';
 import { exists } from '../stage.js';
 import { TIMEOUTS } from '../timeouts.js';
 import { compose, type ComposeTarget } from './compose-run.js';
-import { composeFile, STORE_IMAGE } from './compose.js';
+import { CLICKHOUSE_IMAGE, composeFile, runsStore, STORE_IMAGE } from './compose.js';
 import { GATEWAY_PORT, gatewayConfig, ISSUER_PORT, PART_PATHS, partPath } from './gateway.js';
 import { plural, stepLine } from './lines.js';
 import { assertDiscoverable, LOCAL_DIR, writeLocalRecord } from './local-record.js';
 import { assertPortsFree } from './ports.js';
-import { writeUpSecrets } from './secrets.js';
+import { withStoreUrl, writeUpSecrets } from './secrets.js';
 import { projectName, workingCopy } from './project.js';
 import { storePhrase, summaryOf } from './store-line.js';
 import { assertHealthBodies } from './health.js';
@@ -79,6 +79,8 @@ const buildStep = async (s: Session, env: Env) => {
 const storeStep = async (s: Session) => {
   await compose(s.deps.run, s.target, ['up', '-d', 'store'], TIMEOUTS.start);
   await waitHealthy(s.target, ['store'], s.deps);
+  if (hasStore(s.pkg, 'clickhouse'))
+    return s.line('store', CLICKHOUSE_IMAGE, 'clickhouse, no migrations');
   const run = ['run', '--rm', '--no-deps', 'migrate'];
   const out = await compose(s.deps.run, s.target, run, TIMEOUTS.migrate).catch((err: Error) => {
     throw new Error(`the migrate job failed, no part was started: ${err.message}`);
@@ -112,7 +114,8 @@ const sessionOf = async (options: UpOptions, deps: UpDeps): Promise<Session> => 
   const target = { file, project: projectName(pkg.agentage.id, dir) };
   const line = (label: string, what: string, detail?: string) =>
     options.onLine?.(stepLine(label, what, detail));
-  const secretFiles = await writeUpSecrets(dir, pkg, options.env ?? process.env);
+  const declared = await writeUpSecrets(dir, pkg, options.env ?? process.env);
+  const secretFiles = await withStoreUrl(dir, pkg, declared);
   return { dir, pkg, target, line, deps: { ...deps, run: quietly(deps.run) }, secretFiles };
 };
 
@@ -127,9 +130,9 @@ export const up = async (
   const commit = await buildStep(s, options.env ?? process.env);
   // Again after the build: another up may have started meanwhile, and the store comes next.
   await assertPortsFree(s.deps.run, s.target.project);
-  if (hasStore(s.pkg, 'postgres')) await storeStep(s);
+  if (runsStore(s.pkg)) await storeStep(s);
   await partsStep(s, commit);
-  const parts = imageParts(s.pkg).length + (hasStore(s.pkg, 'postgres') ? 1 : 0) + cliParts(s.pkg);
+  const parts = imageParts(s.pkg).length + (runsStore(s.pkg) ? 1 : 0) + cliParts(s.pkg);
   const seconds = Math.round((Date.now() - started) / 1000);
   s.line('ready', `${plural(parts, 'part')} healthy`, `${seconds} s`);
   return { parts, seconds, project: s.target.project };

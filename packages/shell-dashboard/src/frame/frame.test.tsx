@@ -188,7 +188,7 @@ describe('Frame', () => {
     const link = el.querySelector<HTMLAnchorElement>('[data-region="account"] a.acct');
     expect(link?.href).toBe(signIn);
     expect(link?.textContent).toContain('Sign in');
-    expect(link?.textContent).toContain('shell 0.1.0');
+    expect(link?.textContent).toContain('kit 0.1.0');
     expect(el.textContent).not.toContain('run agentage setup');
   });
 

@@ -77,7 +77,7 @@ const links = (account: Account, go: (href: string) => void): ReactNode[] => {
     ));
 };
 
-// The account region: who is signed in, the shell version (`kit 0.18.3`), the account links.
+// The account region: who is signed in, the shell version (`kit 0.18.4`), the account links.
 export const AccountMenu = ({ account, version, apps = [], compact, ...on }: Props) => {
   if (!account.label && account.signIn)
     return <SignInLink href={account.signIn} version={version} compact={compact} />;

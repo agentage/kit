@@ -22,6 +22,7 @@ describe('gatewayConfig', () => {
     expect(rules).toMatchObject({
       api: ['PathPrefix(`/api/probe/`)', 100, 'api'],
       'api-v1': ['PathPrefix(`/api/v1/`)', 100, 'api'],
+      files: ['PathPrefix(`/files/probe/`)', 100, 'api'],
       mcp: ['Path(`/mcp`)', 100, 'mcp'],
       ui: ['PathPrefix(`/ui/0.2.0/`)', 100, 'ui'],
       pages: ['PathPrefix(`/`)', 1, 'pages'],

@@ -43,6 +43,9 @@ const partRouters = (routed: RoutedPart[], of: PathOf) => {
     routers[part] = router(ruleOf(part, of), part === 'pages' ? 1 : 100, part);
   // The old api prefix, as runPart serves it, until phase 4.
   if (routed.includes('api')) routers['api-v1'] = router('PathPrefix(`/api/v1/`)', 100, 'api');
+  // ctx.files (git smart-HTTP) is on the api part.
+  if (routed.includes('api'))
+    routers['files'] = router(`PathPrefix(\`/files/${of.id}/\`)`, 100, 'api');
   if (routed[0]) routers['well-known'] = router('PathPrefix(`/.well-known/`)', 100, routed[0]);
   return routers;
 };

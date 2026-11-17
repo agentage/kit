@@ -68,7 +68,8 @@ change.
 1. Build the same images and write `.agentage/record.json` from the local digests.
 2. Render one compose file. It holds postgres 18 (migrate job first, `seeds/` mounted) and a dev
    token issuer on `localhost:4281`. It also holds a Traefik gateway on `localhost:4280` and one
-   container per part. A git store is the volume `store` at `/data`, shared by every part but ui.
+   container per part. A git store is the volume `store` at `/data`, shared by every part but ui;
+   the gateway sends `/files/{id}/` (git smart HTTP) to the api part.
 3. Print one line per step, ending `ready N parts healthy`.
 
 Each working copy is its own compose project (`agentage-{id}-{8 hex of the folder}`). `up`

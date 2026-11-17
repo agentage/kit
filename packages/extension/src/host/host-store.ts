@@ -13,7 +13,7 @@ const unlocked = async () => undefined;
 // How long the host waits for the store to open (and to close); the daemon sets its healthMs.
 export const STORE_OPEN_MS = 120_000;
 
-const within = <T>(work: Promise<T>, ms: number): Promise<T | 'late'> =>
+export const within = <T>(work: Promise<T>, ms: number): Promise<T | 'late'> =>
   Promise.race([
     work,
     new Promise<'late'>((resolve) => setTimeout(() => resolve('late'), ms).unref()),

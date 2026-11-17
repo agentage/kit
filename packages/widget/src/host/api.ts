@@ -42,19 +42,24 @@ const ask = (t: ApiTarget, url: string, init: RequestInit): Promise<Answer> =>
     .then(async (res) => ({ res, body: await readJson(res) }))
     .catch(timedOut(url));
 
-// A 2xx or a 4xx other than 404 comes from the route itself; a 404 may be a host with no such base.
-const routeOwned = (res: Response) =>
-  res.ok || (res.status >= 400 && res.status < 500 && res.status !== 404);
+// Only the route itself answers a 2xx, or an envelope on 400 or 422 (as the logs client, #114).
+const OWN_4XX = new Set([400, 422]);
+const routeOwned = ({ res, body }: Answer) =>
+  res.ok || (OWN_4XX.has(res.status) && EnvelopeSchema.safeParse(body).success);
 
-// Tries /api/{id} first; only a 404 there falls back to /api/v1. Both 404: the first answer stands.
+// A missing base (404), or an edge of a v13 host that answers before routing (401, 403).
+const FOREIGN = new Set([401, 403, 404]);
+
+// Tries /api/{id} first; a foreign answer on an unpinned base tries /api/v1 once, else it stands.
 const reach = async (t: ApiTarget, path: string, init: RequestInit): Promise<Answer> => {
-  const first = t.bases.pinned ?? (t.id ? `/api/${t.id}` : LEGACY);
+  const pinned = t.bases.pinned;
+  const first = pinned ?? (t.id ? `/api/${t.id}` : LEGACY);
   const answer = await ask(t, `${first}${path}`, init);
-  if (routeOwned(answer.res)) t.bases.pinned = first;
-  if (answer.res.status !== 404 || first === LEGACY || t.bases.pinned) return answer;
+  if (routeOwned(answer)) t.bases.pinned = first;
+  if (pinned || first === LEGACY || !FOREIGN.has(answer.res.status)) return answer;
   const legacy = await ask(t, `${LEGACY}${path}`, init);
-  if (routeOwned(legacy.res)) t.bases.pinned = LEGACY;
-  return legacy.res.status === 404 ? answer : legacy;
+  if (routeOwned(legacy)) t.bases.pinned = LEGACY;
+  return FOREIGN.has(legacy.res.status) ? answer : legacy;
 };
 
 export const callApi = async (t: ApiTarget, path: string, init?: RequestInit): Promise<unknown> => {

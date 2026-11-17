@@ -33,16 +33,48 @@ describe('callApi base: /api/{id}, /api/v1 only after a 404 not owned by the rou
     expect(urls(calls)).toEqual(['/api/probe/two', '/api/v1/two', '/api/v1/three']);
   });
 
-  it.each([400, 401, 403, 422])(
-    'a route-owned %i on /api/{id} pins it, no fallback',
+  it.each([400, 422])('a route envelope on %i pins /api/{id}, no fallback', async (status) => {
+    const { fetch, calls } = fakeFetch(fail(status, 'REFUSED'), ok(4));
+    const t = target(fetch);
+    await expect(callApi(t, '/x')).rejects.toMatchObject({ code: 'REFUSED' });
+    await expect(callApi(t, '/y')).resolves.toBe(4);
+    expect(urls(calls)).toEqual(['/api/probe/x', '/api/probe/y']);
+  });
+
+  it('a 400 that is not an envelope does not pin', async () => {
+    const { fetch } = fakeFetch(jsonResponse('bad', 400, 'text/plain'));
+    const t = target(fetch);
+    await expect(callApi(t, '/x')).rejects.toMatchObject({ code: 'HTTP_400' });
+    expect(t.bases.pinned).toBeUndefined();
+  });
+
+  it.each([401, 403])(
+    'a %i on an unpinned /api/{id} tries /api/v1 once and pins it',
     async (status) => {
-      const { fetch, calls } = fakeFetch(fail(status, 'REFUSED'), ok(4));
+      const { fetch, calls } = fakeFetch(fail(status, 'EDGE'), ok(6), ok(7));
       const t = target(fetch);
-      await expect(callApi(t, '/x')).rejects.toMatchObject({ code: 'REFUSED' });
-      await expect(callApi(t, '/y')).resolves.toBe(4);
-      expect(urls(calls)).toEqual(['/api/probe/x', '/api/probe/y']);
+      await expect(callApi(t, '/x')).resolves.toBe(6);
+      await expect(callApi(t, '/y')).resolves.toBe(7);
+      expect(urls(calls)).toEqual(['/api/probe/x', '/api/v1/x', '/api/v1/y']);
     }
   );
+
+  it.each([401, 403, 429])('a %i on a pinned base never falls back nor re-pins', async (status) => {
+    const { fetch, calls } = fakeFetch(ok(1), fail(status, 'NO'));
+    const t = target(fetch);
+    await callApi(t, '/a');
+    await expect(callApi(t, '/b')).rejects.toMatchObject({ code: 'NO' });
+    expect(urls(calls)).toEqual(['/api/probe/a', '/api/probe/b']);
+    expect(t.bases.pinned).toBe('/api/probe');
+  });
+
+  it('a 429 on an unpinned base neither falls back nor pins', async () => {
+    const { fetch, calls } = fakeFetch(fail(429, 'RATE'));
+    const t = target(fetch);
+    await expect(callApi(t, '/x')).rejects.toMatchObject({ code: 'RATE' });
+    expect(urls(calls)).toEqual(['/api/probe/x']);
+    expect(t.bases.pinned).toBeUndefined();
+  });
 
   it('a 5xx neither falls back nor pins', async () => {
     const { fetch, calls } = fakeFetch(fail(503, 'UNAVAILABLE'), ok(5));

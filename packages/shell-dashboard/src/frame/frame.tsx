@@ -8,6 +8,7 @@ import { frameCommands } from './commands.js';
 import type { Account, AsideState, BottomState, NavRow, PageItem } from './frame.types.js';
 import { MobileHeader } from './mobile-header.js';
 import { Nav } from './nav.js';
+import { SidePane } from './side-pane.js';
 import { BOTTOM_SPLIT, Splitter } from './splitter.js';
 import { TitleMenu } from './title-menu.js';
 import { useFrameState } from './use-frame-state.js';
@@ -93,17 +94,18 @@ export const Frame = (p: FrameProps) => {
           {navIcon}
         </button>
         <div className="center">
-          <div className="sidepane" data-region="side" ref={p.regionRef('side')} hidden />
-          <main data-region="main">
-            <div className="abar" data-region="actions">
-              <div className="lgrp">
-                <div className="lead" data-region="lead" ref={p.regionRef('lead')} />
-                <TitleMenu title={p.title} pages={p.pages ?? []} onNavigate={p.onNavigate} />
-              </div>
-              <div className="agrp" ref={p.regionRef('actions')} />
+          <div className="abar" data-region="actions">
+            <div className="lgrp">
+              <div className="lead" data-region="lead" ref={p.regionRef('lead')} />
+              <TitleMenu title={p.title} pages={p.pages ?? []} onNavigate={p.onNavigate} />
             </div>
-            {p.children}
-          </main>
+            <div className="agrp" ref={p.regionRef('actions')} />
+          </div>
+          {/* The bar spans side and main (frame.html), so a side pane that opens moves no bar. */}
+          <div className="split">
+            <SidePane regionRef={p.regionRef} />
+            <main data-region="main">{p.children}</main>
+          </div>
           <section
             className="bottom"
             data-region="bottom"

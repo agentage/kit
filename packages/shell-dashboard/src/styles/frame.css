@@ -4,6 +4,7 @@
   --nav-cur: var(--nav-full);
   --aside-w: 360px;
   --bot-h: 220px;
+  --side-w: 260px;
 }
 * {
   box-sizing: border-box;
@@ -378,9 +379,36 @@ nav.side .sep {
   min-width: 0;
   min-height: 0;
 }
+/* side pane (frame.html): left of main, shown only with app content */
+.split {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+.sidepane {
+  position: relative;
+  flex: none;
+  width: var(--side-w);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-right: 1px solid var(--color-border);
+}
+.sidepane[hidden] {
+  display: none;
+}
+.sidepane .rc {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+}
+.sidepane .sep {
+  right: -4px;
+}
 main {
   position: relative;
   flex: 1;
+  min-width: 0;
   min-height: 0;
   display: flex;
   flex-direction: column;
@@ -831,6 +859,12 @@ dd {
 }
 /* mobile */
 @media (max-width: 759px) {
+  .sidepane {
+    width: min(var(--side-w), 45vw);
+  }
+  .sidepane .sep {
+    display: none;
+  }
   .app {
     grid-template-columns: minmax(0, 1fr);
     grid-template-rows: 48px minmax(0, 1fr);

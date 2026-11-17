@@ -15,10 +15,12 @@
           };
         var w = g('ag.nav', 232, 420),
           a = g('ag.aside', 280, 640),
-          b = g('ag.bot', 100, 420);
+          b = g('ag.bot', 100, 420),
+          t = g('ag.side', 200, 420);
         if (w) d.style.setProperty('--nav-full', w + 'px');
         if (a) d.style.setProperty('--aside-w', a + 'px');
         if (b) d.style.setProperty('--bot-h', b + 'px');
+        if (t) d.style.setProperty('--side-w', t + 'px');
         if (L.getItem('ag.navh') === '1') d.classList.add('nh');
         if (L.getItem('ag.bot.open') === '1') d.classList.add('bo');
       } catch (e) {}

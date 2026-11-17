@@ -65,7 +65,7 @@ describe('ShellApp', () => {
     expect(el().querySelector('[data-region="account"]')?.textContent).toContain(
       'lab@example.test'
     );
-    expect(main().textContent).toContain('Home');
+    expect(el().querySelector('[data-region="actions"]')?.textContent).toContain('Home');
     await click('Fixture');
     expect(location.pathname).toBe('/fixture');
     expect(main().querySelector('h1')?.textContent).toBe('Fixture');

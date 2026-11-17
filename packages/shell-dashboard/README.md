@@ -33,6 +33,12 @@ The host serves `dist/*` at `/shell/*` (one mapping, `shellFileOf` in `scripts/b
 - When no extension is open, `main` shows the design-system empty state (`EmptyState`): "No
   extensions" with the install command when none is installed, else "Open an app" on `/`.
 
+## Side pane
+
+`side` (from `frame.html`) sits left of `main`, under the actions bar: 260 px, 200 to 420, splitter
+"Resize side pane", size kept in `ag.side` and set before first paint (`--side-w`). It shows only
+while an app puts content in it through `Region name="side"`; the shell puts nothing there.
+
 ## Rules the code enforces
 
 - Tokens: one `@theme` block (`@agentage/app/theme.css`, imported by `src/styles/shell.css`) puts the prototype hex values under the
@@ -40,7 +46,7 @@ The host serves `dist/*` at `/shell/*` (one mapping, `shellFileOf` in `scripts/b
   `--color-primary` = amber). `frame.css` reads only those names.
 - No layout shift: the pre-paint script in `index.html` sets `--nav-full`, `--aside-w`, `--bot-h`
   and the `nh` (nav hidden) and `bo` (bottom open) classes from `localStorage` (`ag.nav`,
-  `ag.aside`, `ag.bot`, `ag.navh`, `ag.bot.open`) before any module; `SPLIT_PREPAINT` of
+  `ag.side`, `ag.aside`, `ag.bot`, `ag.navh`, `ag.bot.open`) before any module; `SPLIT_PREPAINT` of
   `@agentage/extension/app` does the same for app splits.
 - Splitters (`role="separator"`): drag, arrows 16 px, Shift 64 px, Home, End.
 - `Ctrl+K` opens the command list (design-system `Command`): one line per app and "Toggle sidebar".

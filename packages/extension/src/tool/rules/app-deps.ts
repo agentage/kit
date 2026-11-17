@@ -21,7 +21,7 @@ export const designSystemProblems = (pkg: ExtensionPackage): Finding[] => {
     return [
       {
         file: 'package.json',
-        problem: `the app part needs ${DS} ${NEEDED}: add it to dependencies`,
+        problem: `the app part needs ${DS} ${NEEDED}: declare it in dependencies, devDependencies or peerDependencies`,
       },
     ];
   const bad = specs.find((spec) => !semver.validRange(spec) || !semver.subset(spec, NEEDED));

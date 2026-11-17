@@ -67,7 +67,7 @@ describe('the app part needs the design system', () => {
 
   it('refuses an app part that does not declare it', async () => {
     expect(await run(ds())).toEqual([
-      'the app part needs @agentage/design-system ^0.20: add it to dependencies',
+      'the app part needs @agentage/design-system ^0.20: declare it in dependencies, devDependencies or peerDependencies',
     ]);
   });
 

@@ -111,7 +111,7 @@ describe('createEventsClient', () => {
       timeoutMs,
     });
 
-  it('retries a 429 once; a 2xx with an unreadable body is never retried', async () => {
+  it('retries a 429 once; a 2xx with an unreadable body throws and is never retried', async () => {
     const limited = fake([429, 200]);
     expect(await quick(limited.impl).post([log])).toEqual({ accepted: 1, rejected: 0 });
     expect(limited.bodies).toHaveLength(2);
@@ -120,7 +120,7 @@ describe('createEventsClient', () => {
       calls++;
       return new Response('not json', { status: 200 });
     }) as typeof fetch;
-    expect(await quick(garbled).post([log])).toEqual({ accepted: 0, rejected: 0 });
+    await expect(quick(garbled).post([log])).rejects.toThrow(/not the ingest result/);
     expect(calls).toBe(1);
   });
 
@@ -158,5 +158,77 @@ describe('createEventsClient', () => {
     const client = createEventsClient({ url: 'https://logs.test', token: '', fetch: none.impl });
     await expect(client.post([log])).rejects.toThrow(/url and a token/);
     expect(none.bodies).toHaveLength(0);
+  });
+});
+
+describe('the ingest path', () => {
+  const paths = (answer: (path: string) => number) => {
+    const seen: string[] = [];
+    const impl = (async (url: string) => {
+      const path = new URL(url).pathname;
+      seen.push(path);
+      const status = answer(path);
+      return new Response(JSON.stringify({ data: { accepted: 1, rejected: 0 } }), { status });
+    }) as typeof fetch;
+    return { seen, impl };
+  };
+  const post = (url: string, impl: typeof fetch) =>
+    createEventsClient({ url, token: 't', fetch: impl, retryDelayMs: 0 }).post([row('a')]);
+
+  it('posts to /api/logs/events first', async () => {
+    const { seen, impl } = paths(() => 200);
+    await post('https://one-image.test', impl);
+    expect(seen).toEqual(['/api/logs/events']);
+  });
+
+  it('falls back to /api/v1/events on a 404, then remembers it per url', async () => {
+    const { seen, impl } = paths((path) => (path === '/api/v1/events' ? 200 : 404));
+    expect((await post('https://v13.test', impl)).accepted).toBe(1);
+    await post('https://v13.test', impl);
+    expect(seen).toEqual(['/api/logs/events', '/api/v1/events', '/api/v1/events']);
+    await post('https://other-v13.test', impl);
+    expect(seen.slice(3)).toEqual(['/api/logs/events', '/api/v1/events']);
+  });
+
+  it('a 404 on both paths is the error, naming the legacy path', async () => {
+    const { impl } = paths(() => 404);
+    await expect(post('https://none.test', impl)).rejects.toThrow(/\/api\/v1\/events answered 404/);
+  });
+
+  it('a 2xx with an unknown body throws and pins nothing', async () => {
+    let calls = 0;
+    const impl = (async () => (
+      calls++,
+      new Response('{"ok":true}', { status: 200 })
+    )) as typeof fetch;
+    await expect(post('https://odd.test', impl)).rejects.toThrow(/not the ingest result/);
+    await expect(post('https://odd.test', impl)).rejects.toThrow(/not the ingest result/);
+    expect(calls).toBe(2);
+  });
+
+  it('pins nothing when both paths 404: the next call tries the one-image path again', async () => {
+    const { seen, impl } = paths(() => 404);
+    await expect(post('https://gone.test', impl)).rejects.toThrow(/404/);
+    await expect(post('https://gone.test', impl)).rejects.toThrow(/404/);
+    expect(seen).toEqual(Array(2).fill(['/api/logs/events', '/api/v1/events']).flat());
+  });
+
+  it('never pins on a 401, 403, 429 or 5xx', async () => {
+    for (const status of [401, 403, 429, 503]) {
+      const { seen, impl } = paths((path) => (path === '/api/logs/events' ? 404 : status));
+      const url = `https://auth-${status}.test`;
+      await expect(post(url, impl)).rejects.toThrow(String(status));
+      await expect(post(url, impl)).rejects.toThrow(String(status));
+      expect(seen.filter((p) => p === '/api/logs/events').length).toBe(
+        status === 429 || status === 503 ? 4 : 2
+      );
+    }
+  });
+
+  it('pins a route-owned 4xx: a 422 from the legacy path is remembered', async () => {
+    const { seen, impl } = paths((path) => (path === '/api/logs/events' ? 404 : 422));
+    await expect(post('https://own.test', impl)).rejects.toThrow(/422/);
+    await expect(post('https://own.test', impl)).rejects.toThrow(/422/);
+    expect(seen).toEqual(['/api/logs/events', '/api/v1/events', '/api/v1/events']);
   });
 });

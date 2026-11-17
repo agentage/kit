@@ -10,7 +10,9 @@ import postcss from 'postcss';
 
 const pkgDir = join(dirname(fileURLToPath(import.meta.url)), '..');
 const require = createRequire(join(pkgDir, 'package.json'));
-const pkg = JSON.parse(await readFile(join(pkgDir, 'package.json'), 'utf8'));
+// The shell ships inside the kit: the label shows the kit version that built it, not this package's.
+export const readKitVersion = async () =>
+  JSON.parse(await readFile(join(pkgDir, '../extension/package.json'), 'utf8')).version;
 
 // What the import map serves; apps and the shell keep these external (K4).
 export const EXTERNALS = [
@@ -118,7 +120,7 @@ export const buildShell = async ({
   });
   const { SPLIT_PREPAINT } = await import('@agentage/app');
   const page = (await readFile(join(pkgDir, 'src/index.html'), 'utf8'))
-    .replace('%VERSION%', pkg.version)
+    .replace('%VERSION%', await readKitVersion())
     .replace('%SPLIT_PREPAINT%', SPLIT_PREPAINT)
     .replace('%ENTRY%', name);
   await writeFile(join(out, html), page);

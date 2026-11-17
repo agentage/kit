@@ -4,7 +4,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 // @ts-expect-error the build script is plain ESM with no types
-import { buildAll, shellFileOf } from '../../scripts/build.mjs';
+import { buildAll, readKitVersion, shellFileOf } from '../../scripts/build.mjs';
 
 const shellFile = shellFileOf as (path: string) => string | null;
 let out = '';
@@ -33,5 +33,17 @@ describe('the dist layout the daemon serves', () => {
   it('only /shell/ paths map to files', () => {
     expect(shellFile('/shell/vendor/app.js')).toBe('vendor/app.js');
     expect(shellFile('/probe/shell.js')).toBeNull();
+  });
+});
+
+// The nav foot label is the kit version that built the shell, never a constant.
+describe('the shell version label', () => {
+  it('index.html carries the kit package version, not the shell package version', async () => {
+    const kit = JSON.parse(
+      readFileSync(join(__dirname, '../../../extension/package.json'), 'utf8')
+    );
+    const html = readFileSync(join(out, 'index.html'), 'utf8');
+    expect(html).toContain(`<meta name="agentage-shell" content="${kit.version}"`);
+    expect(await (readKitVersion as () => Promise<string>)()).toBe(kit.version);
   });
 });

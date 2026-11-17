@@ -324,6 +324,10 @@ nav.side .sep {
   font-size: 12px;
   color: var(--color-muted-foreground);
 }
+.who span[data-shell-version] {
+  flex: none;
+  min-width: 12ch;
+}
 .menu {
   position: fixed;
   z-index: 60;

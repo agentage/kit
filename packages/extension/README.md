@@ -1,9 +1,9 @@
 # @agentage/extension
 
-The agentage extension kit. Each part (pages, ui, api, mcp, worker, cli) exports only
-`create(ctx)`, and the app part is one React root component; the kit owns the server, port, `/health`, the discovery document, the `agcid`
+The agentage extension kit. Each server and cli part (pages, api, mcp, worker, cli) exports only
+`create(ctx)` (the ui part is a `widgets` map, the app part one React root component); the kit owns the server, port, `/health`, the discovery document, the `agcid`
 correlation id, the response envelope, the store pool, the scheduler and argument parsing.
-`@agentage/extension/tool` is the tool behind `agentage extension check | build | up | down | token`.
+`@agentage/extension/tool` is the tool behind `agentage extension check | build | up --docker | down | token`.
 `@agentage/extension/app` is the app kit, `@agentage/extension/host` the host and the daemon,
 `@agentage/extension/contracts` the wire schemas.
 `@agentage/extension/logs` is the event line (`EventSchema`, `parseLine`, `createLogger`,

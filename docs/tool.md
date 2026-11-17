@@ -12,7 +12,7 @@ same tool. `build` and `up` need Docker. The extension must be a git checkout wi
 ```bash
 node packages/extension/dist/tool/cli.js build [--push] [--dir <ext>] [--registry <host/owner>]
 node packages/extension/dist/tool/cli.js build --container [--push]  # one image, the api part
-node packages/extension/dist/tool/cli.js up [--dir <ext>]       # agentage extension up
+node packages/extension/dist/tool/cli.js up [--dir <ext>]       # agentage extension up --docker
 node packages/extension/dist/tool/cli.js app [--dir <ext>]      # dist/app only, no Docker
 node packages/extension/dist/tool/cli.js down [--keep-data]
 node packages/extension/dist/tool/cli.js token --scope probe:read
@@ -88,8 +88,8 @@ is required. The parts of `up` check it like a deployment's. The issuer also tak
 `aud` and `POST /revoke { jti }`.
 
 Every docker, git and npm call has a timeout (`tool/timeouts.ts`). No call retries, so a re-run
-is safe. The cli runs the same code as `agentage extension check|build|up|down|token` through
-`@agentage/extension/tool`.
+is safe. The cli runs the same code as `agentage extension check|build|down|token` and `up --docker`
+through `@agentage/extension/tool`. Its plain `up` runs the working copy on the daemon.
 
 ## The app bundle
 

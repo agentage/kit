@@ -8,17 +8,18 @@ it, and it holds no product code.
 ## Start
 
 To write an extension, make one from the template. You need Node 22+, npm 10+ and git. `build` and
-`up` also need Docker.
+`up --docker` also need Docker.
 
 ```bash
 npx @agentage/cli@latest extension create <id> [part...]   # makes ./extension-<id>
 cd extension-<id> && npm ci                                # installs the cli the project pins
 git init -q && git add -A && git commit -qm init           # up needs one commit
-npx agentage extension up                                  # builds and runs it on localhost:4280
+npx agentage extension up                                  # runs it on the local daemon
 ```
 
-No part named means all parts. `up` runs the package's `build` script itself. It needs the ports 4280 and
-4281 free. The template and its guide are in
+No part named means all parts. `up` runs the package's `build` script itself, adds the folder to
+the daemon on `127.0.0.1:4243` and reloads the extension at each change. `up --docker` runs the
+part images on Docker instead; it needs the ports 4280 and 4281 free. The template and its guide are in
 [extension-template](https://github.com/agentage/extension-template).
 
 To work on this repo, you need Node 22+ and npm 10+:
@@ -85,11 +86,11 @@ Run each command as `npx agentage extension <command>` inside the extension fold
 - `check`: runs the six check rules. `--write` first rewrites the committed contracts.
 - `build`: checks, then builds one image per server part. `--push` pushes the images. Needs Docker
   and a committed, clean git tree (the cli checks this).
-- `up`: runs the extension on Docker, with a store, a gateway on `localhost:4280` and a dev token
-  issuer on `localhost:4281`.
+- `up`: runs the working copy on the local daemon and reloads it at each change. `up --docker`
+  runs it on Docker, with a store, a gateway on `localhost:4280` and a dev token issuer on
+  `localhost:4281`.
 - `down`: removes what `up` started. `--keep-data` keeps the store volume.
-- `token --scope <id>:<verb>`: prints a dev token for the parts that `up` started.
-- `app`: writes `dist/app` only. It needs no Docker.
+- `token --scope <id>:<verb>`: prints a dev token for the parts that `up --docker` started.
 
 More: [docs/tool.md](docs/tool.md).
 
@@ -122,8 +123,8 @@ npm run test:e2e -w @agentage/shell-dashboard
 ```
 
 `test:e2e` runs the widget harness in Chromium with an axe WCAG A/AA sweep and screenshots in both
-themes. The second e2e command checks the dashboard shell against its prototype. Baselines come
-from the CI container image.
+themes. The second e2e command checks the dashboard shell against its prototype at 1280 and
+400 px. The widget screenshot baselines come from the CI container image.
 
 ## Release
 

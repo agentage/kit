@@ -8,7 +8,8 @@ on:
     branches: [master, 'feature/**']
 
 concurrency:
-  group: ci-${{ github.ref }}
+  # A PR cancels its older run; each master commit keeps its own run (a burst of merges cancels none).
+  group: ci-${{ github.event_name == 'pull_request' && github.ref || github.sha }}
   cancel-in-progress: true
 
 permissions:
@@ -275,7 +276,6 @@ jobs:
 
   probe-local-gate:
     name: Probe local gate on this kit
-    needs: verify
     if: github.event.pull_request.head.repo.fork != true
     runs-on: ubuntu-latest
     timeout-minutes: 15

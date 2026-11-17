@@ -107,7 +107,7 @@ More: [docs/part-image.md](docs/part-image.md).
 `@agentage/extension/host` runs the api, mcp and worker parts of one package in one process
 (`hostExtension`). `createDaemon` is the local app host: one child per extension, `/api/{id}/*`,
 `/mcp/{id}`, `/app/{id}/*` and the dashboard shell at `/`. The cli starts it as `agentage daemon`.
-The contract is in [docs/part-image.md](docs/part-image.md#host-one-extension).
+The contract is in [docs/part-image.md](docs/part-image.md#host-one-extension) and [docs/daemon.md](docs/daemon.md).
 
 ## Write a widget
 
@@ -144,5 +144,6 @@ MIT. See [LICENSE](LICENSE).
 
 - [docs/parts.md](docs/parts.md): write each part, the store, workers, logs and spans, tests.
 - [docs/tool.md](docs/tool.md): build, check, up, down and token in detail.
-- [docs/part-image.md](docs/part-image.md): run a part image in a deployment, every setting, the
-  host and the daemon.
+- [docs/part-image.md](docs/part-image.md): run a part image in a deployment, every setting and the
+  host.
+- [docs/daemon.md](docs/daemon.md): the local daemon, its routes, limits and seal.

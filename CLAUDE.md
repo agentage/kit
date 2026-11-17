@@ -14,7 +14,7 @@ docker-deploy, security, backend); this file only adds what the tree does not sa
 - Test helpers: `docs/parts.md` "Tests" (proof: `src/context/test-context.ts`, `src/testing/`).
 - Build steps, six rules, image recipe, `up`, `down`, `token`, timeouts: `docs/tool.md` (proof: `src/tool/`).
 - Part image entry, port, `AGENTAGE_*` settings: `docs/part-image.md` (proof: `src/runtime/`, `src/auth/part-auth.ts`).
-- Host, daemon routes, limits, seal: `docs/part-image.md` "Host one extension" and "The daemon" (proof: `src/host/`).
+- Host, daemon routes, limits, seal: `docs/part-image.md` "Host one extension" and `docs/daemon.md` (proof: `src/host/`).
 - Manifest, record, discovery, `/health` and envelope schemas: `packages/extension/schemas/*.json` (generated, never edit by hand).
 - Check report JSON, secrets: `packages/extension/README.md`.
 - Event line kinds, redaction and limits, events client: `packages/logs/README.md` (proof: `packages/logs/src/`).

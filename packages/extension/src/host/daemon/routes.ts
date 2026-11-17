@@ -4,6 +4,9 @@ import { ok } from '../../envelope/envelope.js';
 import { BODY_LIMIT } from '../../server/app.js';
 import { errorHandler, notFound } from '../../server/errors.js';
 import { localOnly } from './guard.js';
+import { ownAppOnly } from './app-header.js';
+import { appRoutes } from './app-files.js';
+import { isAppReload, reloadApp } from './app-reload.js';
 import { addExtension } from './add.js';
 import { listed, type Entries } from './entries.js';
 import { healthRoutes, type DaemonInfo } from './health-routes.js';
@@ -14,6 +17,8 @@ import { type Pending, type PendingChanges } from './pending.js';
 import { waitAtMost } from './queue.js';
 import { proxyTo } from './proxy.js';
 import { reloadExtension } from './reload.js';
+import { shellEvents, type ShellEvents } from './shell-events.js';
+import { shellRoutes } from './shell-routes.js';
 import { stopsNow } from './stopping.js';
 import { type SupervisorDeps } from './supervisor.js';
 
@@ -50,8 +55,14 @@ const runner =
 
 const purge = (q: unknown) => (q as Record<string, unknown>)['purge'] === 'true';
 
-const changes = (deps: SupervisorDeps, entries: Entries, info: DaemonInfo, p: PendingChanges) => {
-  const run = runner(deps, info, p);
+// Each change that went through tells the open shell pages to read discovery again (K7).
+const changes = (deps: SupervisorDeps, entries: Entries, info: DaemonInfo, events: ShellEvents) => {
+  const queued = runner(deps, info, deps.pending);
+  const run = async <T>(what: Omit<Pending, 'since'>, fn: () => Promise<T>) => {
+    const done = await queued(what, fn);
+    events.send('extensions', { op: what.op, ...(what.id && { id: what.id }) });
+    return done;
+  };
   const id = (params: Record<string, string | string[]>) => String(params['id']);
   const add: RequestHandler = async (req, res) => {
     const what = { op: 'install' as const, ...named(req.body) };
@@ -67,6 +78,8 @@ const changes = (deps: SupervisorDeps, entries: Entries, info: DaemonInfo, p: Pe
   };
   const reload: RequestHandler = async ({ params, body }, res) => {
     const what = { op: 'reload' as const, id: id(params) };
+    if (isAppReload(body))
+      return void res.json(ok(await queued(what, () => reloadApp(entries, what.id, events))));
     res.json(ok(await run(what, () => reloadExtension(deps, entries, what.id, body))));
   };
   return { add, change, remove, reload };
@@ -77,18 +90,18 @@ const hostRoutes = (
   deps: SupervisorDeps,
   entries: Entries,
   info: DaemonInfo,
-  p: PendingChanges
+  events: ShellEvents
 ) => {
   app.get('/host/extensions', (_req, res) => void res.json(ok([...entries.values()].map(listed))));
   const json = express.json({ limit: BODY_LIMIT });
-  const { add, change, remove, reload } = changes(deps, entries, info, p);
+  const { add, change, remove, reload } = changes(deps, entries, info, events);
   app.post('/host/extensions', json, add);
   app.patch('/host/extensions/:id', json, change);
   app.delete('/host/extensions/:id', remove);
   app.post('/host/extensions/:id/reload', json, reload);
 };
 
-// C5 and C1: /health, discovery, /host/* (host token); /api, /mcp, /connector, /files of {id} to the child.
+// C5 and C1: /health, discovery, /host/* (host token); /api, /mcp, /connector, /files of {id} to the child; S1.2 the shell and /app.
 export const daemonApp = (
   deps: SupervisorDeps,
   entries: Entries,
@@ -100,13 +113,16 @@ export const daemonApp = (
   const proxy = proxyTo(entries, deps, hostToken);
   app.disable('x-powered-by');
   app.use(agcidMiddleware, localOnly(port));
-  app.use('/api/:id', proxy);
+  app.use('/api/:id', ownAppOnly, proxy);
   app.use('/mcp/:id', proxy);
-  app.use('/connector/:id', proxy);
-  app.use('/files/:id', proxy);
+  app.use('/connector/:id', ownAppOnly, proxy);
+  app.use('/files/:id', ownAppOnly, proxy);
   healthRoutes(app, deps, entries, info);
   app.use('/host', requireHostToken(hostToken));
-  hostRoutes(app, deps, entries, info, deps.pending);
+  const events = shellEvents();
+  hostRoutes(app, deps, entries, info, events);
+  appRoutes(app, entries);
+  shellRoutes(app, { shell: info.shell, entries, events, user: deps.user });
   app.use(notFound);
   app.use(errorHandler(deps.log));
   return app;

@@ -1,9 +1,11 @@
 import { type Express } from 'express';
 import { hostParts, type HostPartKind } from '../../manifest/parts.js';
 import { readManifest } from '../../manifest/read-manifest.js';
+import { appRowOf } from './app-files.js';
 import { summary, type Entries } from './entries.js';
 import { restartsOf } from './restart.js';
 import { sealOfEntry, type Seal } from './seal.js';
+import { type Shell } from './shell-routes.js';
 import { type Entry, type SupervisorDeps } from './supervisor.js';
 
 // What /health says of the daemon itself: the values of daemon.json, so a client can prove it.
@@ -24,6 +26,8 @@ export interface DaemonInfo {
   // C2: off below the Node floor, with its reason; unset for a launch that does not fork (tests).
   seal?: Seal;
   sealError?: string;
+  // S1.2: the shell package the daemon serves at /; unset, the daemon serves no page.
+  shell?: Shell;
 }
 
 // Read at each call: a reload can change the package in its folder.
@@ -71,15 +75,23 @@ const healthOf = async (deps: SupervisorDeps, entries: Entries, info: DaemonInfo
   return { status, version: info.version, ...self, extensions, ...marks };
 };
 
-// C10 (D10): where each running extension answers, and its parts; anonymous, bare JSON.
-const discoveryOf = async (entries: Entries) => {
-  const running = [...entries.values()].filter((e) => e.state === 'running');
-  const listed = running.map(async (e) => ({
+const rowOf = async (e: Entry) => {
+  const app = await appRowOf(e);
+  return {
     id: e.id,
     version: e.version,
+    state: e.state,
     parts: await partsOf(e),
-  }));
-  return { host: 'local', extensions: await Promise.all(listed) };
+    ...(app && { app }),
+  };
+};
+
+// C10 (D10): each running extension and each enabled one with an app (a crashed child keeps its nav row), its state; the shell.
+const discoveryOf = async (entries: Entries, { shell }: DaemonInfo) => {
+  const rows = await Promise.all([...entries.values()].map(rowOf));
+  const extensions = rows.filter((row) => row.state === 'running' || row.app);
+  const served = shell && { shell: { package: shell.package, version: shell.version } };
+  return { host: 'local', ...served, extensions };
 };
 
 const HOST_DISCOVERY_PATH = '/.well-known/agentage-host.json';
@@ -94,6 +106,6 @@ export const healthRoutes = (
     res.set('Cache-Control', 'no-store').json(await healthOf(deps, entries, info));
   });
   app.get(HOST_DISCOVERY_PATH, async (_req, res) => {
-    res.set('Cache-Control', 'no-store').json(await discoveryOf(entries));
+    res.set('Cache-Control', 'no-store').json(await discoveryOf(entries, info));
   });
 };

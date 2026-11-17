@@ -16,6 +16,7 @@ import { pendingChanges } from './pending.js';
 import { serialQueue } from './queue.js';
 import { launchUnlessStopping, stopAll, stoppingOf, type Stopping } from './stopping.js';
 import { daemonApp } from './routes.js';
+import { kitShellDir, readShell } from './shell-routes.js';
 import { runInstaller } from './installer-call.js';
 import { repairReload } from './reload-marker.js';
 import { halt } from './gate.js';
@@ -29,6 +30,8 @@ export interface DaemonOptions extends Partial<Limits> {
   startedBy: string;
   // The test clock for every child (AGENTAGE_CLOCK_RATE); 1 when unset. createDaemon only.
   clockRate?: number;
+  // The folder of a shell package: / and /shell/* serve its dist/; unset, the kit's own dist/shell.
+  shellDir?: string;
 }
 
 export interface Daemon {
@@ -123,6 +126,13 @@ const depsOf = (opts: DaemonOptions, launch: Launch, origin: () => string, stopp
     user: {},
   }) satisfies SupervisorDeps;
 
+// A broken shell install costs the page, never the extensions.
+const shellOf = (deps: SupervisorDeps, dir: string) =>
+  readShell(dir).catch((err: Error) => {
+    deps.log.warn('the shell package is not readable: no page at /', { reason: err.message });
+    return undefined;
+  });
+
 // No other daemon, read and check the file, listen, write daemon.json, start the children; a failed boot undoes it.
 export const startDaemon = async (opts: DaemonOptions, launch: Launch): Promise<Daemon> => {
   await mkdir(opts.configDir, { recursive: true });
@@ -133,7 +143,9 @@ export const startDaemon = async (opts: DaemonOptions, launch: Launch): Promise<
   const deps = depsOf(opts, launch, () => `http://127.0.0.1:${port}`, stoppingOf(life.signal));
   const { entries, ...file } = await loadEntries(deps);
   const self = { version: opts.version, pid: process.pid, protocol: DAEMON_PROTOCOL };
-  const info = { ...launchMarks(launch), ...self, ...file };
+  const shellDir = opts.shellDir ?? kitShellDir();
+  const shell = shellDir ? { shell: await shellOf(deps, shellDir) } : {};
+  const info = { ...launchMarks(launch), ...self, ...file, ...shell };
   const hostToken = newHostToken();
   const app = daemonApp(deps, entries, () => port, info, hostToken);
   const server = await listen(app, port, '127.0.0.1');

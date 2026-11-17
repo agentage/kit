@@ -17,6 +17,7 @@ import { pendingChanges } from './pending.js';
 import { serialQueue } from './queue.js';
 import { launchUnlessStopping, stopAll, stoppingOf, type Stopping } from './stopping.js';
 import { daemonApp } from './routes.js';
+import { KIT_VERSION } from '../../tool/kit-version.js';
 import { kitShellDir, readShell } from './shell-routes.js';
 import { runInstaller } from './installer-call.js';
 import { repairReload } from './reload-marker.js';
@@ -128,8 +129,8 @@ const depsOf = (opts: DaemonOptions, launch: Launch, origin: () => string, stopp
   }) satisfies SupervisorDeps;
 
 // A broken shell install costs the page, never the extensions.
-const shellOf = (deps: SupervisorDeps, dir: string) =>
-  readShell(dir).catch((err: Error) => {
+const shellOf = (deps: SupervisorDeps, dir: string, version?: string) =>
+  readShell(dir, version).catch((err: Error) => {
     deps.log.warn('the shell package is not readable: no page at /', { reason: err.message });
     return undefined;
   });
@@ -145,7 +146,8 @@ export const startDaemon = async (opts: DaemonOptions, launch: Launch): Promise<
   const { entries, ...file } = await loadEntries(deps);
   const self = { version: opts.version, pid: process.pid, protocol: DAEMON_PROTOCOL };
   const shellDir = opts.shellDir ?? kitShellDir();
-  const shell = shellDir ? { shell: await shellOf(deps, shellDir) } : {};
+  const kitOwn = opts.shellDir === undefined ? KIT_VERSION : undefined;
+  const shell = shellDir ? { shell: await shellOf(deps, shellDir, kitOwn) } : {};
   const info = { ...launchMarks(launch), ...self, ...file, ...shell };
   const hostToken = newHostToken();
   const events = shellEvents();

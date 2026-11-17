@@ -48,6 +48,25 @@ for (const width of [1280, 400]) {
 test.describe('desktop only', () => {
   test.use({ viewport: { width: 1280, height: 800 } });
 
+  test('side shows only with app content; a drag and a reload keep its size', async ({ page }) => {
+    await page.goto('/probe');
+    await expect(page.locator('[data-region="side"]')).toBeHidden();
+    await page.goto('/fixture');
+    const side = page.locator('[data-region="side"]');
+    await expect(side).toContainText('fixture side');
+    const sep = page.getByRole('separator', { name: 'Resize side pane' });
+    await expect(sep).toHaveAttribute('aria-valuenow', '260');
+    const box = (await sep.boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.down();
+    await page.mouse.move(box.x + box.width / 2 + 60, box.y + box.height / 2, { steps: 6 });
+    await page.mouse.up();
+    await expect(sep).toHaveAttribute('aria-valuenow', '320');
+    await page.reload();
+    await expect(sep).toHaveAttribute('aria-valuenow', '320');
+    expect(Math.round((await side.boundingBox())!.width)).toBe(320);
+  });
+
   test('the hidden nav peeks on the show button and leaves 200 ms after', async ({ page }) => {
     await page.goto('/fixture.html');
     await page.getByRole('button', { name: 'Hide sidebar' }).click();

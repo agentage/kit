@@ -5,7 +5,7 @@ const KEY_STEP = 16;
 const SHIFT_STEP = 64;
 
 export interface SplitterSpec {
-  // The root CSS variable the pre-paint script also sets (`--nav-full`, `--aside-w`, `--bot-h`).
+  // The root CSS variable the pre-paint script also sets (`--nav-full`, `--side-w`, `--aside-w`, `--bot-h`).
   cssVar: string;
   storeKey: string;
   fallback: number;
@@ -104,6 +104,16 @@ export const ASIDE_SPLIT = {
   max: () => 640,
   sign: -1,
   label: 'Resize aside',
+} as const satisfies SplitterSpec;
+
+export const SIDE_SPLIT = {
+  cssVar: '--side-w',
+  storeKey: 'ag.side',
+  fallback: 260,
+  min: 200,
+  max: () => 420,
+  sign: 1,
+  label: 'Resize side pane',
 } as const satisfies SplitterSpec;
 
 export const BOTTOM_SPLIT: SplitterSpec = {

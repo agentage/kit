@@ -11,6 +11,11 @@ const APPS = {
   throws: ['Throws', 'bomb', 30],
 };
 
+const SESSIONS = {
+  in: { user: { id: 'u1', email: 'lab@example.test', name: 'Alex Doe' }, host: 'local' },
+  out: { user: null, host: 'platform', signIn: '/__sign-in?next=%2F' },
+};
+
 export const createLab = (here, out) => {
   const rows = new Map();
   const clients = new Set();
@@ -39,11 +44,13 @@ export const createLab = (here, out) => {
     });
     return rows.get(id).app.entry;
   };
+  // POST /__lab/session/out: a cloud host signed out, with its sign-in page; /in: back to the user.
+  let session = 'in';
   const ready = Promise.all(Object.keys(APPS).map((id) => buildApp(id)));
   return {
     ready,
     discovery: () => ({ host: 'local', extensions: [...rows.values()] }),
-    session: { user: { id: 'u1', email: 'lab@example.test', name: 'Alex Doe' }, host: 'local' },
+    session: () => SESSIONS[session],
     has: (id) => rows.has(id),
     stream: (req, res) => {
       res.writeHead(200, { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-store' });
@@ -56,6 +63,7 @@ export const createLab = (here, out) => {
       if (op === 'rebuild') send('app', { id, entry: await buildApp(id, tag) });
       if (op === 'remove') rows.delete(id) && send('extensions', { op, id });
       if (op === 'add') (await buildApp(id), send('extensions', { op, id }));
+      if (op === 'session') ((session = id), send('session', { signedIn: id === 'in' }));
     },
   };
 };

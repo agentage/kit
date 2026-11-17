@@ -182,6 +182,22 @@ describe('Frame', () => {
     expect(sep.getAttribute('aria-valuenow')).toBe('236');
   });
 
+  it('signed out on a cloud host, the account region is a Sign in link in the trigger box', async () => {
+    const signIn = 'https://auth.agentage.io/sign-in?next=https%3A%2F%2Fh.test%2F';
+    const { el } = await mount({ account: { label: null, initials: '?', signIn } });
+    const link = el.querySelector<HTMLAnchorElement>('[data-region="account"] a.acct');
+    expect(link?.href).toBe(signIn);
+    expect(link?.textContent).toContain('Sign in');
+    expect(link?.textContent).toContain('shell 0.1.0');
+    expect(el.textContent).not.toContain('run agentage setup');
+  });
+
+  it('signed in, a signIn link is ignored', async () => {
+    const { el } = await mount({ account: { label: 'Alex Doe', initials: 'AD', signIn: 'x' } });
+    expect(el.querySelector('[data-region="account"] a')).toBeNull();
+    expect(el.querySelector('.acct')?.textContent).toContain('Alex Doe');
+  });
+
   it('signed out, the account names the setup command', async () => {
     const { el } = await mount({ account: { label: null, initials: '?' } });
     expect(el.querySelector('.acct')?.getAttribute('title')).toBe(

@@ -32,6 +32,10 @@ The host serves `dist/*` at `/shell/*` (one mapping, `shellFileOf` in `scripts/b
   menu (region `notices`; on a phone, the bell in `mobile-header`).
 - When no extension is open, `main` shows the design-system empty state (`EmptyState`): "No
   extensions" with the install command when none is installed, else "Open an app" on `/`.
+- Signed out: when `/shell/session` has `signIn` (a cloud app host; apphosts "Sign-in on the shell"),
+  the account region is a "Sign in" link to it, in the same box as the account menu (no layout
+  shift; on a phone, the avatar). With no `signIn` (the daemon), it keeps "Not signed in, run
+  agentage setup".
 
 ## Side pane
 

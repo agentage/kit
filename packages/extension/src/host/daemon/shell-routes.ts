@@ -34,6 +34,7 @@ type User = { id: string; email?: string; name?: string };
 const textOf = (value: unknown) => (typeof value === 'string' ? value : undefined);
 
 // K9: the user the children run as (issuer checked in cli-user.ts); email, name of its auth.json.
+// No `signIn` (S4 A4): on the daemon the shell keeps its `agentage setup` hint.
 export const sessionOf = ({ sub, text }: CliUser): { user: User | null; host: 'local' } => {
   if (sub === undefined) return { user: null, host: 'local' };
   let shown: Record<string, unknown> = {};

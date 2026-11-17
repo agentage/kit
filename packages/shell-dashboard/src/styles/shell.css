@@ -37,6 +37,15 @@
   a.row {
     text-decoration: none;
   }
+  a.acct {
+    color: inherit;
+    text-decoration: none;
+  }
+  a.acct .av .i,
+  a.av .i {
+    width: 14px;
+    height: 14px;
+  }
 }
 
 @layer components {

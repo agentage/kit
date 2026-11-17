@@ -69,8 +69,8 @@ export default [
   {
     files: [
       'packages/widget/src/**/*.tsx',
-      'packages/app/src/**/*.tsx',
-      'packages/shell-dashboard/src/**/*.tsx',
+      'packages/app/src/**/*.{ts,tsx}',
+      'packages/shell-dashboard/src/**/*.{ts,tsx}',
       'packages/shell-dashboard/e2e/**/*.tsx',
     ],
     plugins: { 'jsx-a11y': jsxA11y, 'react-hooks': reactHooks },

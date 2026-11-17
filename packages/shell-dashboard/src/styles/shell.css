@@ -22,6 +22,26 @@
   }
 }
 
+@layer components {
+  .acct.pending .who,
+  .acct.pending .av {
+    visibility: hidden;
+  }
+  [data-aside-key='inbox'] .abody > :not([data-inbox]) {
+    display: none;
+  }
+  .approot {
+    flex: 1;
+    min-height: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .scroll h1 {
+    font-size: 20px;
+    margin: 0 0 12px;
+  }
+}
+
 /* The left of the actions bar: the app's lead slot (back, tree toggle, crumb), then the title. */
 @layer components {
   .lgrp {

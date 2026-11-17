@@ -9,15 +9,19 @@ export interface NavRow {
 }
 
 export interface Account {
-  // The name, else the email; null when signed out.
+  // The name, else the email, else the user id; null when signed out.
   label: string | null;
   initials: string;
+  // Session not read yet: the text is hidden, so its arrival shifts nothing (CLS 0).
+  pending?: boolean;
   // Routes of the account extension; a missing one hides its menu item.
   links?: { settings?: string; tokens?: string; signOut?: string };
 }
 
 export interface AsideState {
   title: string;
+  // The reserved key; `inbox` hides the app's aside content.
+  key?: string;
   // Called by the close button and Escape.
   onClose: () => void;
 }

@@ -13,6 +13,7 @@ interface Props {
   rows: NavRow[];
   account: Account;
   version: string;
+  apps: { id: string; version: string }[];
   unread: number;
   state: FrameState;
   regionRef: (name: RegionName) => (el: HTMLElement | null) => void;
@@ -23,7 +24,17 @@ interface Props {
 
 const icon = <PanelLeft className="i" aria-hidden="true" />;
 
-export const Nav = ({ rows, account, version, unread, state, regionRef, peek, ...on }: Props) => {
+export const Nav = ({
+  rows,
+  account,
+  version,
+  apps,
+  unread,
+  state,
+  regionRef,
+  peek,
+  ...on
+}: Props) => {
   const hideLabel = state.navHidden ? 'Dock sidebar' : 'Hide sidebar';
   return (
     <nav
@@ -50,7 +61,12 @@ export const Nav = ({ rows, account, version, unread, state, regionRef, peek, ..
           <Kbd>Ctrl K</Kbd>
         </button>
         <div data-region="notices" ref={regionRef('notices')} style={{ display: 'contents' }}>
-          <button className="row" title="Inbox" onClick={on.onInbox}>
+          <button
+            className="row"
+            title="Inbox"
+            aria-label={`Inbox, ${unread} notices`}
+            onClick={on.onInbox}
+          >
             <Bell className="i" aria-hidden="true" />
             <span className="lbl">Inbox</span>
             <span className="pill" hidden={!unread}>
@@ -80,6 +96,7 @@ export const Nav = ({ rows, account, version, unread, state, regionRef, peek, ..
         <AccountMenu
           account={account}
           version={version}
+          apps={apps}
           onPalette={() => state.setPalette(true)}
           onToggleNav={state.toggleNav}
           onNavigate={on.onNavigate}

@@ -4,8 +4,10 @@ import type {
   AppRoute,
   AppUser,
   AsideKey,
+  BottomBar,
   HostAdapter,
   Notice,
+  PageLink,
   RegionHost,
   RegionName,
   StateStore,
@@ -27,6 +29,8 @@ export interface TestRecord {
   calls: TestCall[];
   aside: AsideKey | null;
   pages: string[];
+  pageLinks: PageLink[];
+  bottomBar: BottomBar | null;
 }
 
 export interface TestHostProps {
@@ -52,6 +56,8 @@ export const createTestRecord = (): TestRecord => ({
   calls: [],
   aside: null,
   pages: [],
+  pageLinks: [],
+  bottomBar: null,
 });
 
 const testRequest =
@@ -71,6 +77,8 @@ const testShell = (record: TestRecord): AppContextValue['shell'] => ({
   openAside: (key) => void (record.aside = key),
   closeAside: () => void (record.aside = null),
   navigate: (page) => void record.pages.push(page),
+  setPages: (pages) => void (record.pageLinks = pages),
+  setBottomBar: (bar) => void (record.bottomBar = bar),
 });
 
 const useRegionHost = (): [RegionHost, (name: RegionName) => (el: HTMLElement | null) => void] => {

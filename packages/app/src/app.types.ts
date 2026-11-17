@@ -25,6 +25,21 @@ export interface ShellPort {
   closeAside: () => void;
   // A page of the app: `navigate('runs/7')` goes to `/{id}/runs/7`.
   navigate: (page: string) => void;
+  // The app's pages: the actions bar title becomes a menu of them ("Overview ⌄").
+  setPages: (pages: PageLink[]) => void;
+  // The bottom bar: the app gives its title and count; null hides the bottom region.
+  setBottomBar: (bar: BottomBar | null) => void;
+}
+
+// One page of an app: `path` is relative to `/{id}/` ('' is the app root).
+export interface PageLink {
+  title: string;
+  path: string;
+}
+
+export interface BottomBar {
+  title: string;
+  count?: number;
 }
 
 // Where the app is: `/{id}/runs/7?details=1` -> `{ path: 'runs/7', query: { details: '1' } }`.

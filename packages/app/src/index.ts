@@ -6,10 +6,12 @@ export type {
   AppUser,
   AsideKey,
   HostAdapter,
+  BottomBar,
   Notice,
   NoticeKind,
   RegionHost,
   RegionName,
+  PageLink,
   ShellPort,
   StateStore,
 } from './app.types.js';

@@ -15,15 +15,15 @@ The shell serves one copy of React and of this package through an import map: an
 
 ## The calls
 
-| Call                      | What it gives                                                                                                                                                                                                  |
-| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `useAppShell()`           | `{ id, route: { path, query }, notify({ text, kind }), openAside(key), closeAside(), navigate(page) }`; `route.path` is the page after `/{id}/`                                                                |
-| `useAppHost()`            | `{ id, user, scopes, api(path, init?) }`; `api('/echo')` calls `/api/{id}/echo` and returns the envelope `data`                                                                                                |
-| `useAppState(key, init)`  | `[value, set]`, kept by the shell per app and key: a remount (a new build, an update) keeps it; every reader of a key sees one value                                                                           |
-| `<Region name>`           | renders its children into a frame region (`lead`, `actions`, `aside`, `notices`, `bottom`, `side`) as a React portal, inside an error boundary                                                                 |
-| `<Split id init min max>` | two panes on the design-system `ResizableSplit` (px; arrows 16 px, Shift 64 px, Home, End, drag; `orientation`, `collapsible` with `useSplit().toggle()`); the size holds across a reload with no layout shift |
-| `AppBoundary`             | the error boundary the shell puts around each app root and `Region`                                                                                                                                            |
-| `AppApiError`             | what `api` throws: `code` (the envelope code, `FORBIDDEN` for a refused path, else `HTTP_<status>`), `status`                                                                                                  |
+| Call                      | What it gives                                                                                                                                                                                                        |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `useAppShell()`           | `{ id, route: { path, query }, notify({ text, kind }), openAside(key), closeAside(), navigate(page), setPages([{ title, path }]), setBottomBar({ title, count } \| null) }`; `route.path` is the page after `/{id}/` |
+| `useAppHost()`            | `{ id, user, scopes, api(path, init?) }`; `api('/echo')` calls `/api/{id}/echo` and returns the envelope `data`                                                                                                      |
+| `useAppState(key, init)`  | `[value, set]`, kept by the shell per app and key: a remount (a new build, an update) keeps it; every reader of a key sees one value                                                                                 |
+| `<Region name>`           | renders its children into a frame region (`lead`, `actions`, `aside`, `notices`, `bottom`, `side`) as a React portal, inside an error boundary                                                                       |
+| `<Split id init min max>` | two panes on the design-system `ResizableSplit` (px; arrows 16 px, Shift 64 px, Home, End, drag; `orientation`, `collapsible` with `useSplit().toggle()`); the size holds across a reload with no layout shift       |
+| `AppBoundary`             | the error boundary the shell puts around each app root and `Region`                                                                                                                                                  |
+| `AppApiError`             | what `api` throws: `code` (the envelope code, `FORBIDDEN` for a refused path, else `HTTP_<status>`), `status`                                                                                                        |
 
 Keys of `openAside`: `inspect`, `details`, `inbox` (the shell puts the key in the URL, `?details=1`).
 

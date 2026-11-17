@@ -25,7 +25,16 @@ export const SHELL_URL = '/shell/';
 export const shellFileOf = (path) =>
   path.startsWith(SHELL_URL) ? path.slice(SHELL_URL.length) : null;
 
-const DS_USED = ['command', 'dropdown-menu', 'empty-state', 'icon-button', 'kbd', 'resizable'];
+const DS_USED = [
+  'button',
+  'command',
+  'dropdown-menu',
+  'empty-state',
+  'icon-button',
+  'kbd',
+  'resizable',
+  'toast',
+];
 
 const base = {
   bundle: true,

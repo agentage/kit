@@ -82,6 +82,12 @@ The app part is one root component in `src/app/index.tsx`, its default export. I
 - The one container (the kit host on an app host) serves them too, anonymous, at `/app/{id}/*`, and its nav row (`title`, `icon`, `order`, `entry`, `css`) as JSON at `/app/{id}/`. An app host router reads that row into its host document and forwards `/app/{id}/*`.
 - The tool's `app` command writes `dist/app`; `build` does it too. See [tool.md](tool.md).
 - `check` warns on `fetch(` in `src/app`: an app calls its api through `useAppHost().api`.
+- The app runs in the shell page, under its Content Security Policy (`default-src 'self'`, no `unsafe-inline`, no `unsafe-eval`; [shell-dashboard](../packages/shell-dashboard/README.md)):
+  - Scripts, stylesheets and `fetch` calls: the page origin only. A script, a stylesheet or a call on another origin is refused.
+  - Images and fonts: the page origin and `data:` URLs. A remote image or font does not load.
+  - Styles: classes from the compiled `dist/app` stylesheet, or the React `style` prop. An injected `<style>` element, and a `style` attribute in an HTML string, are refused.
+  - No `eval` and no `new Function`.
+  - A refusal is a "Content Security Policy" error in the browser console and a `securitypolicyviolation` event on the page.
 - `check` refuses an app part whose package.json does not declare `@agentage/design-system` `^0.20` (the kit app code imports it); `@agentage/extension` lists it as an optional peer.
 
 The manifest is the `agentage` block of the extension's `package.json`. See

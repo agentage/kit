@@ -19,6 +19,7 @@ docker-deploy, security, backend); this file only adds what the tree does not sa
 - Event line kinds, redaction and limits, events client: `packages/logs/README.md` (proof: `packages/logs/src/`).
 - Widget: `packages/widget/README.md` "Imports", "Bundle output", "The harness page", "Rules the code enforces".
 - Shell calls, mount errors, installation document: `packages/shell/README.md` "The calls", "The installation document".
+- App kit `@agentage/extension/app` (hooks, `Region`, `Split`, test host): `packages/app/README.md`.
 - Sign in, page token, `mintToken`, `revokeToken`, sign out: `packages/identity/README.md`.
 - CI jobs: `.github/workflows/ci.yml`. Coverage floor: `vitest.config.ts`. Release rules: `README.md` "Release" (proof: `.github/workflows/release.yml`).
 
@@ -43,7 +44,7 @@ Read the file named here before you read `src/` (`src/` = `packages/extension/sr
 
 ## Commits
 
-- Scopes: `extension, logs, widget, identity, shell, release, ci, docs, deps`; repo-level `ci`, `docs`, `chore`
+- Scopes: `extension, logs, widget, identity, shell, app, release, ci, docs, deps`; repo-level `ci`, `docs`, `chore`
   and `build` commits may go scopeless. Titles are conventional commits, 72 characters at most; CI
   checks the PR title.
 - A release bump commit touches one package, or uses the `release` scope.

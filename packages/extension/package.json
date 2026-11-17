@@ -40,6 +40,15 @@
       "types": "./dist/logs/index.d.ts",
       "default": "./dist/logs/index.js"
     },
+    "./app": {
+      "types": "./dist/vendor/app/index.d.ts",
+      "default": "./dist/vendor/app/index.js"
+    },
+    "./app/test-host": {
+      "types": "./dist/vendor/app/test-host.d.ts",
+      "default": "./dist/vendor/app/test-host.js"
+    },
+    "./app/theme.css": "./dist/vendor/app/theme.css",
     "./migrate": {
       "default": "./dist/store/migrate.js"
     },
@@ -70,13 +79,21 @@
   },
   "peerDependencies": {
     "@electric-sql/pglite": "^0.5.0",
-    "express": "^5.1.0"
+    "express": "^5.1.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
   },
   "peerDependenciesMeta": {
     "@electric-sql/pglite": {
       "optional": true
     },
     "express": {
+      "optional": true
+    },
+    "react": {
+      "optional": true
+    },
+    "react-dom": {
       "optional": true
     }
   },

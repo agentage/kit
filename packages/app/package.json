@@ -1,0 +1,37 @@
+{
+  "name": "@agentage/app",
+  "version": "0.1.0",
+  "private": true,
+  "description": "The app kit source; it ships only inside the kit as @agentage/extension/app",
+  "type": "module",
+  "engines": {
+    "node": ">=22"
+  },
+  "sideEffects": false,
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./test-host": {
+      "types": "./dist/test-host.d.ts",
+      "default": "./dist/test-host.js"
+    },
+    "./theme.css": "./theme.css",
+    "./package.json": "./package.json"
+  },
+  "scripts": {
+    "build": "tsc -b",
+    "verify": "npm run verify --prefix ../.."
+  },
+  "peerDependencies": {
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0"
+  },
+  "keywords": [
+    "agentage",
+    "app",
+    "shell",
+    "react"
+  ]
+}

@@ -27,6 +27,7 @@
     { "path": "packages/extension" },
     { "path": "packages/widget" },
     { "path": "packages/identity" },
-    { "path": "packages/shell" }
+    { "path": "packages/shell" },
+    { "path": "packages/app" }
   ]
 }

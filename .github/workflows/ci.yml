@@ -25,7 +25,7 @@ jobs:
         env:
           TITLE: ${{ github.event.pull_request.title }}
         run: |
-          scoped='^(feat|fix|refactor|test|chore|ci|docs|perf|build)\((extension|logs|widget|identity|shell|release|ci|docs|deps)\)!?: .{1,60}$'
+          scoped='^(feat|fix|refactor|test|chore|ci|docs|perf|build)\((extension|logs|widget|identity|shell|app|release|ci|docs|deps)\)!?: .{1,60}$'
           bare='^(ci|docs|chore|build): '
           if [ "${#TITLE}" -le 72 ] && { [[ $TITLE =~ $scoped ]] || [[ $TITLE =~ $bare ]]; }; then exit 0; fi
           echo "::error::PR title '$TITLE' breaks the commit title rules in CLAUDE.md (type(scope): text, max 72)"; exit 1
@@ -70,12 +70,17 @@ jobs:
           grep -qx 'package/dist/tool/up/dev-issuer.js' /tmp/pack/files.txt
           grep -qx 'package/dist/logs/index.js' /tmp/pack/files.txt
           grep -qx 'package/dist/vendor/logs/index.js' /tmp/pack/files.txt
+          grep -qx 'package/dist/vendor/app/index.js' /tmp/pack/files.txt
+          grep -qx 'package/dist/vendor/app/test-host.js' /tmp/pack/files.txt
+          grep -qx 'package/dist/vendor/app/theme.css' /tmp/pack/files.txt
           if grep -q '\.test\.' /tmp/pack/files.txt; then echo 'test files in the tarball'; exit 1; fi
           node packages/extension/dist/tool/cli.js --help
-          # The kit carries @agentage/logs inside: a clean install of the tarball alone resolves both entries.
+          # The kit carries logs and the app kit inside: a clean install of the tarball alone resolves every entry.
           mkdir -p /tmp/kit-alone && cd /tmp/kit-alone && npm init -y >/dev/null
-          npm install --no-audit --no-fund /tmp/pack/agentage-extension-*.tgz express zod
+          npm install --no-audit --no-fund /tmp/pack/agentage-extension-*.tgz express zod react react-dom
           test ! -e node_modules/@agentage/logs
+          test ! -e node_modules/@agentage/app
+          node --input-type=module -e "const a = await import('@agentage/extension/app'); if (typeof a.useAppHost !== 'function') throw new Error('no useAppHost'); console.log('PASS kit app subpath')"
           node --input-type=module -e "await import('@agentage/extension'); const l = await import('@agentage/extension/logs'); const e = l.parseLine('hello', { extension: 'smoke', part: 'ci' }); l.EventSchema.parse(e); console.log('PASS kit alone', e.kind, l.KINDS.length)"
 
       - name: Pack smoke - widget (bin and harness in, tests out)

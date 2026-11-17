@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { openFeed } from './feed-source.js';
 import type { AppEvent, Discovery, Session, ShellDeps } from './host.types.js';
 
 export const DISCOVERY_URL = '/.well-known/agentage-host.json';
@@ -59,16 +60,16 @@ export const useHostFeeds = (deps: ShellDeps) => {
   useEffect(() => {
     loadDiscovery();
     loadSession();
-    const source = deps.events(EVENTS_URL);
-    // A (re)connected feed may have missed events, e.g. across a daemon restart.
-    source.addEventListener('open', () => (loadDiscovery(), loadSession()));
-    source.addEventListener('extensions', loadDiscovery);
-    source.addEventListener('session', loadSession);
-    source.addEventListener('app', (e) => {
-      const ev = parse(e);
-      if (ev) setDiscovery((d) => d && withApp(d, ev));
+    return openFeed(deps.events, EVENTS_URL, (source) => {
+      // A (re)connected feed may have missed events, e.g. across a daemon restart.
+      source.addEventListener('open', () => (loadDiscovery(), loadSession()));
+      source.addEventListener('extensions', loadDiscovery);
+      source.addEventListener('session', loadSession);
+      source.addEventListener('app', (e) => {
+        const ev = parse(e);
+        if (ev) setDiscovery((d) => d && withApp(d, ev));
+      });
     });
-    return () => source.close();
   }, [deps, loadDiscovery, loadSession]);
   return { discovery, session, seen };
 };

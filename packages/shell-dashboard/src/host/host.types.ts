@@ -43,6 +43,8 @@ export interface AppEvent {
 }
 
 export interface EventSourceLike {
+  // 0 connecting, 1 open, 2 closed (the browser gave up).
+  readonly readyState: number;
   addEventListener: (type: string, fn: (e: MessageEvent<string>) => void) => void;
   close: () => void;
 }

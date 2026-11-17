@@ -125,6 +125,24 @@ describe('/shell/session (S1.2.1 row 7, K9): the user the children run as', () =
   });
 });
 
+describe('/shell/events session: a sign-in or sign-out reaches an open page', () => {
+  it('sends session when auth.json gains and loses a user, with no reload', async () => {
+    const issuer = await fakeIssuer({ 'opaque-alice': 'u_alice' });
+    try {
+      h = await startHarness({ userPollMs: 20 });
+      const stream = await listen();
+      const file = join(h.configDir, 'auth.json');
+      await writeFile(file, signedInAuth(issuer.issuer, 'opaque-alice'));
+      await stream.until('{"signedIn":true}');
+      await writeFile(file, json({}));
+      await stream.until('{"signedIn":false}');
+      expect(stream.events().map((m) => m[1])).toEqual(['session', 'session']);
+    } finally {
+      await issuer.close();
+    }
+  });
+});
+
 describe('a crashed child keeps its nav row (S1.2.3 row 3)', () => {
   it('discovery lists the failed row with its state; a failed row with no app is not listed', async () => {
     const w = wordLaunch();

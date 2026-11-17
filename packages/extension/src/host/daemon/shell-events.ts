@@ -1,7 +1,7 @@
 import { type RequestHandler, type Response } from 'express';
 
 // K7: what the open shell page follows; each event names what to fetch again.
-export type ShellEvent = 'extensions' | 'app';
+export type ShellEvent = 'extensions' | 'app' | 'session';
 
 export interface ShellEvents {
   send(event: ShellEvent, data: unknown): void;

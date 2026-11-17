@@ -11,7 +11,7 @@ import {
   type TokenCheck,
 } from './token-check.js';
 
-export interface TokenCheckDeps {
+interface TokenCheckDeps {
   issuer: string;
   audience: string;
   id: string;

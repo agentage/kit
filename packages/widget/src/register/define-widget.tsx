@@ -7,7 +7,7 @@ import { currentTheme } from '../host/theme.js';
 import { resolveHost } from './resolve-host.js';
 import { WidgetError } from './widget-error.js';
 
-export interface WidgetSpec {
+interface WidgetSpec {
   id: string;
   element: string;
   version: string;

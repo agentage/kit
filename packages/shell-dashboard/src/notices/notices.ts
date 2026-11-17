@@ -1,7 +1,7 @@
 import type { Notice } from '@agentage/app';
 import { useSyncExternalStore } from 'react';
 
-export interface ShellNotice extends Notice {
+interface ShellNotice extends Notice {
   key: number;
   app: string;
   // Epoch ms; the inbox shows the time.

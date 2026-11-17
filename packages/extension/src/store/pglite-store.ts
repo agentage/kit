@@ -21,7 +21,7 @@ export interface StoreAt {
 
 type PGliteModule = { PGlite: new (dataDir?: string) => PGliteLike };
 
-export const PGLITE = '@electric-sql/pglite';
+const PGLITE = '@electric-sql/pglite';
 
 export const pgliteMissing = (tried: string[]): string =>
   `${PGLITE} is not installed (looked in ${tried.join(', then ')}): the host brings it, npm install ${PGLITE}`;

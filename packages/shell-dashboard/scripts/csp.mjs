@@ -9,7 +9,7 @@ export const inlineScriptHashes = (html) =>
     (m) => `'sha256-${createHash('sha256').update(m[1], 'utf8').digest('base64')}'`
   );
 
-export const policyFor = (html) =>
+const policyFor = (html) =>
   [
     "default-src 'self'",
     `script-src 'self' ${inlineScriptHashes(html).join(' ')}`,

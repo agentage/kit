@@ -1,7 +1,7 @@
 import type { AppRoute, AsideKey } from '@agentage/app';
 import { useEffect, useState } from 'react';
 
-export const ASIDE_KEYS: AsideKey[] = ['inspect', 'details', 'inbox'];
+const ASIDE_KEYS: AsideKey[] = ['inspect', 'details', 'inbox'];
 
 export interface Route {
   // The first path segment; '' on `/`.

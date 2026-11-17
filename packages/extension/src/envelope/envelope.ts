@@ -18,7 +18,7 @@ export interface OkEnvelope<T> {
 
 export type ErrorDetails = ErrorDetail[] | Record<string, unknown>;
 
-export interface ErrorBody {
+interface ErrorBody {
   code: string;
   message: string;
   agcid: string;

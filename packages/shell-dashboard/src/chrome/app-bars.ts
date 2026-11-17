@@ -1,7 +1,7 @@
 import type { BottomBar, PageLink } from '@agentage/app';
 import { useSyncExternalStore } from 'react';
 
-export interface AppBars {
+interface AppBars {
   pages: PageLink[];
   bottom: BottomBar | null;
 }

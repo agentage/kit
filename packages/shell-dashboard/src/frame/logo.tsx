@@ -1,5 +1,5 @@
 // The amber A-arrow brand mark of shell-samples/index.html.
-export const Logo = () => (
+const Logo = () => (
   <svg className="logo" viewBox="48 48 416 416" aria-hidden="true">
     <rect x="48" y="48" width="416" height="416" rx="83" fill="#f3a52b" />
     <g transform="translate(73.7,73.7) scale(1.3812)">

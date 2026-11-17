@@ -96,7 +96,7 @@ const handlerFor = (ctx: PartContext, routes: RouteEntry[], returned: unknown, f
   return returned as ApiHandler;
 };
 
-export interface MountedApi {
+interface MountedApi {
   router: ApiHandler;
   routes: RouteEntry[];
   documents: WellKnownEntry[];

@@ -72,8 +72,6 @@ const COMMON: Record<string, LucideIcon> = {
   zap: Zap,
 };
 
-export const APP_ICONS = Object.keys(COMMON);
-
 // A nav row icon by its lucide name (`agentage.app.icon`); a name outside the set shows `box`.
 export const AppIcon = ({ name = 'box' }: { name?: string }) => {
   const Icon = COMMON[name] ?? Box;

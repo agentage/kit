@@ -6,7 +6,7 @@ import {
   type StoreKind,
 } from './primitives.schema.js';
 
-export interface NormalizedParts {
+interface NormalizedParts {
   code: Partial<Record<ImagePartKind | 'cli', { entry?: string }>>;
   store?: StoreKind;
 }

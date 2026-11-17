@@ -17,7 +17,7 @@ const PackageSchema = z.object({
   agentage: z.object({ id: ExtensionIdSchema }),
 });
 
-export interface UiManifest {
+interface UiManifest {
   id: string;
   version: string;
 }

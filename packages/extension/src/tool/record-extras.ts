@@ -25,7 +25,7 @@ const noStore: Store = {
 const silent = createLog({ extension: 'build', part: 'check' }, () => undefined);
 
 // The ctx part code gets when the tool runs its create(ctx) to read what it registers or routes.
-export const recordingContext = (pkg: ExtensionPackage, part: 'api' | 'mcp') =>
+const recordingContext = (pkg: ExtensionPackage, part: 'api' | 'mcp') =>
   createContext({
     pkg,
     part,

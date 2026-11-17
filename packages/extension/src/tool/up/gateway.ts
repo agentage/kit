@@ -18,7 +18,7 @@ type RoutedPart = keyof typeof PART_PATHS;
 // In this order, so the first present serves /.well-known/ (api-standards section 1).
 const ROUTED: readonly RoutedPart[] = ['api', 'mcp', 'pages', 'ui'];
 
-export interface PathOf {
+interface PathOf {
   id: string;
   version: string;
 }

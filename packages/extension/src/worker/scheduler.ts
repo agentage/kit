@@ -26,7 +26,7 @@ interface Entry {
   overran: boolean;
 }
 
-export interface SchedulerDeps {
+interface SchedulerDeps {
   runs: RunStore;
   log: Log;
   now?: () => Date;

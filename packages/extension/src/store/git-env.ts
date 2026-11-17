@@ -9,7 +9,7 @@ export interface GitAccess {
 }
 
 // The URL of the estate file holds user:password; git gets it as a header, never in a URL or argv.
-export const splitCredential = (url: string): { remote: string; header?: string } => {
+const splitCredential = (url: string): { remote: string; header?: string } => {
   const parsed = new URL(url);
   const user = decodeURIComponent(parsed.username);
   const password = decodeURIComponent(parsed.password);
@@ -26,7 +26,7 @@ const configOf = (remote?: string, header?: string): [string, string][] => [
   ...(remote && header ? [[`http.${remote}.extraHeader`, header] as [string, string]] : []),
 ];
 
-export const gitEnvOf = (root: string, remote?: string, header?: string) => {
+const gitEnvOf = (root: string, remote?: string, header?: string) => {
   const config = configOf(remote, header);
   const env: Record<string, string> = {
     PATH: process.env['PATH'] ?? '/usr/bin:/bin',

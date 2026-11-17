@@ -160,3 +160,38 @@ describe('createEventsClient', () => {
     expect(none.bodies).toHaveLength(0);
   });
 });
+
+describe('the ingest path', () => {
+  const paths = (answer: (path: string) => number) => {
+    const seen: string[] = [];
+    const impl = (async (url: string) => {
+      const path = new URL(url).pathname;
+      seen.push(path);
+      const status = answer(path);
+      return new Response(JSON.stringify({ data: { accepted: 1, rejected: 0 } }), { status });
+    }) as typeof fetch;
+    return { seen, impl };
+  };
+  const post = (url: string, impl: typeof fetch) =>
+    createEventsClient({ url, token: 't', fetch: impl, retryDelayMs: 0 }).post([row('a')]);
+
+  it('posts to /api/logs/events first', async () => {
+    const { seen, impl } = paths(() => 200);
+    await post('https://one-image.test', impl);
+    expect(seen).toEqual(['/api/logs/events']);
+  });
+
+  it('falls back to /api/v1/events on a 404, then remembers it per url', async () => {
+    const { seen, impl } = paths((path) => (path === '/api/v1/events' ? 200 : 404));
+    expect((await post('https://v13.test', impl)).accepted).toBe(1);
+    await post('https://v13.test', impl);
+    expect(seen).toEqual(['/api/logs/events', '/api/v1/events', '/api/v1/events']);
+    await post('https://other-v13.test', impl);
+    expect(seen.slice(3)).toEqual(['/api/logs/events', '/api/v1/events']);
+  });
+
+  it('a 404 on both paths is the error, naming the legacy path', async () => {
+    const { impl } = paths(() => 404);
+    await expect(post('https://none.test', impl)).rejects.toThrow(/\/api\/v1\/events answered 404/);
+  });
+});

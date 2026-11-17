@@ -34,7 +34,7 @@ vi.mock('node:fs/promises', async (original) => {
   return { ...real, link, readFile, rename };
 });
 
-const lockIn = async (pid: number | '') => {
+const lockIn = async (pid: number | string) => {
   const data = join(await tempDir('agentage-lock-'), 'hosted');
   await writeFile(`${data}.lock`, String(pid));
   return data;
@@ -147,6 +147,17 @@ describe.each([
     expect(await pid(data)).toBe(String(process.pid));
     await release();
   });
+
+  it.each(['\0\0\0\0', 'not-a-pid'])(
+    'a lock with the garbage pid %j is broken, not stuck',
+    async (text) => {
+      each();
+      const data = await lockIn(text);
+      const release = await lockDataDir(data);
+      expect(await pid(data)).toBe(String(process.pid));
+      await release();
+    }
+  );
 });
 
 describe('the lock path and an old lock (C2)', () => {

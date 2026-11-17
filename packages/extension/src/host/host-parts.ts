@@ -12,6 +12,7 @@ import { mcpPathOf } from '../mcp/mcp-app.js';
 import { MOUNTS, type PartMount, type RunnerInput } from '../runtime/part-mounts.js';
 import { createPartApp, type PartAppBase } from '../server/app.js';
 import { type HealthCheck } from '../health/health.js';
+import { appRowIn, mountAppBundle } from './app-bundle.js';
 import { type HostExtras, type HostOptions } from './host-extension.js';
 import { type HostStore } from './host-url-store.js';
 import { partChecks } from './part-checks.js';
@@ -101,11 +102,15 @@ const recordOf = async (h: Hosting, parts: HostPartKind[], mounts: PartMount[]) 
   return hostedRecordOf(h.pkg, h.build, parts, extras);
 };
 
-// The api at /api/{id}/*, the mcp at /mcp/{id}, the worker jobs; one /health with every check.
+// The api at /api/{id}/*, the mcp at /mcp/{id}, the app at /app/{id}/*, the jobs; one /health.
 export const hostPartsOf = async (h: Hosting, base: PartAppBase): Promise<HostedParts> => {
   const parts = hostParts(h.pkg);
   const mounts = await mountsOf(h, parts, base);
-  const mount = (app: Express) => mounts.forEach((m) => m.mount(app));
+  const row = await appRowIn(h.dir, h.pkg);
+  const mount = (app: Express) => {
+    mountAppBundle(app, h.dir, h.pkg.agentage.id, row);
+    mounts.forEach((m) => m.mount(app));
+  };
   const record = await recordOf(h, parts, mounts);
   const app = createPartApp({ ...base, parts, part: 'api', mount, record });
   const start = () => mounts.forEach((m) => m.start?.());

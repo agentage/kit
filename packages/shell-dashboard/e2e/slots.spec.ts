@@ -37,6 +37,9 @@ for (const width of [1280, 400]) {
       );
       await page.goto('/');
       await expect(page.locator('[data-page="empty"]')).toContainText('No extensions');
+      // No built-in nav row: the left menu comes only from extensions.
+      await expect(page.locator('[data-region="nav"] .mid > .row:not(.search)')).toHaveCount(0);
+      await expect(page.locator('[data-region="nav"] .mid')).not.toContainText('Inbox');
       expect(await axe(page)).toEqual([]);
     });
   });

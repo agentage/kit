@@ -17,7 +17,7 @@ export interface TokenCheckDeps {
   id: string;
   origin: string;
   keys: JWTVerifyGetKey;
-  revoked: { has(jti: string): boolean; loaded(): boolean };
+  revoked: { has(jti: string): boolean; loaded(): boolean; fresh(): boolean };
 }
 
 const VERIFY = { algorithms: ['EdDSA'], requiredClaims: ['exp'] };
@@ -93,5 +93,8 @@ export const createTokenCheck =
     if (jti !== undefined && !deps.revoked.loaded()) throw unavailable('Revoked list unavailable');
     if (jti !== undefined && deps.revoked.has(jti)) throw invalid(deps.origin, 'Token revoked', at);
     if (!grants(scope, deps.id, access)) throw forbidden(scopeOf(deps.id, access));
+    // A stale list may miss a revoke: a change waits for a fresh one, a read does not.
+    if (jti !== undefined && rank(access) >= rank('write') && !deps.revoked.fresh())
+      throw unavailable('Revoked list stale');
     return withJti({ sub, scopes: scope.split(' ') }, jti);
   };

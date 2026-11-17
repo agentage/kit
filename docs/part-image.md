@@ -64,6 +64,12 @@ docker run -p 8080:8080 -e AGENTAGE_HOST_AUTH=off -v probe-data:/data ghcr.io/ag
   `AGENTAGE_DRAIN_MS` and `docker run --stop-timeout <s>`.
 - `--read-only` works: only `/data` is written, and `/tmp` needs no tmpfs.
 
+With a token check, the part reads the issuer's revoked list
+(`/.well-known/agentage-revoked`) at start and every 30 s, so a revoke holds within 60 s. A token
+with a `jti` gets 503 `UNAVAILABLE` (with `Retry-After`) until the first read, and a revoked one gets 401. When the last good read is over 5 minutes old, the list is stale: a call that needs `write` or
+`admin` gets 503 `UNAVAILABLE`, and a read still uses the stale list. A token without the scope
+gets 403 first. `/health` says `degraded` while the list is stale.
+
 On loopback there is no token check. SIGTERM drains the open requests, waits for a job run still
 going (3 s at most), closes the store and exits 0. `ctx.exit()` does the same. The host brings `@electric-sql/pglite`; the package does not
 need it.

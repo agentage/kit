@@ -89,9 +89,15 @@ jobs:
               echo "${name}@${version} is already on npm"
               continue
             fi
-            # No validated trusted publisher: stage it once for approval, no GitHub release.
-            if ! npm publish -w "${name}" --access public --provenance; then
-              if npm stage publish -w "${name}" --access public --provenance; then
+            # The Verify step already ran: publish without lifecycle scripts (a flaky re-run must not stage).
+            if ! npm publish -w "${name}" --access public --provenance --ignore-scripts 2>publish.err; then
+              cat publish.err >&2
+              # Only an auth refusal (no validated trusted publisher) stages it once for approval.
+              if ! grep -qE 'ENEEDAUTH|E401|E403|E404' publish.err; then
+                held+=("${name}@${version} publish failed, not staged: see the log")
+                continue
+              fi
+              if npm stage publish -w "${name}" --access public --provenance --ignore-scripts; then
                 held+=("${name}@${version} STAGED for approval on npmjs.com, not published")
               else
                 held+=("${name}@${version} not published and not staged (already staged? approve it on npmjs.com)")

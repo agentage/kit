@@ -5,7 +5,7 @@ export const GIT_MANIFEST = {
   name: '@agentage/extension-gitter',
   version: '0.1.0',
   type: 'module',
-  engines: { agentage: '^0.17' },
+  engines: { agentage: '^0.18' },
   agentage: { id: 'gitter', parts: { api: true, store: 'git' } },
 };
 

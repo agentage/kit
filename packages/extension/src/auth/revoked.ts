@@ -18,7 +18,7 @@ const readList = async (url: string) => {
   return new Set(RevokedSchema.parse(await res.json()).revoked.map((entry) => entry.jti));
 };
 
-// The issuer's revoked ids, read every 30 s so a revoke holds within 60 s (api-standards 5).
+// Read every 30 s so a revoke holds within 60 s; a list over 5 min old refuses write and admin.
 export const createRevokedList = (issuer: string, log: Log, now = Date.now) => {
   let ids = new Set<string>();
   let readAt: number | undefined;
@@ -33,5 +33,5 @@ export const createRevokedList = (issuer: string, log: Log, now = Date.now) => {
   const loaded = () => readAt !== undefined;
   const fresh = () => readAt !== undefined && now() - readAt <= STALE_MS;
   const check: HealthCheck = async () => (fresh() ? 'ok' : 'degraded');
-  return { has: (jti: string) => ids.has(jti), loaded, refresh, check };
+  return { has: (jti: string) => ids.has(jti), loaded, fresh, refresh, check };
 };

@@ -1,8 +1,10 @@
+import { join } from 'node:path';
 import { type HealthCheck } from '../health/health.js';
 import { messageOf, type Log } from '../log/log.js';
 import { type ExtensionPackage } from '../manifest/manifest.schema.js';
 import { storeOf } from '../manifest/parts.js';
 import { createClickhouseStore } from '../store/clickhouse-store.js';
+import { sqlFiles } from '../store/migrations.js';
 import { createStore, storeCheck, type PoolStore } from '../store/store.js';
 import {
   isUrlStoreKind,
@@ -29,36 +31,46 @@ export interface UrlStoreAt {
   // AGENTAGE_STORE_URL_FILE: the estate's secret file with the store's URL.
   file?: string;
   openMs: number;
+  // A part image: it listens before the store opens, and store:migrations is only for a part with
+  // migrations/, pending is degraded (a host with no migrate job keeps serving).
+  partImage?: boolean;
 }
 
 type Pool = (url: string, log: Log) => PoolStore;
 const poolOf: Pool = (url, log) => createStore({ AGENTAGE_STORE_URL: url }, log);
 
 // The serving host never migrates (the migrate job does): /health is 503 until the ledger is current.
-export const postgresStore = (url: string, dir: string, log: Log, pool = poolOf): HostStore => {
+export const postgresStore = async (
+  url: string,
+  at: Pick<UrlStoreAt, 'dir' | 'partImage'>,
+  log: Log,
+  pool = poolOf
+): Promise<HostStore> => {
   const parts = pool(url, log);
-  return {
-    kind: 'postgres',
-    query: parts.query,
-    close: () => parts.end(),
-    checks: { 'store:migrations': migrationsCheck(parts, dir, log) },
-  };
+  const store = { kind: 'postgres' as const, query: parts.query, close: () => parts.end() };
+  if (at.partImage && (await sqlFiles(join(at.dir, 'migrations'))).length === 0) return store;
+  const pending = at.partImage ? 'degraded' : 'unavailable';
+  return { ...store, checks: { 'store:migrations': migrationsCheck(parts, at.dir, log, pending) } };
 };
 
 const within = <T>(work: Promise<T>, ms: number): Promise<T | 'late'> =>
   Promise.race([work, new Promise<'late'>((ok) => setTimeout(() => ok('late'), ms).unref())]);
 
-// The start waits up to openMs for the store; one that is down still starts, /health says 503.
-const firstUse = async (store: HostStore, kind: UrlStoreKind, openMs: number, log: Log) => {
+// The start waits up to openMs for the store (a part image: not at all); /health says 503 until it opens.
+const firstUse = async (store: HostStore, kind: UrlStoreKind, at: UrlStoreAt, log: Log) => {
   const opened = store.query('select 1').then(
     () => 'ok' as const,
     (err: unknown) => err
   );
-  const result = await within(opened, openMs);
+  const result = at.partImage ? 'late' : await within(opened, at.openMs);
   if (result === 'ok') return log.info('store opened', { kind, from: STORE_URL_FILE_ENV });
-  const reason = result === 'late' ? `not in ${openMs} ms` : messageOf(result);
-  log.warn('the store did not open: /health says unavailable until it does', { kind, reason });
+  if (at.partImage)
+    return void opened.then((r) => r !== 'ok' && warnClosed(log, kind, messageOf(r)));
+  warnClosed(log, kind, result === 'late' ? `not in ${at.openMs} ms` : messageOf(result));
 };
+
+const warnClosed = (log: Log, kind: UrlStoreKind, reason: string) =>
+  log.warn('the store did not open: /health says unavailable until it does', { kind, reason });
 
 const kindOf = (pkg: ExtensionPackage, log: Log): UrlStoreKind | undefined => {
   const kind = storeOf(pkg);
@@ -78,8 +90,8 @@ export const openUrlStore = async (
   if (!kind) return undefined;
   const url = await readStoreUrl(at.file, kind);
   const store =
-    kind === 'postgres' ? postgresStore(url, at.dir, log) : createClickhouseStore(url, log);
-  await firstUse(store, kind, at.openMs, log);
+    kind === 'postgres' ? await postgresStore(url, at, log) : createClickhouseStore(url, log);
+  await firstUse(store, kind, at, log);
   return store;
 };
 

@@ -52,7 +52,8 @@ describe('gatewayConfig', () => {
     expect(reserved?.service).toBe('gateway-miss');
     expect(reserved?.priority).toBe(50);
     const prefixes = ['/api/', '/mcp', '/mcp/', '/ui/', '/.well-known/', '/git/', '/files/'];
-    for (const prefix of [...prefixes, '/connector', '/health']) {
+    expect(reserved?.rule).not.toContain('PathPrefix(`/connector`)');
+    for (const prefix of [...prefixes, '/connector', '/connector/', '/health']) {
       expect(reserved?.rule).toContain(`\`${prefix}\``);
     }
     expect(http.services['gateway-miss']).toEqual({

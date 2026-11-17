@@ -66,7 +66,7 @@ const poolOf = (env: Env, log: Log): HostStore => {
 const storeFor = async ({ pkg, part, env, log }: Start, dir: string) => {
   if (part === 'ui' || !storeOf(pkg)) return undefined;
   const { dataDir, runDir, storeOpenMs: openMs, storeUrlFile: file } = hostEnvOf(env);
-  const opened = await openStore(pkg, { dir, dataDir, runDir, openMs, file }, log);
+  const opened = await openStore(pkg, { dir, dataDir, runDir, openMs, file, partImage: true }, log);
   return opened ?? (hasStore(pkg, 'postgres') ? poolOf(env, log) : undefined);
 };
 

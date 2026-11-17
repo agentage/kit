@@ -80,6 +80,9 @@ storeUrlFile })`) opens the store of the estate:
   variable and the file, never the URL.
 - A store that is down does not stop the start: the host waits `AGENTAGE_STORE_OPEN_MS`, then
   serves, and `/health` is 503 until the store answers.
+- A part image (`dist/runtime/main.js <part>`) listens at once and is 503 until the store answers.
+  Its `checks["store:migrations"]` is there only when the part has `migrations/`, and pending
+  migrations are `degraded` (200): an app host with no migrate job keeps serving.
 - `/health` keeps `checks.store` and adds `checks["store:postgres"]`, `checks["store:clickhouse"]` or `checks["store:git"]`
   (one probe answers both), so a reader sees which store answered. A PGlite store has
   `checks.store` only.

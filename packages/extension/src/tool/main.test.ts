@@ -22,6 +22,10 @@ const deps = (result: BuildResult | Error = RESULT) => {
       if (result instanceof Error) throw result;
       return result;
     },
+    app: async (dir) => {
+      calls.push({ dir });
+      return { entry: 'app-1.js', css: 'app-2.css' };
+    },
     up: async () => undefined,
     down: async () => undefined,
     token: async () => 'aga_x',
@@ -47,6 +51,15 @@ describe('tool cli', () => {
     expect(out).toEqual(['api     ghcr.io/agentage/probe-api:0.1.0  built']);
   });
 
+  it('app builds dist/app in --dir and prints the two hashed files', async () => {
+    const { d, out, calls } = deps();
+    expect(await main(['app', '--dir', 'x'], d)).toBe(0);
+    expect([calls, out]).toEqual([
+      [{ dir: 'x' }],
+      ['app     dist/app/app-1.js dist/app/app-2.css'],
+    ]);
+  });
+
   it('build --container asks the kit for the one image', async () => {
     const { d, calls } = deps();
     expect(await main(['build', '--container'], d)).toBe(0);
@@ -64,7 +77,7 @@ describe('tool cli', () => {
     ]);
     const help = deps();
     expect(await main(['--help'], help.d)).toBe(0);
-    expect(help.out[0]).toMatch(/^usage: agentage-extension <build\|up\|down\|token>/);
+    expect(help.out[0]).toMatch(/^usage: agentage-extension <build\|app\|up\|down\|token>/);
   });
 });
 

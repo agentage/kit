@@ -16,6 +16,13 @@ export {
   type ProtocolVersion,
 } from '../mcp/snapshot.js';
 export {
+  APP_EXTERNALS,
+  appBuilder,
+  buildApp,
+  type AppBuilder,
+  type AppFiles,
+} from './app-build.js';
+export {
   build,
   type BuildDeps,
   type BuildOptions,

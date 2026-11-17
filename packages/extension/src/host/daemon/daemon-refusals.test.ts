@@ -72,10 +72,8 @@ describe('daemon refusals', () => {
     );
     const host = { ...HOSTED_MANIFEST, agentage: { ...HOSTED_MANIFEST.agentage, id: 'host' } };
     const refused = await h.call('POST', '/host/extensions', { source: await hostedPackage(host) });
-    expect(refused).toMatchObject({
-      status: 400,
-      body: { error: { message: 'the id host is reserved' } },
-    });
+    expect(refused).toMatchObject(code(400, 'VALIDATION_ERROR'));
+    expect(JSON.stringify(refused.body)).toContain('never a name the platform owns');
     const dir = await hostedPackage();
     await h.call('POST', '/host/extensions', { source: dir });
     expect(await h.call('POST', '/host/extensions', { source: dir })).toMatchObject({

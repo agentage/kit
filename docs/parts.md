@@ -68,6 +68,20 @@ The pages part maps each path to a page:
 
 The ui part is a `widgets` map on [`@agentage/widget`](../packages/widget).
 
+The app part is one root component in `src/app/index.tsx`, its default export. It imports
+`react`, `react-dom` and `@agentage/extension/app`; the shell gives one copy of each. Turn it on with
+`parts.app: true` and give its nav row:
+
+```json
+"agentage": { "id": "probe", "parts": { "api": true, "app": true },
+  "app": { "title": "Probe", "icon": "radar", "order": 10 } }
+```
+
+- `title` is 1 to 40 characters. `icon` is a lucide icon name. `order` sorts the nav rows.
+- The app is no image and no child process. The host serves `dist/app` as static files.
+- `agentage-extension app` writes `dist/app`; `build` does it too. See [tool.md](tool.md).
+- `check` warns on `fetch(` in `src/app`: an app calls its api through `useAppHost().api`.
+
 The manifest is the `agentage` block of the extension's `package.json`. See
 [extension-probe](https://github.com/agentage/extension-probe) for every part kind.
 

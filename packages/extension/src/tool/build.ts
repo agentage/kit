@@ -3,11 +3,12 @@ import { join, resolve } from 'node:path';
 import { recordOf, validateRecord, type BuildInfo } from '../discovery/discovery.js';
 import { type ExtensionRecord } from '../discovery/discovery.schema.js';
 import { type ExtensionPackage } from '../manifest/manifest.schema.js';
-import { imageParts } from '../manifest/parts.js';
+import { appOf, imageParts } from '../manifest/parts.js';
 import { type ImagePartKind } from '../manifest/primitives.schema.js';
 import { readManifest } from '../manifest/read-manifest.js';
 import { type Env } from '../runtime/build-info.js';
 import { resolveBuildInfo } from './build-info.js';
+import { buildApp } from './app-build.js';
 import { assertConforms } from './check.js';
 import { containerParts, type ContainerParts } from './container-parts.js';
 import { buildContainer, CONTAINER_RECORD_FILE, type BuiltContainer } from './container.js';
@@ -144,7 +145,7 @@ const partImages = async (base: Base, options: BuildOptions, deps: BuildDeps) =>
   return { images, recordFile: await writeRecord(base.dir, record) };
 };
 
-// Validate, compile, check, one image per part (or the one image); --push pushes, writes the record.
+// Validate, compile, the app bundle, check, one image per part (or the one image); --push pushes, writes the record.
 export const build = async (
   options: BuildOptions = {},
   deps: BuildDeps = { run: runCommand }
@@ -154,6 +155,7 @@ export const build = async (
   const parts = options.container ? containerParts(pkg) : undefined;
   const info = await resolveBuildInfo(dir, options.env ?? process.env, deps.run);
   await compile(dir, pkg, deps.run);
+  if (appOf(pkg)) await buildApp(dir);
   const warnings = await assertConforms(dir, { run: deps.run });
   const base = { dir, pkg, info };
   const built = parts

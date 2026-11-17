@@ -36,6 +36,9 @@ const ON_STRINGS: Pattern[] = [
   [/(?:https?:)?\/\/[^'"`\s]*agentage\.io/gi, () => 'names an absolute agentage URL'],
 ];
 
+// K10: an app calls its own api through useAppHost().api; a raw fetch is not stopped, so warned.
+const APP_CODE: Pattern[] = [[/\bfetch\s*\(/g, () => 'calls fetch(: an app uses useAppHost().api']];
+
 const matches = (file: string, text: string, patterns: Pattern[]): Finding[] =>
   patterns.flatMap(([pattern, problem]) =>
     [...text.matchAll(pattern)].map((m) => {
@@ -49,6 +52,8 @@ const fileFindings = (file: string, text: string): Finding[] => {
   const kept = text.replace(TOKENS, (t) => (t.startsWith('/') ? t.replace(/[^\n]/g, '') : t));
   const code = kept.replace(QUOTED, (s) => (/\s/.test(s) ? "''" : s));
   const found = [...matches(file, code, ON_CODE), ...matches(file, kept, ON_STRINGS)];
+  if (file.startsWith('src/app/'))
+    found.push(...matches(file, code, APP_CODE).map((f) => ({ ...f, warning: true as const })));
   return [...found, ...crossPartImports(file, kept)];
 };
 

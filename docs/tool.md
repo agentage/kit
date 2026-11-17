@@ -13,13 +13,15 @@ same tool. `build` and `up` need Docker. The extension must be a git checkout wi
 node packages/extension/dist/tool/cli.js build [--push] [--dir <ext>] [--registry <host/owner>]
 node packages/extension/dist/tool/cli.js build --container [--push]  # one image, the api part
 node packages/extension/dist/tool/cli.js up [--dir <ext>]       # agentage extension up
+node packages/extension/dist/tool/cli.js app [--dir <ext>]      # dist/app only, no Docker
 node packages/extension/dist/tool/cli.js down [--keep-data]
 node packages/extension/dist/tool/cli.js token --scope probe:read
 ```
 
 `build` runs these steps in order:
 
-1. Validate the manifest and run the package's `npm run build`.
+1. Validate the manifest and run the package's `npm run build`. With the app part, write
+   `dist/app` (below).
 2. Run the six check rules (`tool/check.ts`, `tool/rules/`). Any problem stops the build before an
    image. A manifest problem stops the later rules.
 3. Build one image per part (pages, ui, api, mcp, worker), tagged
@@ -80,3 +82,24 @@ is required. The parts of `up` check it like a deployment's. The issuer also tak
 Every docker, git and npm call has a timeout (`tool/timeouts.ts`). No call retries, so a re-run
 is safe. The cli runs the same code as `agentage extension check|build|up|down|token` through
 `@agentage/extension/tool`.
+
+## The app bundle
+
+`app` (and `build` for a package with the app part) bundles `src/app/index.tsx` with esbuild and
+compiles its Tailwind classes. It writes four kinds of file to `dist/app`:
+
+| File             | What                                                                                                                      | Cache     |
+| ---------------- | ------------------------------------------------------------------------------------------------------------------------- | --------- |
+| `app-<hash>.js`  | the bundle; `react`, `react/jsx-runtime`, `react-dom`, `react-dom/client` and `@agentage/extension/app` stay bare imports | immutable |
+| `app-<hash>.css` | the Tailwind utilities that `src/app` uses; no preflight, no theme variables                                              | immutable |
+| `index.js`       | `export { default } from './app-<hash>.js'`                                                                               | no-cache  |
+| `app.json`       | `{ "entry": "app-<hash>.js", "css": "app-<hash>.css" }`, read by the host                                                 | no-cache  |
+
+- The build keeps the files of the previous build: an open page can still import them.
+- `esbuild`, `postcss`, `@tailwindcss/postcss` and `tailwindcss` are required for an app part (the
+  extension template adds them as dev dependencies). The tool takes the extension's own copy first,
+  then the copy beside the kit. If one is missing, the build stops at once and names it.
+- When `@agentage/extension/app/theme.css` resolves, its `@theme` names (the shell's tokens) give utilities
+  such as `bg-primary`. They read the shell's variables.
+- `appBuilder(dir)` from `@agentage/extension/tool` keeps esbuild warm: `rebuild()` on each save,
+  `dispose()` at the end.

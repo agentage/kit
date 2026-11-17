@@ -5,7 +5,7 @@ import semver from 'semver';
 import { checkCli } from '../command/check-cli.js';
 import { messageOf } from '../log/log.js';
 import { PackageSchema, type ExtensionPackage } from '../manifest/manifest.schema.js';
-import { entryOf, normalizeParts } from '../manifest/parts.js';
+import { appOf, entryOf, normalizeParts } from '../manifest/parts.js';
 import { type ImagePartKind } from '../manifest/primitives.schema.js';
 import { formatIssues, readJsonIfExists } from '../manifest/read-manifest.js';
 import { runCommand, type Run } from './exec.js';
@@ -91,6 +91,12 @@ const partProblem = async ({ dir, pkg }: CheckInput, part: Part): Promise<string
   return part === 'ui' ? null : exportProblem(dir, pkg, part);
 };
 
+const APP_BUILT =
+  'dist/app/index.js not found: the package build must write the app part (agentage-extension app)';
+
+const appProblem = async ({ dir, pkg }: CheckInput): Promise<Finding[]> =>
+  appOf(pkg) && !(await exists(join(dir, 'dist/app/index.js'))) ? [{ problem: APP_BUILT }] : [];
+
 // Every part built and exporting only create; cli handlers = commands; exports hold no part code.
 const entries: CheckRule = {
   name: 'entries',
@@ -101,7 +107,7 @@ const entries: CheckRule = {
     const problems = (await Promise.all(found)).flatMap((problem) =>
       problem ? [{ problem }] : []
     );
-    return [...problems, ...exportedPartCode(input.pkg)];
+    return [...problems, ...(await appProblem(input)), ...exportedPartCode(input.pkg)];
   },
 };
 

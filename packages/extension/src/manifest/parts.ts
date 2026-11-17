@@ -73,3 +73,11 @@ export const migratesStore = (pkg: ExtensionPackage): boolean => {
   const kind = storeOf(pkg);
   return kind !== undefined && STORE_KINDS[kind].migrations;
 };
+
+// dist/app/app.json names the hashed files of the last app build; the host reads it.
+export const APP_DIR = 'dist/app';
+export const APP_META_FILE = 'app.json';
+
+// The app part: a browser bundle the host serves from dist/app, never an image or a child.
+export const appOf = (pkg: ExtensionPackage) =>
+  pkg.agentage.parts.app ? pkg.agentage.app : undefined;

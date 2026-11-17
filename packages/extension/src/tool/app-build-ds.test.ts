@@ -1,0 +1,52 @@
+import { mkdir, readFile, symlink } from 'node:fs/promises';
+import { createRequire } from 'node:module';
+import { dirname, join } from 'node:path';
+import { describe, expect, it } from 'vitest';
+import { API_MANIFEST, json, tempPackage } from '../test-support/packages.js';
+import { buildApp } from './app-build.js';
+
+const PKG = {
+  ...API_MANIFEST,
+  agentage: { id: 'probe', parts: { api: true, app: true }, app: { title: 'Probe' } },
+};
+const cssOf = async (dir: string) =>
+  readFile(join(dir, 'dist/app', (await buildApp(dir)).css), 'utf8');
+
+describe('the app css scans the design-system files the app bundles (L3 bug 2)', () => {
+  it('a class only in a bundled design-system file is in the css; an unused file is not', async () => {
+    const ds = 'node_modules/@agentage/design-system';
+    const dir = await tempPackage({
+      'package.json': json(PKG),
+      'src/app/index.tsx': `import { Pill } from '@agentage/design-system/pill';
+export default function Probe() { return <Pill />; }
+`,
+      [`${ds}/package.json`]: json({
+        name: '@agentage/design-system',
+        exports: { './pill': './dist/pill.js', './other': './dist/other.js' },
+      }),
+      [`${ds}/dist/pill.js`]: `export const Pill = () => ({ className: 'rounded-full px-7 tracking-widest' });\n`,
+      [`${ds}/dist/other.js`]: `export const Other = () => ({ className: 'skew-x-12' });\n`,
+    });
+    const css = await cssOf(dir);
+    expect(css).toContain('.px-7');
+    expect(css).toContain('.tracking-widest');
+    expect(css).not.toContain('.skew-x-12');
+  });
+
+  it('the real design-system Button gets its classes (bg-primary, h-9)', async () => {
+    const real = dirname(
+      createRequire(import.meta.url).resolve('@agentage/design-system/package.json')
+    );
+    const dir = await tempPackage({
+      'package.json': json(PKG),
+      'src/app/index.tsx': `import { Button } from '@agentage/design-system/button';
+export default function Probe() { return <Button>Ping</Button>; }
+`,
+    });
+    await mkdir(join(dir, 'node_modules/@agentage'), { recursive: true });
+    await symlink(real, join(dir, 'node_modules/@agentage/design-system'), 'dir');
+    const css = await cssOf(dir);
+    expect(css).toContain('.bg-primary');
+    expect(css).toMatch(/\.h-9|\.h-10|\.h-8/);
+  });
+});

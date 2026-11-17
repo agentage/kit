@@ -37,12 +37,15 @@ describe('public surface', () => {
 
   it('the tool exports what the cli and the build call', () => {
     expect(Object.keys(tool).sort()).toEqual([
+      'APP_EXTERNALS',
       'KIT_VERSION',
       'PROTOCOL_VERSIONS',
       'PackageSchema',
       'SERVED_KINDS',
       'STORE_KINDS',
+      'appBuilder',
       'build',
+      'buildApp',
       'buildLines',
       'canonical',
       'capabilities',

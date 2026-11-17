@@ -4,8 +4,21 @@ import { writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it, vi } from 'vitest';
 import { tempDir } from '../test-support/packages.js';
+import type * as dataLock from './data-lock.js';
 import { DATA_DIR_LOCKED, lockDataDir } from './data-lock.js';
 import { lockWithin } from './host-store.js';
+
+// Calls `refused.once` when a lock try is refused, so a test can act after the first refusal.
+const refused = vi.hoisted(() => ({ once: (): void => undefined }));
+vi.mock('./data-lock.js', async (importOriginal) => {
+  const real = await importOriginal<typeof dataLock>();
+  const lockDataDir: typeof real.lockDataDir = (...args) =>
+    real.lockDataDir(...args).catch((err: unknown) => {
+      refused.once();
+      throw err;
+    });
+  return { ...real, lockDataDir };
+});
 
 // A live process that holds nothing: the pid a lock file names.
 const holder = () => spawn(process.execPath, ['-e', 'setTimeout(() => {}, 30000)']);
@@ -15,7 +28,9 @@ describe('the store open waits for a lock holder that is going away', () => {
     const data = join(await tempDir(), 'data');
     const other = holder();
     await writeFile(`${data}.lock`, String(other.pid));
+    const first = new Promise<void>((resolve) => (refused.once = resolve));
     const taking = lockWithin(data, 5_000);
+    await first;
     other.kill('SIGKILL');
     const release = await taking;
     expect(readFileSync(`${data}.lock`, 'utf8')).toBe(String(process.pid));

@@ -243,24 +243,9 @@ jobs:
             packages/widget/test-results
           retention-days: 7
 
-  shell-screenshots:
-    name: Shell screenshots
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    container:
-      image: mcr.microsoft.com/playwright:v1.64.1-noble
-      options: --user 1001
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v7
-
-      - name: Install
-        run: npm ci
-
-      - name: Build
-        run: npm run build
-
+      # One job for both suites: one container start, one install and one build.
       - name: Frame beside the prototype at 1280 and 400 px, axe, CLS, keys (Chromium)
+        if: ${{ !cancelled() }}
         run: npm run test:e2e -w @agentage/shell-dashboard
 
       - name: Screenshots and pixel difference

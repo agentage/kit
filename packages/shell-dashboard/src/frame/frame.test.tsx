@@ -80,6 +80,12 @@ describe('Frame', () => {
     expect(inbox?.querySelector('.pill')?.textContent).toBe('2');
   });
 
+  it('the inbox button is labelled "Inbox" with 0 notices', async () => {
+    const { el } = await mount({ unread: 0 });
+    const inbox = el.querySelector('[data-region="notices"] button');
+    expect(inbox?.getAttribute('aria-label')).toBe('Inbox');
+  });
+
   it('a nav row navigates without a page load', async () => {
     const { el, props } = await mount();
     await act(async () => el.querySelector<HTMLAnchorElement>('a[href="/fixture"]')?.click());

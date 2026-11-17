@@ -90,11 +90,11 @@ export const Nav = ({
           />
         </div>
         {/* No built-in nav row: the inbox sits in the foot, the nav rows come only from extensions. */}
-        <div data-region="notices" ref={regionRef('notices')} className="noticeslot">
+        <div data-region="notices" ref={regionRef('notices')} style={{ display: 'contents' }}>
           <button
             className="ib inboxbtn"
             title="Inbox"
-            aria-label={`Inbox, ${unread} notices`}
+            aria-label={unread ? `Inbox, ${unread} notices` : 'Inbox'}
             onClick={on.onInbox}
           >
             <Bell className="i" aria-hidden="true" />

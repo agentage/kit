@@ -22,10 +22,6 @@
     flex: 1;
     min-width: 0;
   }
-  .noticeslot {
-    display: flex;
-    gap: 4px;
-  }
   .inboxbtn {
     position: relative;
   }

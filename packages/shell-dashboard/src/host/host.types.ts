@@ -33,6 +33,8 @@ export interface Session {
   host: string;
   // A cloud app host signed out: its auth sign-in page, back to this page. The daemon never sends it.
   signIn?: string;
+  // Signed in on a cloud app host: the path to POST to end the session. The daemon never sends it.
+  signOut?: string;
 }
 
 // GET /shell/events (SSE): `extensions` and `session` say "fetch again"; `app` names the new build.

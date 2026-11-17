@@ -6,7 +6,8 @@ import type { Account } from './frame/frame.types.js';
 import { createRegionHost } from './frame/regions.js';
 import { useHostFeeds } from './host/feeds.js';
 import type { ShellDeps } from './host/host.types.js';
-import { safeSignIn } from './host/safe-sign-in.js';
+import { safePath, safeSignIn } from './host/safe-sign-in.js';
+import { signOut } from './host/sign-out.js';
 import { AppPage } from './loader/app-page.js';
 import { InboxBody, Toasts } from './notices/notice-list.js';
 import { createNotices, unreadOf, useNotices } from './notices/notices.js';
@@ -37,7 +38,7 @@ export const ShellApp = ({ deps, version }: { deps: ShellDeps; version: string }
   const [bars] = useState(createAppBars);
   const [shellFor] = useState(() => createPorts(notices, bars));
   const list = useNotices(notices);
-  const { discovery, session, seen } = useHostFeeds(deps);
+  const { discovery, session, seen, reloadSession } = useHostFeeds(deps);
   const route = useRoute();
   const rows = appRows(discovery);
   const row = rows.find((r) => r.id === route.id);
@@ -45,6 +46,7 @@ export const ShellApp = ({ deps, version }: { deps: ShellDeps; version: string }
   const user = session?.user ?? null;
   const label = user ? (user.name ?? user.email ?? user.id) : null;
   const signIn = user ? undefined : safeSignIn(session?.signIn, location.origin);
+  const out = user ? safePath(session?.signOut, location.origin) : undefined;
   const inboxOpen = route.aside === 'inbox';
   useEffect(() => {
     if (inboxOpen) notices.markAllRead();
@@ -81,6 +83,7 @@ export const ShellApp = ({ deps, version }: { deps: ShellDeps; version: string }
           pending: !session,
           links: accountLinks(rows),
           ...(signIn && { signIn }),
+          ...(out && { onSignOut: () => signOut(deps, out, reloadSession) }),
         }}
         apps={rows.map((r) => ({ id: r.id, version: r.version }))}
         version={version}

@@ -14,6 +14,11 @@ const APPS = {
 const SESSIONS = {
   in: { user: { id: 'u1', email: 'lab@example.test', name: 'Alex Doe' }, host: 'local' },
   out: { user: null, host: 'platform', signIn: '/__sign-in?next=%2F' },
+  cloud: {
+    user: { id: 'u1', email: 'lab@example.test', name: 'Alex Doe' },
+    host: 'platform',
+    signOut: '/shell/sign-out',
+  },
   hostile: { user: null, host: 'platform', signIn: 'javascript:alert(1)' },
 };
 
@@ -45,7 +50,8 @@ export const createLab = (here, out) => {
     });
     return rows.get(id).app.entry;
   };
-  // POST /__lab/session/out: a cloud host signed out, with its sign-in page; /in: back to the user.
+  // POST /__lab/session/out: a cloud host signed out, with its sign-in page; /in: the daemon user;
+  // /cloud: a cloud host signed in, with the signOut path.
   let session = 'in';
   // POST /__lab/deny-feed/<n>: the next n feed connections get a 502, as an edge does during a deploy.
   let denied = 0;

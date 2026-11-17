@@ -32,6 +32,9 @@ createServer(async (req, res) => {
   const [, first = '', second = '', third = ''] = path.split('/');
   if (path === '/.well-known/agentage-host.json') return json(res, lab.discovery());
   if (path === '/shell/session') return json(res, lab.session());
+  // The router's sign-out: the cloud session ends, the shell reads the session again.
+  if (path === '/shell/sign-out' && req.method === 'POST')
+    return (await lab.control('session', 'out'), json(res, {}));
   if (path === '/shell/events') return lab.stream(req, res);
   if (first === '__lab')
     return (await lab.control(second, third, path.split('/')[4]), json(res, {}));

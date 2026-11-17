@@ -18,6 +18,8 @@ export interface Account {
   links?: { settings?: string; tokens?: string; signOut?: string };
   // A cloud host's sign-in page; signed out with it, the account region is a Sign in link.
   signIn?: string;
+  // The session's sign-out action; it takes the place of the account extension's Sign out link.
+  onSignOut?: () => void;
 }
 
 export interface AsideState {

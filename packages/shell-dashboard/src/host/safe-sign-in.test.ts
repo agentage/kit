@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { safeSignIn } from './safe-sign-in.js';
+import { safePath, safeSignIn } from './safe-sign-in.js';
 
 const PAGE = 'https://h.test';
 
@@ -36,5 +36,26 @@ describe('safeSignIn', () => {
     expect(safeSignIn(link, 'http://localhost:3000')).toBe(link);
     expect(safeSignIn(link, 'http://h.test')).toBeUndefined();
     expect(safeSignIn('javascript:alert(1)', 'http://localhost:3000')).toBeUndefined();
+  });
+});
+
+describe('safePath', () => {
+  it.each([
+    '//evil.test/x',
+    'https://evil.test/x',
+    'https://h.test/shell/sign-out',
+    'javascript:alert(1)',
+    '/\\evil.test',
+    '/\t/evil.test',
+    'sign-out',
+    '',
+    undefined,
+    42,
+  ])('refuses %j', (value) => {
+    expect(safePath(value, PAGE)).toBeUndefined();
+  });
+
+  it('keeps a same-origin path', () => {
+    expect(safePath('/shell/sign-out', PAGE)).toBe('/shell/sign-out');
   });
 });

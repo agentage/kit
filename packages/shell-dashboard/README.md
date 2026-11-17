@@ -42,6 +42,10 @@ The host serves `dist/*` at `/shell/*` (one mapping, `shellFileOf` in `scripts/b
   agentage setup". The shell keeps `signIn` only when it is an `https:` URL or a same-origin path
   (`/...`, never `//` or `/\`); on a loopback http page it also takes `http:`. Any other value is
   the same as no `signIn`.
+- Sign out: when `/shell/session` names a user and has `signOut` (a cloud app host; the router
+  sends `/shell/sign-out`), the account menu has a "Sign out" item. It sends `POST <signOut>`
+  (same-origin, no body) and then reads the session again, so the Sign in link shows with no reload.
+  The shell keeps `signOut` only as a same-origin path. The daemon sends none, so it has no item.
 
 ## Side pane
 

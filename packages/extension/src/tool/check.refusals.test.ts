@@ -49,3 +49,32 @@ describe('the first refusals a caller meets', () => {
     ]);
   });
 });
+
+describe('the app part needs the design system', () => {
+  const app = (extra: object) => ({
+    ...SPEC_MANIFEST,
+    ...extra,
+    agentage: { ...SPEC_MANIFEST.agentage, parts: { app: true }, app: { title: 'Probe' } },
+  });
+  const ds = (spec?: string) => (spec ? { dependencies: { '@agentage/design-system': spec } } : {});
+  const run = async (extra: object) =>
+    (
+      await check(
+        await tempPackage({ 'package.json': json(app(extra)), 'dist/app/index.js': '' }),
+        entries
+      )
+    ).problems.map((p) => p.problem);
+
+  it('refuses an app part that does not declare it', async () => {
+    expect(await run(ds())).toEqual([
+      'the app part needs @agentage/design-system ^0.20: add it to dependencies',
+    ]);
+  });
+
+  it('refuses a range below 0.20 and accepts ^0.20', async () => {
+    expect(await run(ds('^0.19.2'))).toEqual([
+      '@agentage/design-system ^0.19.2, the app part needs ^0.20',
+    ]);
+    expect(await run(ds('^0.20.1'))).toEqual([]);
+  });
+});

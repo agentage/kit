@@ -45,7 +45,9 @@ const holder = async (file: string): Promise<number> => {
     await sleep(25);
     pid = await pidIn(file);
   }
-  return Number(pid);
+  const n = Number(pid);
+  // Garbage (NUL bytes, text) is NaN, which never equals itself: read it as 0, a stale holder.
+  return Number.isInteger(n) ? n : 0;
 };
 
 const live = (lock: string, pid: number): boolean =>

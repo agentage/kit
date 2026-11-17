@@ -79,6 +79,7 @@ The app part is one root component in `src/app/index.tsx`, its default export. I
 
 - `title` is 1 to 40 characters. `icon` is a lucide icon name. `order` sorts the nav rows.
 - The app is no image and no child process. The host serves `dist/app` as static files.
+- The one container (the kit host on an app host) serves them too, anonymous, at `/app/{id}/*`, and its nav row (`title`, `icon`, `order`, `entry`, `css`) as JSON at `/app/{id}/`. An app host router reads that row into its host document and forwards `/app/{id}/*`.
 - The tool's `app` command writes `dist/app`; `build` does it too. See [tool.md](tool.md).
 - `check` warns on `fetch(` in `src/app`: an app calls its api through `useAppHost().api`.
 - `check` refuses an app part whose package.json does not declare `@agentage/design-system` `^0.20` (the kit app code imports it); `@agentage/extension` lists it as an optional peer.

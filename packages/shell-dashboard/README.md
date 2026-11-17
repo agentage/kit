@@ -35,7 +35,9 @@ The host serves `dist/*` at `/shell/*` (one mapping, `shellFileOf` in `scripts/b
 - Signed out: when `/shell/session` has `signIn` (a cloud app host; apphosts "Sign-in on the shell"),
   the account region is a "Sign in" link to it, in the same box as the account menu (no layout
   shift; on a phone, the avatar). With no `signIn` (the daemon), it keeps "Not signed in, run
-  agentage setup".
+  agentage setup". The shell keeps `signIn` only when it is an `https:` URL or a same-origin path
+  (`/...`, never `//` or `/\`); on a loopback http page it also takes `http:`. Any other value is
+  the same as no `signIn`.
 
 ## Side pane
 

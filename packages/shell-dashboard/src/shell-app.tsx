@@ -6,6 +6,7 @@ import type { Account } from './frame/frame.types.js';
 import { createRegionHost } from './frame/regions.js';
 import { useHostFeeds } from './host/feeds.js';
 import type { ShellDeps } from './host/host.types.js';
+import { safeSignIn } from './host/safe-sign-in.js';
 import { AppPage } from './loader/app-page.js';
 import { InboxBody, Toasts } from './notices/notice-list.js';
 import { createNotices, unreadOf, useNotices } from './notices/notices.js';
@@ -43,6 +44,7 @@ export const ShellApp = ({ deps, version }: { deps: ShellDeps; version: string }
   const own = useAppBars(bars, row?.id ?? '');
   const user = session?.user ?? null;
   const label = user ? (user.name ?? user.email ?? user.id) : null;
+  const signIn = user ? undefined : safeSignIn(session?.signIn, location.origin);
   const inboxOpen = route.aside === 'inbox';
   useEffect(() => {
     if (inboxOpen) notices.markAllRead();
@@ -78,7 +80,7 @@ export const ShellApp = ({ deps, version }: { deps: ShellDeps; version: string }
           initials: initials(label),
           pending: !session,
           links: accountLinks(rows),
-          ...(!user && session?.signIn && { signIn: session.signIn }),
+          ...(signIn && { signIn }),
         }}
         apps={rows.map((r) => ({ id: r.id, version: r.version }))}
         version={version}

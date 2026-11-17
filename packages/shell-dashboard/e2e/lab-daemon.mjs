@@ -14,6 +14,7 @@ const APPS = {
 const SESSIONS = {
   in: { user: { id: 'u1', email: 'lab@example.test', name: 'Alex Doe' }, host: 'local' },
   out: { user: null, host: 'platform', signIn: '/__sign-in?next=%2F' },
+  hostile: { user: null, host: 'platform', signIn: 'javascript:alert(1)' },
 };
 
 export const createLab = (here, out) => {

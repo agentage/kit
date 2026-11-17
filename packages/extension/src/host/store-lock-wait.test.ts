@@ -34,11 +34,23 @@ describe('the store open waits for a lock holder that is going away', () => {
   });
 });
 
-// sh forks `sleep 0` and execs into a sleep that never reaps it: the child stays a zombie.
+// sh forks `cat` on fd 3 and execs into a sleep that never reaps it; the test ends cat after the exec,
+// so the exit comes later than the exec (an earlier exit is reaped by sh itself).
 const zombieOf = () =>
   new Promise<{ pid: number; parent: ReturnType<typeof spawn> }>((resolve) => {
-    const parent = spawn('sh', ['-c', 'sleep 0 & echo $!; exec sleep 30']);
-    parent.stdout.once('data', (chunk: Buffer) => resolve({ pid: Number(String(chunk)), parent }));
+    const parent = spawn('sh', ['-c', 'cat <&3 >/dev/null & echo $!; exec sleep 30'], {
+      stdio: ['ignore', 'pipe', 'inherit', 'pipe'],
+    });
+    parent.stdout!.once('data', (chunk: Buffer) => {
+      const pid = Number(String(chunk));
+      const exec = () => {
+        if (readFileSync(`/proc/${parent.pid}/comm`, 'utf8').trim() !== 'sleep')
+          return setTimeout(exec, 5);
+        (parent.stdio[3] as NodeJS.WritableStream).end();
+        resolve({ pid, parent });
+      };
+      exec();
+    });
   });
 
 const stateOf = (pid: number) => {

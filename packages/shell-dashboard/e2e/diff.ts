@@ -37,5 +37,6 @@ export const CONTENT = [
   '.bhead .err',
 ].join(', ');
 export const CHROME_ONLY = `${CONTENT} { visibility: hidden !important; }`;
-export const NOT_CHROME = '.sect, #recent { display: none !important; }';
+// The prototype's Inbox nav row: the shell has no built-in nav row (its inbox is in the foot).
+export const NOT_CHROME = '.sect, #recent, #inboxBtn { display: none !important; }';
 export const NO_SWITCHER = '#sw { display: none !important; }';

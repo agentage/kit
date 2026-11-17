@@ -13,9 +13,30 @@
   #root {
     height: 100%;
   }
-  .foot > [data-slot='dropdown-menu'] {
+  .foot > .acctslot {
     flex: 1;
     min-width: 0;
+    display: flex;
+  }
+  .acctslot > [data-slot='dropdown-menu'] {
+    flex: 1;
+    min-width: 0;
+  }
+  .noticeslot {
+    display: flex;
+    gap: 4px;
+  }
+  .inboxbtn {
+    position: relative;
+  }
+  .inboxbtn .pill {
+    position: absolute;
+    top: -6px;
+    right: -6px;
+    min-width: 16px;
+    height: 16px;
+    padding: 0 4px;
+    font-size: 10px;
   }
   a.row {
     text-decoration: none;

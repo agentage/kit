@@ -25,6 +25,14 @@ The host serves `dist/*` at `/shell/*` (one mapping, `shellFileOf` in `scripts/b
 `actions`, `bottom`, `side`, `aside`. Apps reach `actions`, `aside`, `notices`,
 `bottom` and `side` through `Region` of `@agentage/extension/app`.
 
+## Nav and empty main
+
+- No built-in nav row: the left menu holds Search and one row per installed app (`agentage.app` in
+  the extension's `package.json`). The inbox is a bell button in the nav foot, beside the account
+  menu (region `notices`; on a phone, the bell in `mobile-header`).
+- When no extension is open, `main` shows the design-system empty state (`EmptyState`): "No
+  extensions" with the install command when none is installed, else "Open an app" on `/`.
+
 ## Rules the code enforces
 
 - Tokens: one `@theme` block (`@agentage/app/theme.css`, imported by `src/styles/shell.css`) puts the prototype hex values under the
@@ -45,7 +53,7 @@ The host serves `dist/*` at `/shell/*` (one mapping, `shellFileOf` in `scripts/b
 | `src/host/feeds.ts`      | `GET /.well-known/agentage-host.json` (rows with `app`) and `GET /shell/session`, again on each `/shell/events` event: `extensions`, `session`; `app { id, entry, css }` swaps the entry of one row                      |
 | `src/route/router.ts`    | `/` home, `/{id}/{page...}` an app, else "Not found"; the history API with back and forward; the aside opens with one reserved key in the query (`?details=1`, `?inspect=1`, `?inbox=1`)                                 |
 | `src/loader/*`           | imports the row's hashed entry, links its css, renders the default export in `AppContext` inside an error boundary keyed by the entry: a new build remounts the root, `useAppState` values stay (one store for the page) |
-| `src/notices/*`          | `notify()` adds a toast (role `status`) for 5 s; the inbox row in `notices` counts them; `?inbox=1` lists them in the aside, alone                                                                                       |
+| `src/notices/*`          | `notify()` adds a toast (role `status`) for 5 s; the inbox bell in the nav foot (`notices`) counts them; `?inbox=1` lists them in the aside, alone                                                                       |
 | `src/host/local-host.ts` | the local adapter: `/api/{id}{path}`, no token, scopes `{id}:read`, `{id}:write`, `{id}:admin`                                                                                                                           |
 
 An app that leaves the list while its page is open shows "<Title> was removed". Nav icons are a fixed

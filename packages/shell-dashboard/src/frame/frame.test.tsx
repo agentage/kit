@@ -71,6 +71,15 @@ describe('Frame', () => {
     expect(el.querySelector('[aria-current="page"]')?.textContent).toBe('Probe');
   });
 
+  it('no built-in nav row: with no extension the nav has Search only, the inbox is in the foot', async () => {
+    const { el } = await mount({ rows: [], unread: 2 });
+    const rows = [...el.querySelectorAll('[data-region="nav"] .mid .row')];
+    expect(rows.map((r) => r.getAttribute('title'))).toEqual(['Search']);
+    const inbox = el.querySelector('.foot [data-region="notices"] button');
+    expect(inbox?.getAttribute('aria-label')).toBe('Inbox, 2 notices');
+    expect(inbox?.querySelector('.pill')?.textContent).toBe('2');
+  });
+
   it('a nav row navigates without a page load', async () => {
     const { el, props } = await mount();
     await act(async () => el.querySelector<HTMLAnchorElement>('a[href="/fixture"]')?.click());

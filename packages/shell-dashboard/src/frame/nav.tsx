@@ -60,20 +60,6 @@ export const Nav = ({
           <span className="lbl">Search</span>
           <Kbd>Ctrl K</Kbd>
         </button>
-        <div data-region="notices" ref={regionRef('notices')} style={{ display: 'contents' }}>
-          <button
-            className="row"
-            title="Inbox"
-            aria-label={`Inbox, ${unread} notices`}
-            onClick={on.onInbox}
-          >
-            <Bell className="i" aria-hidden="true" />
-            <span className="lbl">Inbox</span>
-            <span className="pill" hidden={!unread}>
-              {unread}
-            </span>
-          </button>
-        </div>
         {rows.map((r) => (
           <a
             key={r.id}
@@ -92,15 +78,31 @@ export const Nav = ({
           </a>
         ))}
       </div>
-      <div className="foot" data-region="account">
-        <AccountMenu
-          account={account}
-          version={version}
-          apps={apps}
-          onPalette={() => state.setPalette(true)}
-          onToggleNav={state.toggleNav}
-          onNavigate={on.onNavigate}
-        />
+      <div className="foot">
+        <div className="acctslot" data-region="account">
+          <AccountMenu
+            account={account}
+            version={version}
+            apps={apps}
+            onPalette={() => state.setPalette(true)}
+            onToggleNav={state.toggleNav}
+            onNavigate={on.onNavigate}
+          />
+        </div>
+        {/* No built-in nav row: the inbox sits in the foot, the nav rows come only from extensions. */}
+        <div data-region="notices" ref={regionRef('notices')} className="noticeslot">
+          <button
+            className="ib inboxbtn"
+            title="Inbox"
+            aria-label={`Inbox, ${unread} notices`}
+            onClick={on.onInbox}
+          >
+            <Bell className="i" aria-hidden="true" />
+            <span className="pill" hidden={!unread}>
+              {unread}
+            </span>
+          </button>
+        </div>
       </div>
       <Splitter {...NAV_SPLIT} />
     </nav>

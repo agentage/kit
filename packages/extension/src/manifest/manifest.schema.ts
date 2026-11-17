@@ -111,7 +111,6 @@ export const PackageSchema = z
     path: ['name'],
   });
 
-export type AppMeta = z.infer<typeof AppMetaSchema>;
 export type CodePart = z.infer<typeof CodePartSchema>;
 export type CommandSpec = z.infer<typeof CommandSchema>;
 export type Parts = z.infer<typeof PartsSchema>;

@@ -12,7 +12,7 @@ import {
   type ToolResult,
 } from './tools.js';
 
-export interface ServerIdentity {
+interface ServerIdentity {
   id: string;
   version: string;
   bare?: boolean;

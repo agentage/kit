@@ -1,7 +1,7 @@
 import { hostError } from './host-error.js';
 
 // A hung /mcp or /api call ends here rather than leaving the widget waiting; the bridge never retries.
-export const CALL_TIMEOUT_MS = 30_000;
+const CALL_TIMEOUT_MS = 30_000;
 
 export const withTimeout = (init: RequestInit = {}, ms = CALL_TIMEOUT_MS): RequestInit => {
   const timeout = AbortSignal.timeout(ms);

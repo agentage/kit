@@ -3,7 +3,7 @@ import { setCaller, type Access, type Caller, type TokenCheck } from '../auth/to
 import { fail, isFailure } from '../envelope/envelope.js';
 import { type FilesEntry, type FilesOptions } from './files-registry.js';
 
-export const filesPathOf = (id: string): string => `/files/${id}`;
+const filesPathOf = (id: string): string => `/files/${id}`;
 
 const UPLOAD = 'git-upload-pack';
 
@@ -14,7 +14,7 @@ const onlyUploadService = (req: Request): boolean => {
 };
 
 // Default deny: only a clone or fetch reads; anything else (a push, any odd form) needs write.
-export const filesAccess = (req: Request): Access => {
+const filesAccess = (req: Request): Access => {
   if (req.method === 'GET' && req.path.endsWith('/info/refs') && onlyUploadService(req))
     return 'read';
   if (req.method === 'POST' && req.path.endsWith(`/${UPLOAD}`) && !req.originalUrl.includes('?'))
@@ -31,7 +31,7 @@ const decoded = (segment: string): string => {
 };
 
 // A dot segment, raw or encoded (also one hidden behind an encoded slash), never reaches the handler.
-export const hasDotSegment = (path: string): boolean =>
+const hasDotSegment = (path: string): boolean =>
   path
     .split('/')
     .flatMap((segment) => decoded(segment).split(/[/\\]/))

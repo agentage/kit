@@ -24,5 +24,3 @@ export const createRegionHost = (): RegionHost & {
     ref,
   };
 };
-
-export type FrameRegions = ReturnType<typeof createRegionHost>;

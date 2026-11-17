@@ -125,7 +125,7 @@ const missing = async (): Promise<never> => {
 };
 
 // Says so on first use, as ctx.store does: the check and test contexts run create() with no store.
-export const NO_CLICKHOUSE_STORE: ClickhouseStore = Object.freeze({
+const NO_CLICKHOUSE_STORE: ClickhouseStore = Object.freeze({
   kind: 'clickhouse',
   query: missing,
   command: missing,

@@ -11,13 +11,13 @@ export interface Out {
 
 export type Write = (text: string) => void;
 
-export interface OutOptions {
+interface OutOptions {
   json: boolean;
   stdout: Write;
   stderr: Write;
 }
 
-export interface RecordedOut extends Out {
+interface RecordedOut extends Out {
   readonly exitCode: number | undefined;
 }
 

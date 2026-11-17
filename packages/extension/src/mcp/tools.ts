@@ -5,7 +5,7 @@ import { type PartContext } from '../context/context.js';
 type ObjectSchema = z.ZodObject;
 
 // The MCP tool hints, typed here: the tool entry (check) loads no server dependency.
-export interface ToolAnnotations {
+interface ToolAnnotations {
   readOnlyHint?: boolean;
   destructiveHint?: boolean;
   idempotentHint?: boolean;

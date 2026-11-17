@@ -2,9 +2,9 @@ import { useCallback, useEffect, useState } from 'react';
 import { openFeed } from './feed-source.js';
 import type { AppEvent, Discovery, Session, ShellDeps } from './host.types.js';
 
-export const DISCOVERY_URL = '/.well-known/agentage-host.json';
-export const SESSION_URL = '/shell/session';
-export const EVENTS_URL = '/shell/events';
+const DISCOVERY_URL = '/.well-known/agentage-host.json';
+const SESSION_URL = '/shell/session';
+const EVENTS_URL = '/shell/events';
 
 const getJson = async <T>(deps: ShellDeps, url: string): Promise<T | null> => {
   try {

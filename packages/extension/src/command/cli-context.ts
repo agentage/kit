@@ -21,7 +21,7 @@ export interface CommandRun {
 const unwired = (): Promise<never> =>
   Promise.reject(new Error('ctx.client: this host does not provide a client yet'));
 
-export const NO_CLIENT: CliClient = Object.freeze({ api: unwired, tool: unwired });
+const NO_CLIENT: CliClient = Object.freeze({ api: unwired, tool: unwired });
 
 // Owner-only, made on first read, so --help and the build check never create a folder.
 const ownDir = (dataDir: string | undefined, id: string) => (): string => {

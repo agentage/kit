@@ -14,7 +14,7 @@ const STORE_URL_FILE = `/run/secrets/${STORE_URL_SECRET}`;
 const RECORD_TARGET = '/run/agentage/agentage-extension.json';
 const ISSUER_ENTRY = 'node_modules/@agentage/extension/dist/tool/up/dev-issuer.js';
 
-export interface ComposeInput {
+interface ComposeInput {
   pkg: ExtensionPackage;
   // The compose project, one per working copy (project.ts).
   project: string;

@@ -4,7 +4,7 @@ import { rootVarPx, writeStore } from '../lib/storage.js';
 const KEY_STEP = 16;
 const SHIFT_STEP = 64;
 
-export interface SplitterSpec {
+interface SplitterSpec {
   // The root CSS variable the pre-paint script also sets (`--nav-full`, `--side-w`, `--aside-w`, `--bot-h`).
   cssVar: string;
   storeKey: string;

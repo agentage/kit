@@ -19,7 +19,7 @@ export type Layout = WidgetNode | LayoutBox;
 
 const WidgetNodeSchema = z.object({ kind: z.literal('widget'), extension: Kebab, name: Kebab });
 
-export const LayoutSchema: z.ZodMiniType<Layout> = z.union([
+const LayoutSchema: z.ZodMiniType<Layout> = z.union([
   WidgetNodeSchema,
   z.object({
     kind: z.enum(['row', 'column']),

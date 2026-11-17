@@ -9,7 +9,7 @@ const MigrateSummarySchema = z.object({
   seedsBefore: z.int().min(0).default(0),
 });
 
-export type MigrateSummary = z.infer<typeof MigrateSummarySchema>;
+type MigrateSummary = z.infer<typeof MigrateSummarySchema>;
 
 const lastJson = (out: string): unknown => {
   try {

@@ -87,7 +87,7 @@ export const assertReadable = async (configDir: string, why?: string): Promise<v
 };
 
 // A bad file is kept as installation.json.bad before the daemon writes the valid rows over it.
-export const keepBadCopy = (configDir: string): Promise<void> =>
+const keepBadCopy = (configDir: string): Promise<void> =>
   copyFile(join(configDir, INSTALLATION_FILE), join(configDir, `${INSTALLATION_FILE}.bad`));
 
 // Only rows C3 accepts are written, and each id once.

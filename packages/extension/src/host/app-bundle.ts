@@ -35,7 +35,7 @@ export const appRowIn = async (
 };
 
 // K5: hashed files never change; index.js and app.json name the newest build.
-export const setAppHeaders = (res: Response, path: string) => {
+const setAppHeaders = (res: Response, path: string) => {
   const hashed = HASHED.test(path.split('/').pop() ?? '');
   res.set('Cache-Control', hashed ? 'public, max-age=31536000, immutable' : 'no-cache');
 };

@@ -102,7 +102,7 @@ Read the file named here before you read `src/` (`src/` = `packages/extension/sr
 
 ## Layout (`packages/logs`)
 
-- `event.schema.ts` the line (`EventSchema`, seven kinds), `rows.ts` and `error-row.ts` one row per unit
+- `event.schema.ts` the line (`EventSchema`, seven kinds), `rows.ts` one row per unit
   of work with its level rule, `logger.ts` (`loggerOf` over one `row` sink, `createLogger` to
   stderr), `redact.ts`, `parse-line.ts` (a non-event line is a raw `log` row), `events-client.ts`
   (batches under 1 MB, 5 s timeout, one retry), `uuidv7.ts` (the agcid, 32 hex). zod and node only:

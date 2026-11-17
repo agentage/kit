@@ -3,7 +3,7 @@ import { type CommandSpec } from '../manifest/manifest.schema.js';
 
 export type ArgValue = string | number | boolean | undefined;
 
-export interface ParsedArgs {
+interface ParsedArgs {
   args: Record<string, ArgValue>;
   json: boolean;
   help: boolean;

@@ -6,8 +6,8 @@ import { createPortal } from 'react-dom';
 import { NOTICE_LIFE_MS, unreadOf, type Notices } from './notices.js';
 
 // The design-system toast variants: ok is success, error is destructive.
-export const TOAST_VARIANT = { ok: 'success', error: 'destructive', info: 'info' } as const;
-export const variantOf = (kind: NoticeKind = 'info') => TOAST_VARIANT[kind];
+const TOAST_VARIANT = { ok: 'success', error: 'destructive', info: 'info' } as const;
+const variantOf = (kind: NoticeKind = 'info') => TOAST_VARIANT[kind];
 
 const Bridge = ({ notices }: { notices: Notices }) => {
   const { toast } = useToast();

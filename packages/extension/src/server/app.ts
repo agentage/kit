@@ -48,7 +48,7 @@ export interface PartAppBase {
   clockRate?: number;
 }
 
-export interface PartAppOptions extends PartAppBase {
+interface PartAppOptions extends PartAppBase {
   part: ImagePartKind;
   mount: (app: Express) => void;
   helmet?: HelmetOptions;

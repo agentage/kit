@@ -1,5 +1,5 @@
 // The ClickHouse HTTP interface with fetch: no client library in the kit or in the cli bundle.
-export interface ClickhouseConnection {
+interface ClickhouseConnection {
   origin: string;
   username: string;
   password: string;

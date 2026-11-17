@@ -9,7 +9,7 @@ import { type HealthBody, type HealthStatus } from './health.schema.js';
 
 export type HealthCheck = () => Promise<HealthStatus>;
 
-export interface HealthOptions {
+interface HealthOptions {
   extension: string;
   part: ImagePartKind;
   version: string;

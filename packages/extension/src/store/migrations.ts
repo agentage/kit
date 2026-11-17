@@ -4,7 +4,7 @@ import { messageOf, type Log } from '../log/log.js';
 import { KIT_MIGRATIONS, KIT_PREFIX, KIT_TABLES } from './kit-migrations.js';
 import { type Store } from './store.types.js';
 
-export const SQL_FILE = /^[0-9]{3}-[a-z0-9-]+\.sql$/;
+const SQL_FILE = /^[0-9]{3}-[a-z0-9-]+\.sql$/;
 
 export interface MigrateResult {
   migrations: number;
@@ -35,7 +35,7 @@ const LEDGER = `create table if not exists _migrations (
 
 const SEED = 'seed:';
 // Written by the first run on an empty store, removed once the seeds ran: a failed first run still seeds later.
-export const SEEDS_OWED = 'seeds:owed';
+const SEEDS_OWED = 'seeds:owed';
 
 // Tables other than the kit's own: a store holding any (a restored dump) never gets the seeds.
 const USER_TABLES = `select count(*)::int as n from information_schema.tables

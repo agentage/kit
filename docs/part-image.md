@@ -289,7 +289,7 @@ Statuses, not codes, tell a retry: 503 `UNAVAILABLE` is worth a retry after `Ret
 | `GET /`, `GET /{id}/*` | for a client that prefers HTML: the shell `index.html` (`no-cache`), 404 when `id` has no app; others get the JSON 404 |
 | `GET /shell/*` | the kit's own `dist/shell` (the kit build writes it), or the `dist/` of the `shellDir` option; neither, no page and no `shell` key |
 | `GET /shell/session` | `{ user: { id, email?, name? } \| null, host: "local" }`: `id` is the user the children run as (issuer checked, as the cli does), `email` and `name` from that `auth.json`; never a token |
-| `GET /shell/events` | server-sent events: `extensions` after each change, `app { id, entry, css }` after an app reload |
+| `GET /shell/events` | server-sent events: `extensions` after each change, `app { id, entry, css }` after an app reload, `session { signedIn }` after a sign-in, sign-out or other change of `auth.json` (fetch `/shell/session` again) |
 | `GET /app/{id}/*` | the package's `dist/app`, also while the child is down; hashed files `immutable`, `index.js` and `app.json` `no-cache` |
 
 `X-Agentage-App: <id>` on `/api/{other}/*`, `/files/{other}/*` or `/connector/{other}` is 403 `FORBIDDEN`: an app calls only its own

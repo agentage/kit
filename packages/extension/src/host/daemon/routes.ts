@@ -107,7 +107,8 @@ export const daemonApp = (
   entries: Entries,
   port: () => number,
   info: DaemonInfo,
-  hostToken: string
+  hostToken: string,
+  events: ShellEvents = shellEvents()
 ): Express => {
   const app = express();
   const proxy = proxyTo(entries, deps, hostToken);
@@ -119,7 +120,6 @@ export const daemonApp = (
   app.use('/files/:id', ownAppOnly, proxy);
   healthRoutes(app, deps, entries, info);
   app.use('/host', requireHostToken(hostToken));
-  const events = shellEvents();
   hostRoutes(app, deps, entries, info, events);
   appRoutes(app, entries);
   shellRoutes(app, { shell: info.shell, entries, events, user: deps.user });

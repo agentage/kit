@@ -5,6 +5,7 @@ import { createLog } from '../../log/log.js';
 import { closeNow, listen } from '../../server/serve.js';
 import { forkLaunch, type Launch } from './child.js';
 import { syncCliUser, watchCliUser } from './cli-user-watch.js';
+import { shellEvents } from './shell-events.js';
 import { removeDaemonFile, writeDaemonFile, DAEMON_PROTOCOL } from './daemon-files.js';
 import { assertNoOtherDaemon } from './daemon-owner.js';
 import { bootInstallation, updateInstallation } from './installation.js';
@@ -147,15 +148,16 @@ export const startDaemon = async (opts: DaemonOptions, launch: Launch): Promise<
   const shell = shellDir ? { shell: await shellOf(deps, shellDir) } : {};
   const info = { ...launchMarks(launch), ...self, ...file, ...shell };
   const hostToken = newHostToken();
-  const app = daemonApp(deps, entries, () => port, info, hostToken);
+  const events = shellEvents();
+  const app = daemonApp(deps, entries, () => port, info, hostToken, events);
   const server = await listen(app, port, '127.0.0.1');
   port = (server.address() as AddressInfo).port;
   const stop = stopper(server, entries, deps, life);
   try {
     await announce(opts, port, hostToken);
-    await deps.queue(() => syncCliUser(deps, entries));
+    await deps.queue(() => syncCliUser(deps, entries, events));
     await deps.queue(() => boot(deps, entries));
-    life.signal.addEventListener('abort', watchCliUser(deps, entries));
+    life.signal.addEventListener('abort', watchCliUser(deps, entries, events));
   } catch (err) {
     await stop();
     throw err;

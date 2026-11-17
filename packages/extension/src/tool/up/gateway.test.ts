@@ -23,7 +23,12 @@ describe('gatewayConfig', () => {
       api: ['PathPrefix(`/api/probe/`)', 100, 'api'],
       'api-v1': ['PathPrefix(`/api/v1/`)', 100, 'api'],
       files: ['PathPrefix(`/files/probe/`)', 100, 'api'],
-      mcp: ['Path(`/mcp`)', 100, 'mcp'],
+      mcp: [
+        'Path(`/mcp`) || Path(`/mcp/probe`) || Path(`/connector`) || Path(`/connector/probe`) || ' +
+          'PathRegexp(`^/\\.well-known/oauth-protected-resource/(mcp|connector)(/probe)?$`)',
+        110,
+        'mcp',
+      ],
       ui: ['PathPrefix(`/ui/0.2.0/`)', 100, 'ui'],
       pages: ['PathPrefix(`/`)', 1, 'pages'],
       'well-known': ['PathPrefix(`/.well-known/`)', 100, 'api'],
@@ -46,7 +51,8 @@ describe('gatewayConfig', () => {
     const reserved = http.routers['reserved'];
     expect(reserved?.service).toBe('gateway-miss');
     expect(reserved?.priority).toBe(50);
-    for (const prefix of ['/api/', '/mcp', '/mcp/', '/ui/', '/.well-known/', '/git/', '/health']) {
+    const prefixes = ['/api/', '/mcp', '/mcp/', '/ui/', '/.well-known/', '/git/', '/files/'];
+    for (const prefix of [...prefixes, '/connector', '/health']) {
       expect(reserved?.rule).toContain(`\`${prefix}\``);
     }
     expect(http.services['gateway-miss']).toEqual({

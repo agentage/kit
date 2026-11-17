@@ -4,6 +4,8 @@ import { type AddressInfo } from 'node:net';
 import { join } from 'node:path';
 import { Router } from 'express';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { z } from 'zod';
+import { type McpContext } from '../mcp/tools.js';
 import { type Store } from '../store/store.types.js';
 import { fakeClickhouse } from '../test-support/fake-clickhouse.js';
 import { API_MANIFEST, json, tempDir, tempPackage } from '../test-support/packages.js';
@@ -71,5 +73,35 @@ describe('runPart stores', () => {
     const { store, checks } = await run('clickhouse', { AGENTAGE_STORE_URL_FILE: file });
     expect(store?.query).toBeTypeOf('function');
     expect(checks).toMatchObject({ store: 'ok', 'store:clickhouse': 'ok' });
+  });
+});
+
+describe('runPart mcp paths', () => {
+  it('serves /mcp and /mcp/{id}, /connector/{id} and their RFC 9728 documents', async () => {
+    const parts = { mcp: true };
+    const pkg = { ...API_MANIFEST, agentage: { ...API_MANIFEST.agentage, parts } };
+    const dir = await tempPackage({ 'package.json': json(pkg) });
+    const importModule = async () => ({
+      create: (ctx: McpContext) =>
+        ctx.connector('fetch', { description: 'Fetch', input: z.object({}) }, () => ({})),
+    });
+    server = await runPart({
+      dir,
+      part: 'mcp',
+      env: TOKEN_ENV,
+      importModule,
+      serve: { signals: [] },
+    });
+    const base = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
+    const status = async (path: string) =>
+      (await fetch(`${base}${path}`, { method: 'POST' })).status;
+    for (const path of ['/mcp', '/mcp/probe', '/connector', '/connector/probe'])
+      expect(await status(path), path).not.toBe(404);
+    expect(await status('/mcp/other')).toBe(404);
+    const prm = await fetch(`${base}/.well-known/oauth-protected-resource/mcp/probe`);
+    expect(await prm.json()).toMatchObject({
+      resource: 'https://probe.next.agentage.io/mcp/probe',
+      authorization_servers: ['https://127.0.0.1:9'],
+    });
   });
 });

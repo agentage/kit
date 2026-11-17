@@ -69,7 +69,9 @@ change.
 2. Render one compose file. It holds postgres 18 (migrate job first, `seeds/` mounted) and a dev
    token issuer on `localhost:4281`. It also holds a Traefik gateway on `localhost:4280` and one
    container per part. A git store is the volume `store` at `/data`, shared by every part but ui;
-   the gateway sends `/files/{id}/` (git smart HTTP) to the api part.
+   the gateway sends `/files/{id}/` (git smart HTTP) to the api part. As on the app host, `/mcp/{id}`,
+   `/connector/{id}` and their `/.well-known/oauth-protected-resource/...` documents go to the mcp part;
+   bare `/mcp` and `/connector` stay for the e2e docker and next targets.
 3. Print one line per step, ending `ready N parts healthy`.
 
 Each working copy is its own compose project (`agentage-{id}-{8 hex of the folder}`). `up`

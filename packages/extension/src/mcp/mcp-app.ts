@@ -27,7 +27,7 @@ export interface McpAppOptions extends PartAppBase {
   paths?: string[];
 }
 
-const MCP_PATH = '/mcp';
+export const MCP_PATH = '/mcp';
 
 // The endpoint of an extension on a host that runs many: the daemon routes it to its child.
 export const mcpPathOf = (id: string): string => `${MCP_PATH}/${id}`;

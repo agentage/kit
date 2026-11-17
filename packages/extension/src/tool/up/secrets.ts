@@ -54,6 +54,10 @@ export const withStoreUrl = async (
   files: Record<string, string> | undefined
 ) => {
   if (!hasStore(pkg, 'clickhouse')) return files;
+  if (files?.[STORE_URL_SECRET])
+    throw new Error(
+      `up stopped: the declared secret ${STORE_URL_SECRET} would be replaced by the clickhouse store URL: rename it`
+    );
   const path = join(dir, LOCAL_DIR, 'secrets', STORE_URL_SECRET);
   await mkdir(join(dir, LOCAL_DIR, 'secrets'), { recursive: true, mode: 0o700 });
   await writeFile(path, clickhouseUrl(pkg.agentage.id), { mode: 0o644 }).then(() =>

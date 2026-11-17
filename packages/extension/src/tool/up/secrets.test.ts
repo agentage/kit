@@ -91,4 +91,15 @@ describe('up secrets', () => {
     expect(await readFile(path, 'utf8')).toBe('http://probe:agentage-local@store:8123/probe');
     expect(await withStoreUrl(dir, PKG, undefined)).toBeUndefined();
   });
+
+  it('refuses a declared secret named store-url beside a clickhouse store', async () => {
+    const dir = await tempPackage({});
+    const ch = validateManifest({
+      ...API_MANIFEST,
+      agentage: { id: 'probe', parts: { api: true, store: 'clickhouse' } },
+    });
+    await expect(withStoreUrl(dir, ch, { 'store-url': '/mine' })).rejects.toThrow(
+      'up stopped: the declared secret store-url would be replaced by the clickhouse store URL: rename it'
+    );
+  });
 });

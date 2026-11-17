@@ -3,6 +3,9 @@ import { AppApiError, callApi, checkApiPath, newAgcid } from './api.js';
 import type { HostAdapter } from './app.types.js';
 
 const host = (res: Response, seen: { path?: string; init?: RequestInit } = {}): HostAdapter => ({
+  kind: 'local',
+  url: 'http://127.0.0.1:4243',
+  version: '1.0.0',
   user: null,
   scopes: [],
   request: async (_id, path, init) => {

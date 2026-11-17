@@ -54,7 +54,7 @@ The host serves `dist/*` at `/shell/*` (one mapping, `shellFileOf` in `scripts/b
 | `src/route/router.ts`    | `/` home, `/{id}/{page...}` an app, else "Not found"; the history API with back and forward; the aside opens with one reserved key in the query (`?details=1`, `?inspect=1`, `?inbox=1`)                                 |
 | `src/loader/*`           | imports the row's hashed entry, links its css, renders the default export in `AppContext` inside an error boundary keyed by the entry: a new build remounts the root, `useAppState` values stay (one store for the page) |
 | `src/notices/*`          | `notify()` adds a toast (role `status`) for 5 s; the inbox bell in the nav foot (`notices`) counts them; `?inbox=1` lists them in the aside, alone                                                                       |
-| `src/host/local-host.ts` | the local adapter: `/api/{id}{path}`, no token, scopes `{id}:read`, `{id}:write`, `{id}:admin`                                                                                                                           |
+| `src/host/local-host.ts` | the local adapter: `/api/{id}{path}`, no token, scopes `{id}:read`, `{id}:write`, `{id}:admin`; host `kind: local`, `url` = the page origin                                                                              |
 
 An app that leaves the list while its page is open shows "<Title> was removed". Nav icons are a fixed
 set of lucide names (`src/route/app-icon.tsx`; all of lucide would be 800 KB or 4700 chunk files); a

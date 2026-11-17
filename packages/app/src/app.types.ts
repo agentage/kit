@@ -53,8 +53,25 @@ export interface AppShell extends ShellPort {
   route: AppRoute;
 }
 
-// One per host kind: local (the daemon) now, cloud later. `path` is already checked.
+// C7: where the app runs; `url` is the host's origin.
+export type HostKind = 'cloud' | 'local' | 'desktop';
+
+export interface HostInfo {
+  kind: HostKind;
+  url: string;
+}
+
+export interface ExtensionInfo {
+  id: string;
+  version: string;
+}
+
+// One per host kind: local (the daemon), desktop and cloud. `path` is already checked.
 export interface HostAdapter {
+  kind: HostKind;
+  url: string;
+  // The version of the extension this adapter is bound to.
+  version: string;
   user: AppUser | null;
   scopes: string[];
   request: (id: string, path: string, init: RequestInit) => Promise<Response>;
@@ -62,6 +79,8 @@ export interface HostAdapter {
 
 export interface AppHost {
   id: string;
+  extension: ExtensionInfo;
+  host: HostInfo;
   user: AppUser | null;
   scopes: string[];
   // A call to the app's own extension api: `api('/echo')` -> `/api/{id}/echo`, the envelope data.

@@ -19,6 +19,10 @@ This workspace is private: it is not on npm. The root build copies `dist/` into 
 
 The host serves `dist/*` at `/shell/*` (one mapping, `shellFileOf` in `scripts/build.mjs`). A host finds the folder with `import.meta.resolve('@agentage/shell-dashboard/dist/index.html')`.
 
+### Content Security Policy
+
+`dist/index.html` carries its policy in a `<meta http-equiv="Content-Security-Policy">` tag, so every host that serves the page applies it: scripts, styles, fonts, images and connections come from the page origin only (`data:` for images and fonts), with no `unsafe-inline` and no `unsafe-eval`. The build (`scripts/csp.mjs`) adds the sha256 of each inline script, so an edit to an inline script cannot make the hash stale. An app entry, an app stylesheet or a `fetch` on another origin, or an injected `<style>` element, is refused: the browser console shows a "Content Security Policy" error and the page gets a `securitypolicyviolation` event. Set styles through `style` props (React) instead. A meta policy cannot set `frame-ancestors`; the edge sends `X-Frame-Options: DENY`.
+
 ## Regions
 
 `data-region` names from the prototype: `mobile-header`, `nav`, `notices`, `account`, `main`,

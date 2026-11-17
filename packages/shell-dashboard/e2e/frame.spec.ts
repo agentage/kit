@@ -9,7 +9,8 @@ const WIDTHS = [1280, 400];
 
 for (const width of WIDTHS) {
   test.describe(`at ${width} px`, () => {
-    test.use({ viewport: { width, height: 800 } });
+    // The diff hides the switcher with an injected <style>, which the page policy refuses.
+    test.use({ viewport: { width, height: 800 }, bypassCSP: true });
 
     test('the frame beside the prototype', async ({ page }, info) => {
       const shot = async (url: string, css: string) => {

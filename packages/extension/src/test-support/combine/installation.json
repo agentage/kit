@@ -1,0 +1,13 @@
+{
+  "host": "apps",
+  "shell": { "package": "@agentage/shell-dashboard", "version": "0.2.0", "title": "agentage" },
+  "extensions": [
+    {
+      "id": "probe",
+      "version": "0.4.0",
+      "expose": { "api": "public", "mcp": "public", "app": "public" }
+    },
+    { "id": "fixture", "version": "1.2.0", "expose": { "api": "internal", "mcp": "public" } },
+    { "id": "relay", "version": "0.1.0", "expose": { "api": "public" } }
+  ]
+}

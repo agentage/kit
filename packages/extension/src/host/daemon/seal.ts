@@ -69,10 +69,31 @@ const upward = (start: string): string[] => {
 const packageRoot = (file: string): string =>
   upward(dirname(file)).find((dir) => existsSync(join(dir, 'package.json'))) ?? dirname(file);
 
-// Installed: the node_modules that holds the kit. A checkout: its package and its workspace root.
+const kitDeps = (pkgDir: string): string[] => {
+  try {
+    const pkg = JSON.parse(readFileSync(join(pkgDir, 'package.json'), 'utf8')) as {
+      dependencies?: object;
+      peerDependencies?: object;
+    };
+    return Object.keys({ ...pkg.dependencies, ...pkg.peerDependencies });
+  } catch {
+    return [];
+  }
+};
+
+// Node walks out of a kit nested under the cli to the node_modules npm hoisted a dependency to.
+const hoistedDirs = (inner: string, main: string): string[] => {
+  const walk = upward(dirname(inner)).map((dir) => join(dir, 'node_modules'));
+  const found = kitDeps(packageRoot(main)).map((dep) =>
+    walk.find((dir) => existsSync(join(dir, dep, 'package.json')))
+  );
+  return [...new Set([inner, ...found.filter((dir) => dir !== undefined)])];
+};
+
+// Installed: the node_modules of the kit and its dependencies. A checkout: its package and workspace root.
 export const kitReadDirs = (main: string): string[] => {
   const at = main.lastIndexOf(NODE_MODULES);
-  if (at >= 0) return [main.slice(0, at + NODE_MODULES.length - 1)];
+  if (at >= 0) return hoistedDirs(main.slice(0, at + NODE_MODULES.length - 1), main);
   const root = packageRoot(main);
   return [...new Set([root, upward(root).find(hasWorkspaces) ?? root])];
 };

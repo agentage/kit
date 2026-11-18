@@ -141,6 +141,21 @@ describe('the flags of a sealed child (C2)', () => {
     expect(treeOf('/work/probe')).toBe('/work/probe');
   });
 
+  it('a kit nested under the cli: also the outer node_modules npm hoisted its dependencies to', async () => {
+    const top = await tempDir('agentage-seal-');
+    const outer = join(top, 'node_modules');
+    const inner = join(outer, '@agentage', 'cli', 'node_modules');
+    const kit = join(inner, '@agentage', 'extension');
+    await mkdir(join(kit, 'dist', 'host'), { recursive: true });
+    await mkdir(join(outer, 'zod'), { recursive: true });
+    await writeFile(join(outer, 'zod', 'package.json'), '{}');
+    await writeFile(
+      join(kit, 'package.json'),
+      '{"dependencies":{"zod":"^4"},"peerDependencies":{"absent":"^1"}}'
+    );
+    expect(kitReadDirs(join(kit, 'dist', 'host', 'main.js'))).toEqual([inner, outer]);
+  });
+
   it('a kit checkout: its package and the workspace root, nothing above it', async () => {
     const top = await tempDir('agentage-seal-');
     const repo = join(top, 'repo');

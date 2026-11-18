@@ -30,6 +30,13 @@ describe('safeSignIn', () => {
     }
   );
 
+  it('keeps the daemon page /shell/sign-in on loopback http; refuses lookalikes', () => {
+    const daemon = 'http://127.0.0.1:4243';
+    expect(safeSignIn('/shell/sign-in', daemon)).toBe('/shell/sign-in');
+    for (const value of ['//shell/sign-in', '/\\shell/sign-in', 'file:///shell/sign-in'])
+      expect(safeSignIn(value, daemon), value).toBeUndefined();
+  });
+
   it('keeps an http link only when the page is on loopback http', () => {
     const link = 'http://127.0.0.1:4243/sign-in';
     expect(safeSignIn(link, 'http://127.0.0.1:4243')).toBe(link);

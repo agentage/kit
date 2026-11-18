@@ -34,10 +34,26 @@ test('the mobile header: the avatar is the Sign in link', async ({ page }) => {
   await expect(page.locator('.mh').getByRole('link', { name: 'Sign in' })).toBeVisible();
 });
 
-test('the local daemon (no signIn) keeps its hint', async ({ page }) => {
+test('signed out on the daemon: the same Sign in link and box as on a cloud host', async ({
+  page,
+}) => {
   await page.goto('/');
+  await lab(page, 'out');
+  const link = account(page).getByRole('link', { name: 'Sign in' });
+  await expect(link).toHaveAttribute('href', '/__sign-in?next=%2F');
+  const cloud = { box: await box(page), cls: await link.getAttribute('class') };
+  expect(cloud.box).not.toBeNull();
+  await lab(page, 'local');
+  await expect(link).toHaveAttribute('href', '/shell/sign-in');
+  expect(await link.getAttribute('class')).toBe(cloud.cls);
+  expect(await box(page)).toEqual(cloud.box);
+});
+
+test('an older daemon (no signIn) keeps its hint', async ({ page }) => {
+  await page.goto('/');
+  await lab(page, 'bare');
   await expect(account(page).getByRole('link')).toHaveCount(0);
-  await expect(account(page)).toContainText('Alex Doe');
+  await expect(account(page)).toContainText('agentage setup');
 });
 
 test('a signIn that is not https or a same-origin path gives no link', async ({ page }) => {

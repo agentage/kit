@@ -31,7 +31,7 @@ export interface SessionUser {
 export interface Session {
   user: SessionUser | null;
   host: string;
-  // A cloud app host signed out: its auth sign-in page, back to this page. The daemon never sends it.
+  // Signed out: a cloud app host's auth sign-in page (back to this page), or the daemon's `/shell/sign-in`.
   signIn?: string;
   // Signed in on a cloud app host: the path to POST to end the session. The daemon never sends it.
   signOut?: string;

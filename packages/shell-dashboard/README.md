@@ -36,12 +36,13 @@ The host serves `dist/*` at `/shell/*` (one mapping, `shellFileOf` in `scripts/b
   menu (region `notices`; on a phone, the bell in `mobile-header`).
 - When no extension is open, `main` shows the design-system empty state (`EmptyState`): "No
   extensions" with the install command when none is installed, else "Open an app" on `/`.
-- Signed out: when `/shell/session` has `signIn` (a cloud app host; apphosts "Sign-in on the shell"),
-  the account region is a "Sign in" link to it, in the same box as the account menu (no layout
-  shift; on a phone, the avatar). With no `signIn` (the daemon), it keeps "Not signed in, run
-  agentage setup". The shell keeps `signIn` only when it is an `https:` URL or a same-origin path
-  (`/...`, never `//` or `/\`); on a loopback http page it also takes `http:`. Any other value is
-  the same as no `signIn`.
+- Signed out: when `/shell/session` has `signIn` (a cloud app host: its auth page, apphosts
+  "Sign-in on the shell"; the daemon: `/shell/sign-in`), the account region is a "Sign in" link
+  to it, in the same box as the account menu (no layout shift; on a phone, the avatar). With no
+  `signIn` (a daemon before kit 0.18.9), it keeps "Not signed in, run agentage setup". The
+  shell keeps `signIn` only when it is an `https:` URL or a same-origin path (`/...`, never `//`
+  or `/\`); on a loopback http page it also takes `http:`. Any other value is the same as no
+  `signIn`.
 - Sign out: when `/shell/session` names a user and has `signOut` (a cloud app host; the router
   sends `/shell/sign-out`), the account menu has a "Sign out" item. It sends `POST <signOut>`
   (same-origin, no body) and then reads the session again, so the Sign in link shows with no reload.

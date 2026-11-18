@@ -90,7 +90,7 @@ const hoistedDirs = (inner: string, main: string): string[] => {
   return [...new Set([inner, ...found.filter((dir) => dir !== undefined)])];
 };
 
-// Installed: the node_modules that holds the kit and its dependencies. A checkout: its package and its workspace root.
+// Installed: the node_modules of the kit and its dependencies. A checkout: its package and workspace root.
 export const kitReadDirs = (main: string): string[] => {
   const at = main.lastIndexOf(NODE_MODULES);
   if (at >= 0) return hoistedDirs(main.slice(0, at + NODE_MODULES.length - 1), main);

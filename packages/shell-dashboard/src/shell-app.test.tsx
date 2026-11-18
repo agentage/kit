@@ -77,6 +77,11 @@ describe('ShellApp', () => {
     await start('/');
     const account = () => el().querySelector('[data-region="account"]')!;
     expect(account().querySelector('a')?.getAttribute('href')).toBe(signIn);
+    act(() => root?.unmount());
+    document.body.innerHTML = '';
+    host = fakeHost(structuredClone(DOC), { user: null, host: 'local', signIn: '/shell/sign-in' });
+    await start('/');
+    expect(account().querySelector('a.acct.signin')?.getAttribute('href')).toBe('/shell/sign-in');
     for (const session of [{ signIn: 'javascript:alert(1)' }, {}]) {
       act(() => root?.unmount());
       document.body.innerHTML = '';

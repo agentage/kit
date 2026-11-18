@@ -8,6 +8,7 @@ import { hasApp } from './app-files.js';
 import { type CliUser } from './cli-user-watch.js';
 import { type Entries } from './entries.js';
 import { type ShellEvents } from './shell-events.js';
+import { LOCAL_SIGN_IN, signInPage } from './sign-in-page.js';
 
 // The shell the kit carries (dist/shell, written by the kit build); none when run from src.
 export const kitShellDir = (base: string = import.meta.url): string | undefined => {
@@ -30,14 +31,15 @@ export const readShell = async (dir: string, version?: string): Promise<Shell> =
   return { dir, package: (pkg as { name: string }).name, version: version ?? pkg.version };
 };
 
-type User = { id: string; email?: string; name?: string };
+type User = { id: string; email?: string };
+type Session = { user: User | null; host: 'local'; signIn?: string };
 
 const textOf = (value: unknown) => (typeof value === 'string' ? value : undefined);
 
-// K9: the user the children run as (issuer checked in cli-user.ts); email, name of its auth.json.
-// No `signIn` (S4 A4): on the daemon the shell keeps its `agentage setup` hint.
-export const sessionOf = ({ sub, text }: CliUser): { user: User | null; host: 'local' } => {
-  if (sub === undefined) return { user: null, host: 'local' };
+// K9: the user the children run as (issuer checked in cli-user.ts) and the email of its auth.json.
+// The fields of a cloud app host's session (id, email; no name), so both frames show one label.
+export const sessionOf = ({ sub, text }: CliUser): Session => {
+  if (sub === undefined) return { user: null, host: 'local', signIn: LOCAL_SIGN_IN };
   let shown: Record<string, unknown> = {};
   try {
     shown = (JSON.parse(text ?? '') as { user?: Record<string, unknown> }).user ?? {};
@@ -45,8 +47,7 @@ export const sessionOf = ({ sub, text }: CliUser): { user: User | null; host: 'l
     // the sub alone
   }
   const email = textOf(shown['email']);
-  const name = textOf(shown['name']);
-  return { user: { id: sub, ...(email && { email }), ...(name && { name }) }, host: 'local' };
+  return { user: { id: sub, ...(email && { email }) }, host: 'local' };
 };
 
 // First path segments that are daemon routes: an unknown path under them stays a JSON 404.
@@ -72,11 +73,13 @@ const notAFile: RequestHandler = (req) => {
   throw fail('NOT_FOUND', `${req.originalUrl} is not a shell file`);
 };
 
-// S1.2.1: /, /{id}/* (the shell page, 404 for an id with no app), /shell/*, the session, the events.
+// S1.2.1: /, /{id}/* (the shell page, 404 for an id with no app), /shell/*, the session, the events,
+// and the page of the Sign in link.
 export const shellRoutes = (app: Express, { shell, entries, events, user }: ShellDeps): void => {
   app.get('/shell/session', async (_req, res) => {
     res.set('Cache-Control', 'no-store').json(sessionOf(user));
   });
+  app.get(LOCAL_SIGN_IN, signInPage);
   app.get('/shell/events', events.stream);
   if (!shell) return;
   const files = express.static(join(shell.dir, 'dist'), { index: false, dotfiles: 'deny' });

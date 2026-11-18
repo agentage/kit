@@ -99,8 +99,9 @@ describe('/shell/session (S1.2.1 row 7, K9): the user the children run as', () =
     const issuer = await fakeIssuer({ 'opaque-alice': 'u_alice' });
     try {
       h = await startHarness({ userPollMs: 20 });
-      expect(JSON.parse(await session())).toEqual({ user: null, host: 'local' });
-      const user = { id: 'ignored', email: 'a@b.c', hidden: 'opaque-alice' };
+      const out = { user: null, host: 'local', signIn: '/shell/sign-in' };
+      expect(JSON.parse(await session())).toEqual(out);
+      const user = { id: 'ignored', email: 'a@b.c', name: 'Not Sent', hidden: 'opaque-alice' };
       await writeFile(
         join(h.configDir, 'auth.json'),
         signedInAuth(issuer.issuer, 'opaque-alice', { user })
@@ -116,12 +117,28 @@ describe('/shell/session (S1.2.1 row 7, K9): the user the children run as', () =
         join(h.configDir, 'auth.json'),
         json({ tokens: { accessToken: 'opaque-alice' }, user })
       );
-      await vi.waitFor(async () => expect(JSON.parse(await session()).user).toBeNull(), {
+      await vi.waitFor(async () => expect(JSON.parse(await session())).toEqual(out), {
         timeout: 5000,
       });
     } finally {
       await issuer.close();
     }
+  });
+
+  it('the Sign in link names a fixed page that says to run agentage setup, no script', async () => {
+    h = await startHarness();
+    const res = await fetch(at('/shell/sign-in'), { headers: { accept: 'text/html' } });
+    expect(res.status).toBe(200);
+    expect(res.headers.get('content-type')).toBe('text/html; charset=utf-8');
+    expect(res.headers.get('cache-control')).toBe('no-store');
+    expect(res.headers.get('content-security-policy')).toBe(
+      "default-src 'none'; style-src 'unsafe-inline'"
+    );
+    const html = await res.text();
+    expect(html).toContain('<code>agentage setup</code>');
+    expect(html).not.toContain('<script');
+    const query = await fetch(at('/shell/sign-in?next=https://evil.test'));
+    expect(await query.text(), 'a query changes nothing').toBe(html);
   });
 });
 

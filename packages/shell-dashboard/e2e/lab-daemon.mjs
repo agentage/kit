@@ -20,6 +20,8 @@ const SESSIONS = {
     signOut: '/shell/sign-out',
   },
   hostile: { user: null, host: 'platform', signIn: 'javascript:alert(1)' },
+  local: { user: null, host: 'local', signIn: '/shell/sign-in' },
+  bare: { user: null, host: 'local' },
 };
 
 export const createLab = (here, out) => {

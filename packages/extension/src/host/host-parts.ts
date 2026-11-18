@@ -112,7 +112,7 @@ export const hostPartsOf = async (h: Hosting, base: PartAppBase): Promise<Hosted
     mounts.forEach((m) => m.mount(app));
   };
   const record = await recordOf(h, parts, mounts);
-  const app = createPartApp({ ...base, parts, part: 'api', mount, record });
+  const app = createPartApp({ ...base, parts, part: 'api', mount, record, ...(row && { app: row }) });
   const start = () => mounts.forEach((m) => m.start?.());
   const stop = async () => void (await Promise.all(mounts.map((m) => m.stop?.())));
   return { app, parts, start, stop };

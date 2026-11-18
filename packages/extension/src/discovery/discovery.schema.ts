@@ -10,6 +10,7 @@ import {
   StoreKindSchema,
   VersionSchema,
 } from '../manifest/primitives.schema.js';
+import { APP_ROW_RULE, appRowFits, AppRowSchema, ServesSchema } from './served.schema.js';
 
 // registry host[:port]/owner/{id}-{part}@sha256: deployed by digest, a version's images never change.
 const ImageDigestRefSchema = z
@@ -68,7 +69,7 @@ export const WidgetSchema = z.strictObject({
   module: z.string().regex(/^\/ui\/[^/]+\/[^/]+\.m?js$/),
 });
 
-const ToolRecordSchema = z.strictObject({
+export const ToolRecordSchema = z.strictObject({
   name: PrefixedToolNameSchema,
   scope: z.string().regex(/^(public|[a-z][a-z0-9-]*:(read|write|admin))$/),
 });
@@ -158,17 +159,22 @@ export const ExtensionRecordSchema = z
         ctx.addIssue({ code: 'custom', path: ['secretParts', name], message: scoped(name) });
   });
 
-// What a deployment serves at /.well-known/agentage-extension.json: the record plus its host.
+// The record as served: its host, the parts this container answers for and the app nav row.
+const servedShape = { host: OriginSchema, serves: ServesSchema, app: AppRowSchema.optional() };
+
+// What a deployment serves at /.well-known/agentage-extension.json.
 export const DiscoveryDocumentSchema = z
-  .strictObject({ ...recordShape, parts: ServedPartsSchema, host: OriginSchema })
+  .strictObject({ ...recordShape, parts: ServedPartsSchema, ...servedShape })
   .refine(servedForm, HOSTED_RULE)
+  .refine(appRowFits, APP_ROW_RULE)
   .refine(imagesNameTheirExtension, IMAGE_RULE)
   .refine(openapiNamesItsExtension, OPENAPI_RULE);
 
 // The form the cloud serves: every part by its image, or the one image; never a part with no image.
 export const CloudDiscoveryDocumentSchema = z
-  .strictObject({ ...recordShape, host: OriginSchema })
+  .strictObject({ ...recordShape, ...servedShape })
   .refine(oneImageForm, FORM_RULE)
+  .refine(appRowFits, APP_ROW_RULE)
   .refine(imagesNameTheirExtension, IMAGE_RULE)
   .refine(openapiNamesItsExtension, OPENAPI_RULE);
 

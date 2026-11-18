@@ -29,8 +29,8 @@ describe('local record', () => {
     ]);
     expect(record.parts).toEqual({ api: { image: `ghcr.io/agentage/probe-api@${ID}` } });
     expect(validateRecord(JSON.parse(await readFile(file, 'utf8')))).toEqual(record);
-    expect(() => assertDiscoverable(record, 'http://localhost:4280')).not.toThrow();
-    expect(() => assertDiscoverable(record, 'http://example.com')).toThrow(
+    expect(() => assertDiscoverable(record, 'http://localhost:4280', ['api'])).not.toThrow();
+    expect(() => assertDiscoverable(record, 'http://example.com', ['api'])).toThrow(
       /^discovery would be invalid: host: /
     );
   });

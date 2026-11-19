@@ -30,8 +30,8 @@ export interface SessionUser {
 // GET /shell/session: the user the daemon's children run as, never a token.
 export interface Session {
   user: SessionUser | null;
-  // The daemon sends { kind }; the cloud router sends its host name until J.4.4.
-  host: string | { kind: string };
+  // The program sends { kind } on each kind; null: the session read failed.
+  host: { kind: string } | null;
   // Signed out: a cloud app host's auth sign-in page (back to this page), or the daemon's `/shell/sign-in`.
   signIn?: string | null;
   // Signed in on a cloud app host: the path to POST to end the session. The daemon never sends it.

@@ -10,7 +10,7 @@ import { DOC } from './test-support/lab-apps.js';
 globalThis.IS_REACT_ACT_ENVIRONMENT = true;
 
 const USER = { id: 'u1', email: 'lab@example.test', name: 'Alex Doe' };
-const CLOUD: Session = { user: USER, host: 'platform', signOut: '/shell/sign-out' };
+const CLOUD: Session = { user: USER, host: { kind: 'cloud' }, signOut: '/shell/sign-out' };
 let root: Root | null = null;
 const flush = () => act(async () => new Promise((done) => setTimeout(done, 0)));
 const start = async (session: Session, doc: Discovery = DOC) => {
@@ -42,7 +42,7 @@ describe('Sign out from the session', () => {
   });
 
   it.each([
-    ['the daemon (no signOut)', { user: USER, host: 'local' }],
+    ['the daemon (no signOut)', { user: USER, host: { kind: 'local' } }],
     ['no user', { ...CLOUD, user: null }],
     ['a protocol-relative path', { ...CLOUD, signOut: '//evil.test/x' }],
     ['a full URL', { ...CLOUD, signOut: 'https://evil.test/x' }],
@@ -55,7 +55,7 @@ describe('Sign out from the session', () => {
   it('a click POSTs the path same-origin, then the session shows signed out', async () => {
     const { host, div } = await start(CLOUD);
     const fetch = vi.spyOn(host.deps, 'fetch');
-    host.state.session = { user: null, host: 'platform', signIn: '/__sign-in?next=%2F' };
+    host.state.session = { user: null, host: { kind: 'cloud' }, signIn: '/__sign-in?next=%2F' };
     await act(async () => signOutItems()[0]?.click());
     await flush();
     expect(fetch).toHaveBeenCalledWith('/shell/sign-out', {

@@ -12,16 +12,16 @@ const APPS = {
 };
 
 const SESSIONS = {
-  in: { user: { id: 'u1', email: 'lab@example.test', name: 'Alex Doe' }, host: 'local' },
-  out: { user: null, host: 'platform', signIn: '/__sign-in?next=%2F' },
+  in: { user: { id: 'u1', email: 'lab@example.test', name: 'Alex Doe' }, host: { kind: 'local' } },
+  out: { user: null, host: { kind: 'cloud' }, signIn: '/__sign-in?next=%2F' },
   cloud: {
     user: { id: 'u1', email: 'lab@example.test', name: 'Alex Doe' },
-    host: 'platform',
+    host: { kind: 'cloud' },
     signOut: '/shell/sign-out',
   },
-  hostile: { user: null, host: 'platform', signIn: 'javascript:alert(1)' },
-  local: { user: null, host: 'local', signIn: '/shell/sign-in' },
-  bare: { user: null, host: 'local' },
+  hostile: { user: null, host: { kind: 'cloud' }, signIn: 'javascript:alert(1)' },
+  local: { user: null, host: { kind: 'local' }, signIn: '/shell/sign-in' },
+  bare: { user: null, host: { kind: 'local' } },
 };
 
 export const createLab = (here, out) => {

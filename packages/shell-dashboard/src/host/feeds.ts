@@ -50,10 +50,11 @@ export const useHostFeeds = (deps: ShellDeps) => {
       }),
     [deps]
   );
+  // A failed read (auth down is 503) keeps the last good session: never signed out, never local.
   const loadSession = useCallback(
     () =>
       void getJson<Session>(deps, SESSION_URL).then((s) =>
-        setSession(s ?? { user: null, host: 'local' })
+        setSession((last) => s ?? last ?? { user: null, host: null })
       ),
     [deps]
   );

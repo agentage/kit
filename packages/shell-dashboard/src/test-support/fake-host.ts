@@ -6,7 +6,10 @@ type FakeSource = { -readonly [K in keyof EventSourceLike]: EventSourceLike[K] }
 };
 
 // A fake daemon for unit tests: discovery and session as values, an event feed the test drives.
-export const fakeHost = (doc: Discovery, session: Session = { user: null, host: 'local' }) => {
+export const fakeHost = (
+  doc: Discovery,
+  session: Session = { user: null, host: { kind: 'local' } }
+) => {
   const state = { doc, session, closed: 0 };
   const modules = new Map<string, unknown>();
   const calls: string[] = [];

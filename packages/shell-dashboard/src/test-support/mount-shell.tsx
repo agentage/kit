@@ -10,7 +10,7 @@ export const mountShell = () => {
   let root: Root | null = null;
   const host = fakeHost(structuredClone(DOC), {
     user: { id: 'u1', email: 'lab@example.test' },
-    host: 'local',
+    host: { kind: 'local' },
   });
   host.modules.set('/app/probe/app-1.js', Probe);
   host.modules.set('/app/probe/app-2.js', ProbeTwo);

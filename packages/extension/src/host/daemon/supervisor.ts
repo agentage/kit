@@ -11,6 +11,7 @@ import { type Limits } from './limits.js';
 import { runInstaller } from './installer-call.js';
 import { type PendingChanges } from './pending.js';
 import { type Queue } from './queue.js';
+import { childRunner } from './runner.js';
 import { crashed, healthyFor, reasonOf, resetRestarts, type Retry } from './restart.js';
 import { assertSecrets, healthy, redact } from './start-checks.js';
 import { type Stopping } from './stopping.js';
@@ -93,8 +94,8 @@ const launchFor = async (deps: SupervisorDeps, entry: Entry, to: Next, fresh: bo
   const pkg = await readManifest(dir);
   assertSecrets(pkg, to.values.secrets);
   const spec = { id: entry.id, dir, dataDir: dataDirOf(deps.configDir, entry.id), ...to.values };
-  const child = await deps
-    .launch({ ...spec, origin: deps.origin(), storeOpenMs: deps.healthMs, userSub: deps.user.sub })
+  const child = await childRunner(deps.launch)
+    .start({ ...spec, origin: deps.origin(), storeOpenMs: deps.healthMs, userSub: deps.user.sub })
     .catch((err: Error) =>
       Promise.reject(Object.assign(err, { message: redact(err.message, to.values.secrets) }))
     );

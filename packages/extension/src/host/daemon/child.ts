@@ -9,7 +9,7 @@ import { pipeRedacted } from './redact-stream.js';
 import { readManifest } from '../../manifest/read-manifest.js';
 import { permissionFlag, sealFlags, sealOf, spawnsGit, type Seal } from './seal.js';
 
-interface LaunchSpec {
+export interface LaunchSpec {
   id: string;
   dir: string;
   dataDir: string;

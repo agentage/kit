@@ -1,14 +1,15 @@
 import { setTimeout as sleep } from 'node:timers/promises';
 import { type Child } from './child.js';
+import { runOf, type Run } from './runner.js';
 
 // One running child and the requests open on it, so a swap stops it only once they are answered.
 export interface Lane {
-  child: Child;
+  child: Run;
   open: number;
   idle: (() => void)[];
 }
 
-export const laneOf = (child: Child): Lane => ({ child, open: 0, idle: [] });
+export const laneOf = (child: Child): Lane => ({ child: runOf(child), open: 0, idle: [] });
 
 // Counts one request until leave() is called (once).
 export const enter = (lane: Lane): (() => void) => {

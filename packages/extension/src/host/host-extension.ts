@@ -29,7 +29,7 @@ export interface HostOptions {
   onExit?: () => void;
   // ctx.extension.origin; http://127.0.0.1 when left out.
   origin?: string;
-  // ctx.platform (issuer, audience, telemetry), as a part image reads it; empty when left out.
+  // ctx.platform (issuer, audience), as a part image reads it; empty when left out.
   platform?: PlatformInfo;
   // The daemon's guard: a Host of 127.0.0.1 or localhost at the port, a local Origin, no cross-site fetch.
   localOnly?: boolean;

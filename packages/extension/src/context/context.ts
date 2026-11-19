@@ -22,11 +22,10 @@ export interface ExtensionInfo {
   store?: StoreKind;
 }
 
-// The platform this deployment trusts: AGENTAGE_ISSUER, AGENTAGE_AUDIENCE, AGENTAGE_TELEMETRY_URL.
+// The platform this deployment trusts: AGENTAGE_ISSUER, AGENTAGE_AUDIENCE.
 export interface PlatformInfo {
   issuer: string;
   audience: string;
-  telemetry?: string;
 }
 
 export const NO_PLATFORM: PlatformInfo = Object.freeze({ issuer: '', audience: '' });

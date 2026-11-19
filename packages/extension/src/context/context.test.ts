@@ -123,31 +123,24 @@ describe('ctx.platform', () => {
   const env = {
     AGENTAGE_ISSUER: 'https://auth.agentage.io',
     AGENTAGE_AUDIENCE: '*.agentage.io',
-    AGENTAGE_TELEMETRY_URL: 'https://telemetry.agentage.io/v1',
   };
 
-  it('reads the issuer, the audience and the telemetry URL, frozen', () => {
+  it('reads the issuer and the audience only, frozen', () => {
     const ctx = createContext({ ...BASE, part: 'pages', platform: platformOf(env) });
     expect(ctx.platform).toEqual({
       issuer: 'https://auth.agentage.io',
       audience: '*.agentage.io',
-      telemetry: 'https://telemetry.agentage.io/v1',
     });
     expect(Object.isFrozen(ctx.platform)).toBe(true);
   });
 
-  it('leaves telemetry out when unset, and a missing or invalid value empty', () => {
-    const rest = { ...env, AGENTAGE_TELEMETRY_URL: '' };
-    expect(platformOf(rest)).toEqual({
-      issuer: 'https://auth.agentage.io',
-      audience: '*.agentage.io',
-    });
+  it('gives a missing or invalid value as empty', () => {
     expect(platformOf({ AGENTAGE_ISSUER: 'https://auth.agentage.io/path' })).toEqual({
       issuer: '',
       audience: '',
     });
     expect(createContext(BASE).platform).toEqual({ issuer: '', audience: '' });
-    expect(createTestContext({ platform: platformOf(rest) }).platform.issuer).toBe(
+    expect(createTestContext({ platform: platformOf(env) }).platform.issuer).toBe(
       'https://auth.agentage.io'
     );
   });

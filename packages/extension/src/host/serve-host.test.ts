@@ -99,14 +99,12 @@ describe('serveHost', () => {
     );
   });
 
-  it('gives ctx.platform the issuer, audience and telemetry of its env, as a part image does', async () => {
-    const telemetry = { AGENTAGE_TELEMETRY_URL: 'https://logs.next.agentage.io' };
-    const { url } = await start({ ...TOKEN_ENV, ...telemetry });
+  it('gives ctx.platform the issuer and audience of its env, as a part image does', async () => {
+    const { url } = await start(TOKEN_ENV);
     const body = (await (await fetch(`${url}/api/hosted/platform`)).json()) as { data: object };
     expect(body.data).toEqual({
       issuer: 'https://127.0.0.1:9',
       audience: '*.agentage.io',
-      telemetry: 'https://logs.next.agentage.io',
     });
   });
 

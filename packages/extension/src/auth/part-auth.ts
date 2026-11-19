@@ -28,11 +28,10 @@ const valid = (env: Env, key: keyof typeof AuthEnvSchema.shape): string => {
 };
 
 // ctx.platform from the token check's env; pages and worker start without it and get ''.
-export const platformOf = (env: Env): PlatformInfo => {
-  const telemetry = env['AGENTAGE_TELEMETRY_URL'] || undefined;
-  const issuer = valid(env, 'AGENTAGE_ISSUER');
-  return { issuer, audience: valid(env, 'AGENTAGE_AUDIENCE'), ...(telemetry && { telemetry }) };
-};
+export const platformOf = (env: Env): PlatformInfo => ({
+  issuer: valid(env, 'AGENTAGE_ISSUER'),
+  audience: valid(env, 'AGENTAGE_AUDIENCE'),
+});
 
 // *.agentage.io covers the domain and every host under it at any depth; else one exact host.
 export const covers = (audience: string, host: string): boolean =>

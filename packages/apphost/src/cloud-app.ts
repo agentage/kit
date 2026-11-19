@@ -6,11 +6,12 @@ import { type CloudEnv } from './cloud-env.js';
 import { HEAD, ownHostOnly, requestGuard } from './cloud-guards.js';
 import { cloudHealth } from './cloud-health.js';
 import { partRoutes } from './cloud-parts.js';
+import { streamRoutes } from './cloud-streams.js';
 import { CLOUD_SIGN_OUT, type CloudSession } from './cloud-session.js';
+import { HOST_DOC, ROUTER_DOC } from './route-of.js';
 import { type ShellEvents } from './shell-events.js';
 
 const NO_STORE = { 'Cache-Control': 'no-store' };
-const HOST_DOC = '/.well-known/agentage-host.json';
 
 export interface CloudParts {
   env: CloudEnv;
@@ -36,7 +37,8 @@ const shellRoutes = (app: Express, { session, events }: CloudParts) => {
   });
 };
 
-// The cloud host: /health, then Host allow-listed, the host document, the shell session, the parts.
+// The cloud host: /health, then Host allow-listed, its documents, the shell session, the streams,
+// the parts, the site; the stub router's order.
 export const cloudApp = (parts: CloudParts): Express => {
   const app = express();
   app.disable('x-powered-by');
@@ -44,7 +46,11 @@ export const cloudApp = (parts: CloudParts): Express => {
   app.get('/health', cloudHealth(parts.host, parts.env, parts.draining));
   app.use(ownHostOnly(parts.env.own, parts.env.local));
   app.get(HOST_DOC, (_req, res) => void res.set(NO_STORE).json(parts.discovery.current().document));
+  // The program's own version and commit: the host document schema has no such field.
+  const { version, commit } = parts.env.build;
+  app.get(ROUTER_DOC, (_req, res) => void res.set(NO_STORE).json({ version, commit }));
   shellRoutes(app, parts);
+  app.use(streamRoutes(parts.discovery));
   app.use(partRoutes(parts.discovery, parts.session));
   app.use(notFound);
   app.use(errorHandler(parts.log));

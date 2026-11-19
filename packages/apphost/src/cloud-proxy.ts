@@ -40,7 +40,7 @@ export interface CloudForward {
 
 const leaves = (target: URL, origin: URL, prefix: string) =>
   target.origin !== origin.origin ||
-  (target.pathname !== prefix && !target.pathname.startsWith(`${prefix}/`));
+  (target.pathname !== prefix && !target.pathname.startsWith(prefix.replace(/\/?$/, '/')));
 
 // Streams req to the upstream origin at its own path; a path off the origin or the route is refused.
 export const forwardTo = (req: Request, res: Response, next: NextFunction, to: CloudForward) => {

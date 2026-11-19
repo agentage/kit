@@ -4,23 +4,17 @@ import { fail } from '@agentage/extension/internal';
 import { type CloudDiscovery, type Combined } from './cloud-discovery.js';
 import { forwardTo } from './cloud-proxy.js';
 import { type CloudSession } from './cloud-session.js';
-
-type Part = 'api' | 'mcp' | 'app';
-type Route = Combined['routes'][number];
-
-const PART_PATH = /^\/(api|mcp|app)\/([a-z][a-z0-9-]*)(?:\/.*)?$/;
-
-const publicRoute = (routes: Route[], id: string, part: Part) =>
-  routes.find((r) => r.id === id && r.part === part && r.expose === 'public');
+import { type Route, type RoutedPart, routeOf } from './route-of.js';
 
 // 503 with Retry-After for a public part whose entry is starting, down or failed.
-export const unavailableIf = ({ document }: Combined, id: string, part: Part): void => {
+export const unavailableIf = ({ document }: Combined, id: string, part: RoutedPart): void => {
   const entry = document.extensions.find((e) => e.id === id);
   if (entry?.expose[part] !== 'public' || ['running', 'disabled'].includes(entry.state)) return;
   throw fail('UNAVAILABLE', `${id} is ${entry.state}`, { retryAfter: 5 });
 };
 
 // The app part is a page: no credential reaches it; only an /api path is a call of the user.
+// A well-known name sent to the api part (D82) is anonymous: no token is exchanged for it.
 const headersOf = async (
   session: CloudSession,
   req: Parameters<RequestHandler>[0],
@@ -36,17 +30,16 @@ const headersOf = async (
   return exchange ? session.headersFor(req, route.id) : req.headers;
 };
 
-// Only a public route of a running entry is served; anything else falls through to 404.
+// Only a public route of a running entry is served, then the site of a pages host; else 404.
 export const partRoutes =
   (discovery: CloudDiscovery, session: CloudSession): RequestHandler =>
   async (req, res, next) => {
-    const match = PART_PATH.exec(req.path);
-    if (!match) return next();
-    const [, part, id] = match as unknown as [string, Part, string];
     const combined = discovery.current();
-    const route = publicRoute(combined.routes, id, part);
-    if (!route) unavailableIf(combined, id, part);
-    if (!route || (part === 'app' && req.method !== 'GET')) return next();
+    const hit = routeOf(combined.routes, req.path);
+    if (hit && !('route' in hit)) unavailableIf(combined, hit.id, hit.part);
+    if (!hit || !('route' in hit)) return next();
+    const { route, under } = hit;
+    if (route.part === 'app' && req.method !== 'GET') return next();
     const headers = await headersOf(session, req, route);
-    forwardTo(req, res, next, { id, prefix: route.prefix, upstream: route.upstream, headers });
+    forwardTo(req, res, next, { id: route.id, prefix: under, upstream: route.upstream, headers });
   };

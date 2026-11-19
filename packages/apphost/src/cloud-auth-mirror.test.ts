@@ -70,6 +70,14 @@ describe('the auth server metadata mirror', () => {
     expect((await server.fetch(AS_PATH)).status).toBe(200);
   });
 
+  it('requests that come while a read runs share it: one call to auth', async () => {
+    const calls: string[] = [];
+    const server = await serve(ISSUER, { fetcher: fakeFetch([reply(200, DOC)], calls) });
+    const all = await Promise.all([1, 2, 3].map(() => server.fetch(AS_PATH)));
+    expect(all.map((r) => r.status)).toEqual([200, 200, 200]);
+    expect(calls).toHaveLength(1);
+  });
+
   it('auth that does not answer in readMs: 503', async () => {
     const hang = ((_url: string, init: RequestInit) =>
       new Promise((_resolve, reject) =>

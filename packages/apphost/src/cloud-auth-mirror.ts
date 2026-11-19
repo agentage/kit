@@ -30,6 +30,7 @@ const issuerIn = (body: string) => {
 export const authMirror = (issuer: string | null, o: MirrorOptions = {}): RequestHandler => {
   const [fetcher, readMs, now] = [o.fetcher ?? fetch, o.readMs ?? 3_000, o.now ?? Date.now];
   let cached: { at: number; body: string } | undefined;
+  let inFlight: Promise<{ at: number; body: string }> | undefined;
   const read = async (from: string) => {
     const init = { redirect: 'manual', signal: AbortSignal.timeout(readMs) } as const;
     const up = await fetcher(`${from}${AS_PATH}`, init).catch(() => undefined);
@@ -40,7 +41,8 @@ export const authMirror = (issuer: string | null, o: MirrorOptions = {}): Reques
   return async (req, res, next) => {
     if (req.method !== 'GET' || req.path !== AS_PATH) return next();
     if (!issuer) throw unavailable('no authorization server is set on this host');
-    if (!cached || now() - cached.at >= TTL_MS) cached = await read(issuer);
+    if (!cached || now() - cached.at >= TTL_MS)
+      cached = await (inFlight ??= read(issuer).finally(() => (inFlight = undefined)));
     res.writeHead(200, ANSWER).end(cached.body);
   };
 };

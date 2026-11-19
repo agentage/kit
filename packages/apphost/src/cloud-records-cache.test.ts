@@ -1,7 +1,7 @@
 import { createServer, type Server } from 'node:http';
 import { type AddressInfo } from 'node:net';
 import express from 'express';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { errorHandler, startOn, type TestServer } from '@agentage/extension/internal';
 import { recordRoutes, ROOT_RESOURCE } from './cloud-records.js';
 import { quietLog } from './test-support/cloud-upstream.js';
@@ -42,6 +42,15 @@ const serve = async (at: Record<string, string>, o: Parameters<typeof recordRout
 };
 
 describe('the root resource document: time', () => {
+  it('requests that come while a read runs share it; the fetcher option is used', async () => {
+    const a = await container(['a:read']);
+    const fetcher = vi.fn(fetch);
+    const server = await serve({ a: a.address }, { fetcher });
+    const all = await Promise.all([1, 2, 3].map(() => server.fetch(ROOT_RESOURCE)));
+    expect(all.map((r) => r.status)).toEqual([200, 200, 200]);
+    expect([a.reads(), fetcher.mock.calls.length]).toEqual([1, 1]);
+  });
+
   it('one slow row drops out after readMs; the others still answer', async () => {
     const [probe, fixture] = [await container('hang'), await container(['fixture:read'])];
     const server = await serve({ probe: probe.address, fixture: fixture.address }, { readMs: 50 });

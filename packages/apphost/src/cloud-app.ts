@@ -52,7 +52,7 @@ export const cloudApp = (parts: CloudParts): Express => {
   // The program's own version and commit: the host document schema has no such field.
   const { version, commit } = parts.env.build;
   app.get(ROUTER_DOC, (_req, res) => void res.set(NO_STORE).json({ version, commit }));
-  app.use(recordRoutes(parts.discovery, parts.env.own));
+  app.use(recordRoutes(parts.discovery, parts.env.own, { fetcher: parts.fetcher }));
   app.use(authMirror(parts.env.issuer, { fetcher: parts.fetcher }));
   shellRoutes(app, parts);
   app.use(streamRoutes(parts.discovery));

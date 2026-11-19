@@ -2,7 +2,7 @@
 class: node-lib
 waive:
   - id: cicd-no-npm-token
-    reason: 'DELETE AFTER FIRST PUBLISH: first-publish token for the new name @agentage/apphost (J.4.3); removed once its trusted publisher exists'
+    reason: 'DELETE AFTER FIRST PUBLISH: first-publish token for the new names @agentage/apphost and @agentage/shell-dashboard; removed once its trusted publisher exists'
   - id: rb-published-files
     reason: 'tag-driven release in feature 1; prepare-release.yml arrives with the release loop (feature 2)'
   - id: ts-published-build

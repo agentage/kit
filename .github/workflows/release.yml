@@ -69,7 +69,7 @@ jobs:
         run: npm install -g npm@latest && npm --version # OIDC needs npm >= 11.5.1
 
       - name: Publish to npm (skips a version already published)
-        # DELETE AFTER FIRST PUBLISH of @agentage/apphost (J.4.3): the bootstrap token, then the repo secret.
+        # DELETE AFTER FIRST PUBLISH of @agentage/apphost and @agentage/shell-dashboard: the bootstrap token, then the repo secret.
         env:
           NPM_BOOTSTRAP_TOKEN: ${{ secrets.NPM_TOKEN }}
         run: |
@@ -100,9 +100,9 @@ jobs:
                 held+=("${name}@${version} publish failed, not staged: see the log")
                 continue
               fi
-              # DELETE AFTER FIRST PUBLISH: a new name has no trusted publisher; only its stage uses the token.
+              # DELETE AFTER FIRST PUBLISH: a new name has no trusted publisher; only the stage of these two names uses the token.
               boot=()
-              if [ "${name}" = '@agentage/apphost' ] && [ -n "${NPM_BOOTSTRAP_TOKEN:-}" ] && ! npm view "${name}" name >/dev/null 2>&1; then
+              if { [ "${name}" = '@agentage/apphost' ] || [ "${name}" = '@agentage/shell-dashboard' ]; } && [ -n "${NPM_BOOTSTRAP_TOKEN:-}" ] && ! npm view "${name}" name >/dev/null 2>&1; then
                 # Single quotes on purpose: npm expands the variable, the token never lands on disk.
                 echo '//registry.npmjs.org/:_authToken=${NPM_BOOTSTRAP_TOKEN}' > "$RUNNER_TEMP/bootstrap.npmrc"
                 boot=(--userconfig "$RUNNER_TEMP/bootstrap.npmrc")

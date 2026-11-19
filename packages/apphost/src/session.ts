@@ -21,7 +21,8 @@ export interface Session {
 export interface SignInSource {
   kind: HostKind;
   user(): SessionUser | null;
-  signIn: string;
+  // null: a cloud host with no issuer has no sign-in to offer.
+  signIn: string | null;
   signOut: string | null;
 }
 

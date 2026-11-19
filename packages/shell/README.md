@@ -50,8 +50,8 @@ await mountWidgets(layout, {
 
 ```json
 {
-  "target": "fixture.next.agentage.io",
-  "deployments": [{ "id": "probe", "url": "https://probe.next.agentage.io" }],
+  "target": "test.next.agentage.io",
+  "deployments": [{ "id": "probe", "url": "https://test.next.agentage.io" }],
   "routes": {
     "/": {
       "kind": "column",

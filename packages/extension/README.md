@@ -20,30 +20,40 @@ npm install @agentage/extension express zod
 ## The core client
 
 `createCoreClient({ url, timeoutMs, token })` calls the core: `market.latest(id)`, `market.list()`,
-`logs.send(rows)` and `down()`. It never throws. Each method call ends before `timeoutMs` (default
-2000 ms), all its requests together.
+`market.down()`, `logs.send(rows)` and `logs.down()`. It never throws. Each method call ends
+before `timeoutMs` (default 2000 ms): the address and all requests of the call share one deadline.
 
 - Each call answers `{ data, down }`. When the core is silent, `data` is the empty answer: `null`
-  or an empty listing. `down` then has a `code` and the message `market not reachable` or `logs not reachable`.
-- `data: null, down: null` from `market.latest` means the market has no such id (its 404).
-  A caller that must not read silence as "no release" checks `down`.
-- `down()` keeps the first reason of any call of the client.
+  or an empty listing. `down` then has a `code`, a `message` and a `detail`.
+- `data: null, down: null` from `market.latest` means the market itself refused the id: a 404
+  with its error envelope, `no listed extension <id>` or `<id> has no release yet`. Any other
+  404, such as a route miss of the app host or a proxy page, is `failed`.
+- `market.down()` and `logs.down()` keep the first reason of that service.
 - The address: `url` (an origin, or a function that resolves one), else `AGENTAGE_CORE_URL` of
   `env`. A missing or empty address is no error: each call answers `down.code` `no_core`.
 - `logs.send` drops a failed send with one warning, until a send goes through again. It needs
-  `token`, sent over https or to a loopback host only.
+  `token`, sent over https or to this machine only (`localhost`, `*.localhost`, `127.x`, `::1`).
 - `./core` is for Node: `logs.send` uses the Node events client. The market reads import nothing, so a
   browser entry for them is a small split later.
 
-| `down.code`   | When                                                                     |
-| ------------- | ------------------------------------------------------------------------ |
-| `no_core`     | no address, not a URL, or the `url` function threw (`cause`)             |
-| `unreachable` | no connection                                                            |
-| `timeout`     | no answer before `timeoutMs`                                             |
-| `failed`      | a status that is not 2xx or 404, a redirect, too large                   |
-| `not_json`    | a market body that is not JSON                                           |
-| `refused`     | a market 2xx with no release or rows, or not an exact version of that id |
-| `no_token`    | `logs.send` with no token                                                |
+| `down.code`   | `message`                 | When                                                              |
+| ------------- | ------------------------- | ----------------------------------------------------------------- |
+| `no_core`     | `<service> not reachable` | no address, not a URL, or the `url` function threw (`cause`)      |
+| `unreachable` | `<service> not reachable` | no connection                                                     |
+| `timeout`     | `<service> not reachable` | no answer before the deadline, a stalled body                     |
+| `failed`      | `<service> not reachable` | not 2xx, a 404 that is not the market's, a redirect, over 1 MB    |
+| `not_json`    | `<service> not reachable` | a market body that is not JSON                                    |
+| `refused`     | `market answer refused`   | a 2xx with no release or rows, or not an exact version of that id |
+| `no_token`    | `logs needs a token`      | `logs.send` with no token                                         |
+
+The rules for a caller:
+
+- A caller that needs the market, such as an install or an update with no version, treats
+  `down !== null` as an error and changes nothing. Only a list for a page shows the empty answer.
+- A release loop reads `data: null` as "no release" only when `down` is null. It also skips a
+  prerelease version and a `commit` of `null`, and keeps its own origin on https.
+- Pass `timeoutMs` for the work: about 10 s for an install or a list in a terminal; a worker
+  sets its own. The default suits a page or a start that must not wait.
 
 `agentage extension check [dir] --json` prints the conformance report (exit 1 when `conforms` is
 false); `file` and `line` are there only when a problem has them. `warnings` is there only when a

@@ -25,29 +25,35 @@ export interface Listing {
   skipped: Skipped[];
 }
 
-// The one-image path first, the v13 path on a 404; the base that answered is kept per client.
-const BASES = ['/api/market/extensions', '/api/v1/extensions'];
+const BASE = '/api/market/extensions';
 const EXACT = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$/;
 const SHA = /^[0-9a-f]{40}$/;
 
 export interface MarketCall extends Call {
   origin: string;
-  pins: Map<string, string>;
 }
 
 const isRecord = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
 
-// The body of the first base that does not answer 404; null when each one does.
-export const marketGet = async (call: MarketCall, path: string): Promise<unknown> => {
-  const pinned = call.pins.get(call.origin);
-  for (const base of pinned ? [pinned] : BASES) {
-    const { status, body } = await getJson(call, `${call.origin}${base}${path}`);
-    if (status === 404) continue;
-    call.pins.set(call.origin, base);
-    return body;
-  }
-  return null;
+// The market's own refusals for an id it lacks; a router miss or a proxy 404 is none of them.
+const UNKNOWN = [
+  (id: string) => `no listed extension ${id}`,
+  (id: string) => `${id} has no release yet`,
+];
+
+export const isUnknownId = (body: unknown, id: string): boolean => {
+  const error = isRecord(body) && body['success'] === false ? body['error'] : undefined;
+  if (!isRecord(error) || error['code'] !== 'NOT_FOUND') return false;
+  return UNKNOWN.some((text) => error['message'] === text(id));
+};
+
+// The body of a 2xx; a 404 is the market's answer only when known says so.
+const marketGet = async (call: MarketCall, path: string, known = (_b: unknown) => false) => {
+  const url = `${call.origin}${BASE}${path}`;
+  const { status, body } = await getJson(call, url);
+  if (status !== 404) return body;
+  return known(body) ? null : fail('market', 'failed', `${url} answered 404, not the market's`);
 };
 
 const dataOf = (body: unknown): unknown => (isRecord(body) ? body['data'] : undefined);
@@ -69,9 +75,10 @@ const accept = (id: string, data: Record<string, unknown>): Latest => {
   };
 };
 
-// null: the market has no such id (it answered 404).
+// null: the market itself said it has no such id, or no release of it.
 export const latestOf = async (call: MarketCall, id: string): Promise<Latest | null> => {
-  const body = await marketGet(call, `/${encodeURIComponent(id)}/latest`);
+  const known = (body: unknown) => isUnknownId(body, id);
+  const body = await marketGet(call, `/${encodeURIComponent(id)}/latest`, known);
   if (body === null) return null;
   const data = dataOf(body);
   return isRecord(data)
@@ -97,7 +104,6 @@ const rowsOf = async (call: MarketCall, cursor = '', page = 1): Promise<unknown[
     fail('market', 'failed', `the market list has more than ${MAX_PAGES} pages; stopped there`);
   const query = `?limit=${PAGE}${cursor ? `&cursor=${encodeURIComponent(cursor)}` : ''}`;
   const body = await marketGet(call, query);
-  if (body === null) fail('market', 'failed', `${call.origin} has no market list (404)`);
   const data = dataOf(body);
   const rows = Array.isArray(data) ? data : fail('market', 'refused', 'the list has no rows');
   const next = nextOf(body);

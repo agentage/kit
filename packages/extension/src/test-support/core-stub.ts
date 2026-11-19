@@ -49,3 +49,9 @@ export const text =
 
 // Takes the request and never answers.
 export const silent: Handler = () => undefined;
+
+// Sends the headers and part of a body, then nothing more.
+export const stalled: Handler = (_req, res) => {
+  res.writeHead(200, { 'content-type': 'application/json' });
+  res.write('{"data":');
+};

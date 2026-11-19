@@ -7,7 +7,7 @@ export type CoreCode =
 export interface CoreReason {
   service: CoreService;
   code: CoreCode;
-  // Always `<service> not reachable`: the line a caller shows.
+  // The line a caller shows: one for each code (MESSAGES).
   message: string;
   detail: string;
   // What an address resolver threw, so a caller can keep its own error.
@@ -20,6 +20,16 @@ export interface Answer<T> {
   down: CoreReason | null;
 }
 
+const MESSAGES: Record<CoreCode, (service: CoreService) => string> = {
+  no_core: (s) => `${s} not reachable`,
+  unreachable: (s) => `${s} not reachable`,
+  timeout: (s) => `${s} not reachable`,
+  failed: (s) => `${s} not reachable`,
+  not_json: (s) => `${s} not reachable`,
+  refused: (s) => `${s} answer refused`,
+  no_token: (s) => `${s} needs a token`,
+};
+
 export const reasonOf = (
   service: CoreService,
   code: CoreCode,
@@ -28,7 +38,7 @@ export const reasonOf = (
 ): CoreReason => ({
   service,
   code,
-  message: `${service} not reachable`,
+  message: MESSAGES[code](service),
   detail,
   ...(cause !== undefined && { cause }),
 });

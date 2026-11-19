@@ -64,6 +64,35 @@ describe('core-client logs.send', () => {
     expect(answer.down).toMatchObject({ code: 'refused' });
   });
 
+  it.each([
+    'http://localhost:1',
+    'http://core.localhost:1',
+    'http://127.1.2.3:1',
+    'http://[::1]:1',
+    'http://[::ffff:127.0.0.1]:1',
+  ])('%s is this machine: the token may go there', async (url) => {
+    const answer = await createCoreClient({ url, token: 't', warn: () => undefined }).logs.send([
+      ROW,
+    ]);
+    expect(answer.down?.code).not.toBe('refused');
+  });
+
+  it('a warn that throws does not make the send reject', async () => {
+    const warn = () => {
+      throw new Error('broken sink');
+    };
+    const answer = await createCoreClient({ url: '', token: 't', warn }).logs.send([ROW]);
+    expect(answer).toMatchObject({ data: null, down: { code: 'no_core' } });
+  });
+
+  it('a send with no token is a logs reason only: the market is not down', async () => {
+    const client = createCoreClient({ url: 'https://core.example', warn: () => undefined });
+    const answer = await client.logs.send([ROW]);
+    expect(answer.down).toMatchObject({ code: 'no_token', message: 'logs needs a token' });
+    expect(client.logs.down()).toBe(answer.down);
+    expect(client.market.down()).toBeNull();
+  });
+
   it('a closed core with the default warning prints one line', async () => {
     const url = await closedPort();
     const lines: unknown[] = [];

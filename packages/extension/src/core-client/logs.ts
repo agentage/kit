@@ -8,12 +8,13 @@ export interface LogsCall extends Call {
   timeoutMs: number;
 }
 
-const LOOPBACK = new Set(['127.0.0.1', 'localhost', '[::1]']);
+const LOOPBACK =
+  /^(localhost|.+\.localhost|127(\.\d{1,3}){3}|\[::1\]|\[::ffff:7f[0-9a-f]{2}:[0-9a-f]{1,4}\])$/;
 
 // A bearer goes only over https, or to this machine.
 const safe = (origin: string): boolean => {
   const url = new URL(origin);
-  return url.protocol === 'https:' || LOOPBACK.has(url.hostname);
+  return url.protocol === 'https:' || LOOPBACK.test(url.hostname);
 };
 
 const urlOf = (input: string | URL | Request): string =>
@@ -37,7 +38,8 @@ export const sendTo = async (call: LogsCall, events: PostEvent[]): Promise<PostR
   const client = createEventsClient({
     url: call.origin,
     token: call.token,
-    timeoutMs: call.timeoutMs,
+    // Past the call's deadline: the deadline, not the events client, ends a stalled request.
+    timeoutMs: call.timeoutMs + 1_000,
     retryDelayMs: 0,
     fetch: deadlined(call),
   });

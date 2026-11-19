@@ -36,11 +36,14 @@ export interface CoreClient {
     // data null and down null: the market has no such id (its 404).
     latest: (id: string) => Promise<Answer<Latest | null>>;
     list: () => Promise<Answer<Listing>>;
+    // The first reason a market call gave the empty answer; null while none did.
+    down: () => CoreReason | null;
   };
   // A failed send is dropped: data null, one warning until a send goes through again.
-  logs: { send: (events: PostEvent[]) => Promise<Answer<PostResult | null>> };
-  // The first reason any call of this client gave the empty answer; null while none did.
-  down: () => CoreReason | null;
+  logs: {
+    send: (events: PostEvent[]) => Promise<Answer<PostResult | null>>;
+    down: () => CoreReason | null;
+  };
 }
 
 export const coreUrlOf = (env: Readonly<Record<string, string | undefined>>): string | undefined =>
@@ -49,10 +52,12 @@ export const coreUrlOf = (env: Readonly<Record<string, string | undefined>>): st
 const resolved = async (service: CoreService, url: CoreUrl): Promise<string> => {
   if (!url) return fail(service, 'no_core', 'no core address');
   if (typeof url === 'string') return url;
-  return url().catch((err: unknown) => {
-    const why = err instanceof Error ? err.message : String(err);
-    throw new CoreFailure(reasonOf(service, 'no_core', `no core address: ${why}`, err));
-  });
+  return Promise.resolve()
+    .then(url)
+    .catch((err: unknown) => {
+      const why = err instanceof Error ? err.message : String(err);
+      throw new CoreFailure(reasonOf(service, 'no_core', `no core address: ${why}`, err));
+    });
 };
 
 const originOf = async (service: CoreService, url: CoreUrl): Promise<string> => {
@@ -65,7 +70,7 @@ interface State {
   url: CoreUrl;
   fetch: Fetch;
   timeoutMs: number;
-  first: CoreReason | null;
+  first: Partial<Record<CoreService, CoreReason>>;
 }
 
 type Work<T> = (origin: string, signal: AbortSignal) => Promise<T>;
@@ -83,26 +88,34 @@ const run = async <T>(
     return { data: await bounded(work(origin, signal), signal), down: null };
   } catch (err) {
     const down = reasonOfError(service, `the core ${service} (${s.timeoutMs} ms)`, err);
-    s.first ??= down;
+    s.first[service] ??= down;
     return { data: empty, down };
   }
 };
 
 const marketOf = (s: State) => {
-  const pins = new Map<string, string>();
   const call = (origin: string, signal: AbortSignal): MarketCall => ({
     service: 'market',
     fetch: s.fetch,
     signal,
     origin,
-    pins,
   });
   const why = (err: unknown) => reasonOfError('market', 'the market', err).detail;
   return {
     latest: (id: string) => run(s, 'market', null, (o, sig) => latestOf(call(o, sig), id)),
     list: () =>
       run(s, 'market', { offered: [], skipped: [] }, (o, sig) => listOf(call(o, sig), why)),
+    down: () => s.first.market ?? null,
   };
+};
+
+// A warn that throws must not turn a dropped send into a rejection.
+const safely = (warn: (message: string) => void, message: string) => {
+  try {
+    warn(message);
+  } catch {
+    // The warning is lost; the answer still says why.
+  }
 };
 
 const logsOf = (s: State, o: CoreClientOptions) => {
@@ -111,24 +124,32 @@ const logsOf = (s: State, o: CoreClientOptions) => {
   const send = async (events: PostEvent[]) => {
     const answer = await run(s, 'logs', null, (origin, signal) =>
       sendTo(
-        { service: 'logs', fetch: s.fetch, signal, origin, token: o.token, timeoutMs: s.timeoutMs },
+        {
+          service: 'logs',
+          fetch: s.fetch,
+          signal,
+          origin,
+          token: o.token,
+          timeoutMs: s.timeoutMs,
+        },
         events
       )
     );
-    if (answer.down && !warned) warn(`${answer.down.message}: ${answer.down.detail}; rows dropped`);
+    if (answer.down && !warned)
+      safely(warn, `${answer.down.message}: ${answer.down.detail}; rows dropped`);
     warned = answer.down !== null;
     return answer;
   };
-  return { send };
+  return { send, down: () => s.first.logs ?? null };
 };
 
-// Never throws and never waits past timeoutMs: a silent core gives the typed empty answer.
+// Never throws and never waits past timeoutMs; the caller rules: README "The core client".
 export const createCoreClient = (o: CoreClientOptions = {}): CoreClient => {
   const s: State = {
     url: o.url ?? coreUrlOf(o.env ?? {}),
     fetch: o.fetch ?? ((input, init) => fetch(input, init)),
     timeoutMs: o.timeoutMs ?? DEFAULT_TIMEOUT_MS,
-    first: null,
+    first: {},
   };
-  return { market: marketOf(s), logs: logsOf(s, o), down: () => s.first };
+  return { market: marketOf(s), logs: logsOf(s, o) };
 };

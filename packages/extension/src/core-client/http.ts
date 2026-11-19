@@ -59,24 +59,31 @@ const sent = (call: Call, url: string): Promise<Response> =>
 const asFailure = (call: Call, url: string, err: unknown): CoreFailure =>
   new CoreFailure(reasonOfError(call.service, url, err));
 
-// A redirect is not the core's answer (a sign-in page of a network); 404 is an answer with no body.
+const bodyOf = (call: Call, res: Response, url: string): Promise<string> =>
+  bounded(textOf(call, res, url), call.signal).catch((err: unknown) => {
+    throw asFailure(call, url, err);
+  });
+
+const jsonOrNull = (text: string): unknown => {
+  try {
+    return JSON.parse(text) as unknown;
+  } catch {
+    return null;
+  }
+};
+
+// A redirect is not the core's answer (a sign-in page of a network); a 404 body is null unless JSON.
 export const getJson = async (
   call: Call,
   url: string
 ): Promise<{ status: number; body: unknown }> => {
   const res = await sent(call, url);
   const { status } = res;
-  if (status === 404) {
-    void res.body?.cancel().catch(() => undefined);
-    return { status, body: null };
-  }
+  if (status === 404) return { status, body: jsonOrNull(await bodyOf(call, res, url)) };
   if (!res.ok) {
     void res.body?.cancel().catch(() => undefined);
     const to = res.headers.get('location');
     fail(call.service, 'failed', `${url} answered ${status}${to ? ` to ${to}` : ''}`);
   }
-  const text = await bounded(textOf(call, res, url), call.signal).catch((err: unknown) => {
-    throw asFailure(call, url, err);
-  });
-  return { status, body: parsed(call, url, status, text) };
+  return { status, body: parsed(call, url, status, await bodyOf(call, res, url)) };
 };

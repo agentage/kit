@@ -1,9 +1,12 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { json, startStub, type Handler } from '../test-support/core-stub.js';
+import { json, startStub, text, type Handler } from '../test-support/core-stub.js';
 import { createCoreClient } from './core-client.js';
 
 const SHA = 'a'.repeat(40);
 const LATEST = { id: 'probe', version: '1.2.3', commit: SHA, package: '@agentage/extension-probe' };
+
+const unknown = (message: string) =>
+  json(404, { success: false, error: { code: 'NOT_FOUND', message, agcid: 'a'.repeat(32) } });
 
 const stops: (() => Promise<void>)[] = [];
 afterEach(async () => {
@@ -29,23 +32,25 @@ describe('core-client market.latest', () => {
     expect(answer).toEqual({ data: LATEST, down: null });
   });
 
-  it('a 404 on both paths is no such id, not "not reachable"', async () => {
-    const stub = await serve({});
-    const client = createCoreClient({ url: stub.url });
-    expect(await client.market.latest('nope')).toEqual({ data: null, down: null });
-    expect(client.down()).toBeNull();
-    expect(stub.hits).toEqual([
-      'GET /api/market/extensions/nope/latest',
-      'GET /api/v1/extensions/nope/latest',
-    ]);
-  });
+  it.each(['no listed extension nope', 'nope has no release yet'])(
+    'the market\'s own 404 "%s" is no such id, one request',
+    async (message) => {
+      const stub = await serve({ '/api/market/extensions/nope/latest': unknown(message) });
+      const client = createCoreClient({ url: stub.url });
+      expect(await client.market.latest('nope')).toEqual({ data: null, down: null });
+      expect(client.market.down()).toBeNull();
+      expect(stub.hits).toEqual(['GET /api/market/extensions/nope/latest']);
+    }
+  );
 
-  it('the v13 path answers when the one-image path is missing, and stays chosen', async () => {
-    const stub = await serve({ '/api/v1/extensions/probe/latest': json(200, { data: LATEST }) });
-    const client = createCoreClient({ url: stub.url });
-    await client.market.latest('probe');
-    expect((await client.market.latest('probe')).data?.version).toBe('1.2.3');
-    expect(stub.hits.filter((h) => h.includes('/api/market/'))).toHaveLength(1);
+  it.each([
+    ["the router's route miss", unknown('No route for GET /api/market/extensions/nope/latest')],
+    ['a proxy text 404', text(404, '404 page not found')],
+    ["another id's refusal", unknown('no listed extension other')],
+  ])('%s is a missing market, never "no release"', async (_name, handler) => {
+    const stub = await serve({ '/api/market/extensions/nope/latest': handler });
+    const answer = await createCoreClient({ url: stub.url }).market.latest('nope');
+    expect(answer).toMatchObject({ data: null, down: { code: 'failed' } });
   });
 
   it.each([
@@ -81,7 +86,7 @@ describe('core-client market.latest', () => {
     const first = (await client.market.latest('a')).down;
     await createCoreClient({ url: stub.url }).market.latest('b');
     await client.market.list();
-    expect(client.down()).toBe(first);
+    expect(client.market.down()).toBe(first);
   });
 });
 
@@ -112,6 +117,7 @@ describe('core-client market.list', () => {
     const stub = await serve({
       '/api/market/extensions?limit=200': page([{ id: 'b', version: null }, { id: 'c' }]),
       '/api/market/extensions/b/latest': json(500, {}),
+      '/api/market/extensions/c/latest': unknown('c has no release yet'),
     });
     const client = createCoreClient({ url: stub.url });
     const answer = await client.market.list();
@@ -120,10 +126,10 @@ describe('core-client market.list', () => {
       { id: 'b', reason: expect.stringContaining('answered 500') as string },
       { id: 'c', reason: 'the market has no version of it' },
     ]);
-    expect(client.down()).toBeNull();
+    expect(client.market.down()).toBeNull();
   });
 
-  it('no list route on either path is not reachable', async () => {
+  it('no list route is not reachable', async () => {
     const stub = await serve({});
     const answer = await createCoreClient({ url: stub.url }).market.list();
     expect(answer).toMatchObject({ data: { offered: [], skipped: [] }, down: { code: 'failed' } });

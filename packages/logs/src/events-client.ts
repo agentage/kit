@@ -63,19 +63,15 @@ export const batchesOf = (events: Event[]): Event[][] => {
   return batch.length > 0 ? [...batches, batch] : batches;
 };
 
-const ONE_IMAGE = '/api/logs/events';
-const LEGACY = '/api/v1/events';
-
-// The path that answered, per url: a logs host on the one image has no /api/v1/events (404), v13 has no /api/logs/events.
-const paths = new Map<string, string>();
+// The one ingest path of the logs service.
+const PATH = '/api/logs/events';
 
 class IngestError extends Error {
   constructor(
     readonly status: number,
-    path = LEGACY,
     what = `answered ${status}`
   ) {
-    super(`POST ${path} ${what}`);
+    super(`POST ${PATH} ${what}`);
   }
 }
 
@@ -83,16 +79,13 @@ class IngestError extends Error {
 const retries = (err: unknown): boolean =>
   !(err instanceof IngestError) || err.status === 429 || err.status >= 500;
 
-const request = (o: EventsClientOptions, body: string, path: string) =>
-  (o.fetch ?? fetch)(`${o.url.replace(/\/+$/, '')}${path}`, {
+const request = (o: EventsClientOptions, body: string) =>
+  (o.fetch ?? fetch)(`${o.url.replace(/\/+$/, '')}${PATH}`, {
     method: 'POST',
     headers: { authorization: `Bearer ${o.token}`, 'content-type': 'application/json' },
     body,
     signal: AbortSignal.timeout(o.timeoutMs ?? 5000),
   });
-
-// Statuses the ingest route itself answers: a different route would be a 404 or a proxy's 401, 403, 429 or 5xx.
-const OWN_4XX = new Set([400, 413, 422]);
 
 const resultOf = (reply: unknown): PostResult | undefined => {
   const data = (reply as { data?: Partial<PostResult> } | null)?.data;
@@ -101,29 +94,12 @@ const resultOf = (reply: unknown): PostResult | undefined => {
     : undefined;
 };
 
-// The host moved under the same url: a 404 drops the pin and the other path is tried once.
-const reach = async (o: EventsClientOptions, body: string, key: string) => {
-  const first = paths.get(key) ?? ONE_IMAGE;
-  const res = await request(o, body, first);
-  if (res.status !== 404) return { res, path: first };
-  paths.delete(key);
-  const path = first === ONE_IMAGE ? LEGACY : ONE_IMAGE;
-  return { res: await request(o, body, path), path };
-};
-
 const sendOnce = async (o: EventsClientOptions, body: string): Promise<PostResult> => {
-  const key = o.url.replace(/\/+$/, '');
-  const { res, path } = await reach(o, body, key);
-  if (!res.ok) {
-    if (OWN_4XX.has(res.status)) paths.set(key, path);
-    // Both paths 404: the error names the legacy path, as before the move.
-    throw new IngestError(res.status, res.status === 404 ? LEGACY : path);
-  }
+  const res = await request(o, body);
+  if (!res.ok) throw new IngestError(res.status);
   // A 2xx was taken: an unreadable or unknown answer is never retried, it would post the rows twice.
   const result = resultOf(await res.json().catch(() => null));
-  if (!result)
-    throw new IngestError(res.status, path, 'answered a body that is not the ingest result');
-  paths.set(key, path);
+  if (!result) throw new IngestError(res.status, 'answered a body that is not the ingest result');
   return result;
 };
 

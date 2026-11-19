@@ -81,7 +81,7 @@ describe('servesPart: the routes of a local child come from combineHost (J.4.3 r
     expect((await call('/api/site/x')).headers.get('x-to')).toBe(at(api.port));
     expect((await call('/mcp/site')).headers.get('x-to')).toBe(at(mcp.port));
     const routes = await laneRoutes(entry, entry.lane as Lane);
-    expect([...(routes ?? [])]).toEqual([
+    expect(routes?.map((r) => [r.part, r.upstream])).toEqual([
       ['api', at(api.port)],
       ['mcp', at(mcp.port)],
     ]);

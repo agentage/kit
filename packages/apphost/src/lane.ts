@@ -1,9 +1,10 @@
 import { setTimeout as sleep } from 'node:timers/promises';
 import { type Child } from './child.js';
+import { type Route } from './route-of.js';
 import { runOf, type Run } from './runner.js';
 
-// The parts an extension serves and the address that serves each (lane-routes.ts).
-export type Served = Map<string, string>;
+// The routes of an extension's parts, from its discovery (lane-routes.ts).
+export type Served = Route[];
 
 // One running child and the requests open on it, so a swap stops it only once they are answered.
 export interface Lane {

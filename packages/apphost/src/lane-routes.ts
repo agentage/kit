@@ -3,6 +3,7 @@ import { combineHost, fail } from '@agentage/extension/internal';
 import { type Entries } from './entries.js';
 import { readChildDocument } from './host-document.js';
 import { SERVED_BY, type Lane, type Served } from './lane.js';
+import { partRoute } from './route-of.js';
 import { type Entry } from './supervisor.js';
 
 export type LanePart = 'api' | 'mcp';
@@ -20,15 +21,14 @@ const answersOf = async (entry: Entry, lane: Lane) => {
   return addresses.map((upstream, i) => ({ upstream, document: docs[i], expectedId: entry.id }));
 };
 
-// Part to address; a document the combine refuses gives no routes; no document (or a throw) is none.
+// The routes; a document the combine refuses gives none; no document (or a throw) is undefined.
 const readRoutes = async (entry: Entry, lane: Lane): Promise<Served | undefined> => {
   const answers = await answersOf(entry, lane);
   if (answers.every((a) => a.document === undefined)) return undefined;
   const row = { id: entry.id, version: entry.version, expose: LOCAL_EXPOSE };
   const installation = { host: 'local', extensions: [row] };
   try {
-    const { routes } = combineHost({ kind: 'local', installation, answers });
-    return new Map(routes.map((r) => [r.part, r.upstream]));
+    return combineHost({ kind: 'local', installation, answers }).routes;
   } catch {
     return undefined;
   }
@@ -65,7 +65,8 @@ export const servesPart =
       throw fail('UNAVAILABLE', `${entry.id} did not answer its discovery: try again`, {
         retryAfter: 5,
       });
-    const address = served.get(part);
+    // Internal parts too: on a machine every caller is a loopback caller.
+    const address = partRoute(served, entry.id, part, 'any')?.upstream;
     if (!address) throw fail('NOT_FOUND', `${entry.id} does not serve ${part}`);
     res.locals[SERVED_BY] = { lane, address };
     next();

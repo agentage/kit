@@ -37,9 +37,23 @@ const originOf = (env: NodeJS.ProcessEnv, name: string, local: boolean): string 
   throw new Error(`${name}: not an https origin (no path)`);
 };
 
-// The issuer as an https origin; in a local run also the dev issuer over http. Else no sign-in.
-export const issuerOf = (value: string | undefined, local: boolean): string | null =>
-  originIn(value, local ? ['https:', 'http:'] : ['https:'])?.origin ?? null;
+// The stub router's rule: an https AGENTAGE_URL names <host>.<domain> (never https://localhost).
+const ownOf = (env: NodeJS.ProcessEnv, local: boolean): string => {
+  const own = originOf(env, 'AGENTAGE_URL', local);
+  const url = new URL(own);
+  if (url.protocol === 'https:' && !/^[a-z0-9-]+\./.test(url.hostname))
+    throw new Error('AGENTAGE_URL: not an https://<host>.<domain> origin');
+  return own;
+};
+
+// The issuer as an https origin; in a local run also http on a loopback or one-label name (the dev
+// issuer is the compose service `issuer`), never on a public name. Else no sign-in.
+export const issuerOf = (value: string | undefined, local: boolean): string | null => {
+  const url = originIn(value, local ? ['https:', 'http:'] : ['https:']);
+  if (!url) return null;
+  const near = isLoopbackName(url.hostname) || /^[a-z0-9-]+$/.test(url.hostname);
+  return url.protocol === 'https:' || near ? url.origin : null;
+};
 
 export const portOf = (value = '3000'): number => {
   const port = Number(value);
@@ -58,7 +72,7 @@ const buildOf = (env: NodeJS.ProcessEnv) => ({
 export const cloudEnvOf = (env: NodeJS.ProcessEnv): CloudEnv => {
   const local = env[LOCAL_FLAG] === '1';
   return {
-    own: originOf(env, 'AGENTAGE_URL', local),
+    own: ownOf(env, local),
     core: originOf(env, 'AGENTAGE_CORE_URL', local),
     issuer: issuerOf(env['AGENTAGE_ISSUER'], local),
     local,

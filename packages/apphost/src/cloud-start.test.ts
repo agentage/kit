@@ -84,6 +84,15 @@ describe('start checks of the cloud entry', () => {
     expect(() => cloudEnvOf({ ...env, [name]: value })).toThrow(`${name}: not an https origin`);
   });
 
+  it.each(['https://localhost', 'https://localhost:4290', 'https://site', 'https://[::1]'])(
+    'AGENTAGE_URL=%s (no <host>.<domain>) refuses the start, with the local flag too',
+    (value) => {
+      const message = 'AGENTAGE_URL: not an https://<host>.<domain> origin';
+      expect(() => cloudEnvOf({ ...env, AGENTAGE_URL: value })).toThrow(message);
+      expect(() => cloudEnvOf({ ...env, AGENTAGE_URL: value, [LOCAL_FLAG]: '1' })).toThrow(message);
+    }
+  );
+
   it('own is the origin of AGENTAGE_URL (a trailing slash is dropped); a bad PORT refuses', () => {
     expect(cloudEnvOf({ ...env, AGENTAGE_URL: 'https://a.b.io/' }).own).toBe('https://a.b.io');
     expect(() => cloudEnvOf({ ...env, PORT: 'x' })).toThrow('PORT "x"');
@@ -113,6 +122,15 @@ describe('start checks of the cloud entry', () => {
       'https://auth.b.io'
     );
     expect(cloudEnvOf({ ...env, AGENTAGE_ISSUER: 'http://auth.b.io' }).issuer).toBeNull();
+    const local = { ...env, [LOCAL_FLAG]: '1' };
+    for (const near of [
+      'http://127.0.0.1:4291',
+      'http://issuer.localhost:3000',
+      'http://localhost:3000',
+    ])
+      expect(cloudEnvOf({ ...local, AGENTAGE_ISSUER: near }).issuer).toBe(near);
+    for (const far of ['http://auth.b.io', 'http://10.0.0.1:3000'])
+      expect(cloudEnvOf({ ...local, AGENTAGE_ISSUER: far }).issuer).toBeNull();
     expect(cloudEnvOf({ ...env, AGENTAGE_ISSUER: 'https://auth.b.io/x' }).issuer).toBeNull();
   });
 

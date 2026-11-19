@@ -6,7 +6,7 @@ import { closeWhileDraining } from './cloud-drain.js';
 import { type CloudEnv } from './cloud-env.js';
 import { HEAD, ownHostOnly, requestGuard } from './cloud-guards.js';
 import { cloudHealth } from './cloud-health.js';
-import { publicApp } from './cloud-page.js';
+import { cloudPageRule } from './cloud-page.js';
 import { partRoutes } from './cloud-parts.js';
 import { recordRoutes } from './cloud-records.js';
 import { streamRoutes } from './cloud-streams.js';
@@ -61,7 +61,7 @@ export const cloudApp = (parts: CloudParts): Express => {
   shellRoutes(app, parts);
   app.use(streamRoutes(parts.discovery));
   app.use(partRoutes(parts.discovery, parts.session));
-  if (parts.shell) shellFiles(app, parts.shell, publicApp(parts.discovery));
+  if (parts.shell) shellFiles(app, parts.shell, cloudPageRule(parts.discovery));
   app.use(notFound);
   app.use(errorHandler(parts.log));
   return app;

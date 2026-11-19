@@ -62,7 +62,9 @@ describe('a cloud host with a shell key serves the shell package (J.4.5 row 1)',
   it.each([
     ['an id with no app', '/inner/home', HTML, 404],
     ['an unknown id', '/nosuch', HTML, 404],
-    ['no HTML asked', '/', { accept: 'application/json' }, 404],
+    ['JSON asked', '/', { accept: 'application/json' }, 404],
+    ['any type asked (*/*, as a script client)', '/', { accept: '*/*' }, 404],
+    ['no Accept', '/', {}, 404],
     ['a file that is not there', '/shell/nope.js', {}, 404],
     ['a dot file', '/shell/.env', {}, 404],
   ])('%s: %s is %i', async (_why, path, headers, status) => {

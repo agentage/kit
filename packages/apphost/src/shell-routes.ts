@@ -1,6 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import express, { type Express, type RequestHandler } from 'express';
+import express, { type Express, type Request, type RequestHandler } from 'express';
 import { fail } from '@agentage/extension/internal';
 import { hasApp } from './app-files.js';
 import { type CliUser } from './cli-user-watch.js';
@@ -26,13 +26,22 @@ export const readShell = async (dir: string): Promise<Shell> => {
 // First path segments that are daemon routes: an unknown path under them stays a JSON 404.
 const OWN = new Set(['api', 'mcp', 'host', 'shell', 'app', 'health', '.well-known']);
 
-// isApp: the id has an app the page can show (else the page answers 404).
+export interface PageRule {
+  // The id has an app the page can show (else the page answers 404).
+  isApp(id: string): boolean | Promise<boolean>;
+  // The request asks for a page, not a JSON answer.
+  wantsPage(req: Request): boolean;
+}
+
+// The daemon: HTML before JSON in Accept (no Accept, or */*, is a page too).
+export const htmlFirst = (req: Request): boolean => req.accepts(['html', 'json']) === 'html';
+
 const page =
-  (shell: Shell, isApp: (id: string) => boolean | Promise<boolean>): RequestHandler =>
+  (shell: Shell, { isApp, wantsPage }: PageRule): RequestHandler =>
   async (req, res, next) => {
     const id = req.path.split('/')[1] ?? '';
     const read = req.method === 'GET' || req.method === 'HEAD';
-    if (!read || OWN.has(id) || req.accepts(['html', 'json']) !== 'html') return next();
+    if (!read || OWN.has(id) || !wantsPage(req)) return next();
     const known = id === '' || (await isApp(id));
     res.status(known ? 200 : 404).set('Cache-Control', 'no-cache');
     // The daemon names this path: a dot folder above it (~/.agentage) is allowed.
@@ -55,18 +64,14 @@ export const shellRoutes = (app: Express, { shell, entries, events, user }: Shel
   });
   app.get(LOCAL_SIGN_IN, signInPage);
   app.get('/shell/events', events.stream);
-  if (shell) shellFiles(app, shell, (id) => hasApp(entries, id));
+  if (shell) shellFiles(app, shell, { isApp: (id) => hasApp(entries, id), wantsPage: htmlFirst });
 };
 
 // /shell/* (the files of dist/) and the page at / and /{id}: the same on the daemon and a cloud host.
-export const shellFiles = (
-  app: Express,
-  shell: Shell,
-  isApp: (id: string) => boolean | Promise<boolean>
-): void => {
+export const shellFiles = (app: Express, shell: Shell, rule: PageRule): void => {
   const files = express.static(join(shell.dir, 'dist'), { index: false, dotfiles: 'deny' });
   app.use('/shell', files, notAFile);
-  app.use(page(shell, isApp));
+  app.use(page(shell, rule));
 };
 
 export interface ShellDeps {

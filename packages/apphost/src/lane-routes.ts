@@ -36,12 +36,13 @@ export const laneRoutes = (
   now = Date.now
 ): Promise<Set<string> | undefined> => {
   if (lane.failedUntil !== undefined && now() < lane.failedUntil) return Promise.resolve(undefined);
-  lane.routes ??= readRoutes(entry, lane).then((routes) => {
-    if (routes) return routes;
+  const failed = () => {
     lane.routes = undefined;
     lane.failedUntil = now() + FAILED_READ_MS;
     return undefined;
-  });
+  };
+  // A read that throws is a failed read too: no rejected promise stays on the lane.
+  lane.routes ??= readRoutes(entry, lane).then((routes) => routes ?? failed(), failed);
   return lane.routes;
 };
 

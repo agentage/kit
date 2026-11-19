@@ -94,6 +94,17 @@ describe('servesPart: the routes of a local child come from combineHost (J.4.3 r
     expect(reads.n).toBe(2);
   });
 
+  it('a read that throws is a failed read: nothing stays on the lane, the failure is kept', async () => {
+    const lane = {
+      get child(): never {
+        throw new Error('no child');
+      },
+    } as unknown as Lane;
+    const entry = { ...entryOf('a'), lane };
+    expect(await laneRoutes(entry, lane, () => 0)).toBeUndefined();
+    expect([lane.routes, lane.failedUntil]).toEqual([undefined, FAILED_READ_MS]);
+  });
+
   it('parallel first requests share one read', async () => {
     const { port, reads } = await child(200, JSON.stringify(docOf('a', ['api'])));
     const call = await start(new Map([['a', entryOf('a', port)]]));

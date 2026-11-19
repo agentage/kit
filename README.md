@@ -155,23 +155,33 @@ check passes.
 
 A name that is not on npm yet has no trusted publisher, and `release.yml` has no token: its publish
 and its stage both fail. When npm answers 404 for the name, the run holds it with "new package
-name: first publish needs the owner". The owner publishes the first version, either by hand from
-the tag commit (`npm publish --access public` in the package folder, after
-`npm ci && npm run build`) or through a one-time `NPM_TOKEN` stage that is deleted after the first
-publish. Then the owner adds the trusted publisher on npmjs.com (repository `agentage/platform`,
-workflow `release.yml`).
+name: first publish needs the owner". The owner gives the name a trusted publisher; the pipeline
+then publishes the real version (done this way for `@agentage/apphost` and
+`@agentage/shell-dashboard`, 2026-11-19):
 
-Checked against [npm trusted publishers](https://docs.npmjs.com/trusted-publishers):
+1. Publish a placeholder by hand: a two-file package (`package.json` and `README.md`) at version
+   `0.0.0-bootstrap.0`, `npm publish --access public --tag bootstrap`. On a first publish npm also
+   points `latest` at it, until the real version is published. The trusted publisher was added on
+   the name with this placeholder; a name with no version was not tried. A hand publish of
+   `0.0.0-stage` is refused with 403 ("You cannot publish using the version"), but npm lists a
+   `0.0.0-stage` version on the name anyway (as on four older `@agentage` packages): use
+   `0.0.0-bootstrap.0`.
+2. Add the trusted publisher with publish allowed:
+   `npx npm@12 trust github <name> --repo agentage/platform --file release.yml --allow-publish --yes`.
+   Without `--allow-publish` it is stage-only, and each release needs the owner again. A new
+   trusted publisher expires if it does not publish within 2 days; then remove it and add it again.
+3. Run the tag run again. It skips every version already on npm and publishes the new name.
+4. Wait for the registry: a new version took about 3 minutes to show in `npm view`. Until the real
+   version shows, `latest` may still name the placeholder; check `npm view <name> dist-tags`.
 
-- Select "allow direct publish" when you add the trusted publisher. A trusted publisher set up
-  after 2026-09-03 is stage-only by default; then each later release needs the owner again.
-- A new trusted publisher expires if it does not publish within 2 days. Then delete it and add a
-  new one.
+Cleanup (optional, any time, the owner): deprecate the placeholder versions and remove the
+`bootstrap` dist-tag of each new name:
 
-Not confirmed: that the package must exist on npm before a trusted publisher can be added, and the
-exact npm error text for a new name.
-
-Then run the tag run again: it skips every version already on npm.
+```
+npm deprecate <name>@0.0.0-bootstrap.0 "placeholder for the first trusted publish"
+npm deprecate <name>@0.0.0-stage "placeholder for the first trusted publish"
+npm dist-tag rm <name> bootstrap
+```
 
 ## License
 

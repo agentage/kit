@@ -45,23 +45,45 @@ const setup = async (runner: Runner) => {
   return { deps: deps as unknown as SupervisorDeps, entry };
 };
 
+const UPSTREAM_ROW: Entry = {
+  id: 'hosted',
+  install: { id: 'hosted', version: '1.2.0' },
+  state: 'starting',
+  version: '',
+};
+
+describe('a runner with no package folder (the upstream runner)', () => {
+  it('starts with no folder, no manifest and no secret check; the version is the listed one', async () => {
+    const { address } = await service();
+    const start = vi.fn(async () => runAt(address));
+    const { deps } = await setup({ kind: 'upstream', readsPackage: false, start });
+    const entry = structuredClone(UPSTREAM_ROW);
+    expect(await startEntry(deps, entry)).toBeUndefined();
+    expect([entry.state, entry.version, entry.dir]).toEqual(['running', '1.2.0', '']);
+  });
+
+  it('the same row through a runner that reads a package fails: there is no folder', async () => {
+    const start = vi.fn(async () => runAt('http://127.0.0.1:1'));
+    const { deps } = await setup({ kind: 'child', readsPackage: true, start });
+    const entry = structuredClone(UPSTREAM_ROW);
+    expect(await startEntry(deps, entry)).toBeInstanceOf(Error);
+    expect([entry.state, start.mock.calls.length]).toEqual(['failed', 0]);
+  });
+});
+
 describe('the supervisor runs an extension through the runner it is given (one seam)', () => {
-  it('starts with the given runner and checks health at the run address', async () => {
+  it('starts with the given runner; readiness is the runner job, the supervisor reads no /health', async () => {
     const { seen, address } = await service();
     const start = vi.fn(async () => runAt(address));
-    const { deps, entry } = await setup({ kind: 'upstream', start });
+    const { deps, entry } = await setup({ kind: 'upstream', readsPackage: true, start });
     expect(await startEntry(deps, entry)).toBeUndefined();
     expect(start).toHaveBeenCalledWith(expect.objectContaining({ id: 'hosted' }));
-    expect([entry.state, entry.lane?.child.address(), seen]).toEqual([
-      'running',
-      address,
-      ['/health'],
-    ]);
+    expect([entry.state, entry.lane?.child.address(), seen]).toEqual(['running', address, []]);
   });
 
   it('a runner that refuses is a failed start with its words', async () => {
     const start = vi.fn(async () => Promise.reject(new Error('no upstream for hosted')));
-    const { deps, entry } = await setup({ kind: 'upstream', start });
+    const { deps, entry } = await setup({ kind: 'upstream', readsPackage: true, start });
     expect((await startEntry(deps, entry))?.message).toBe('no upstream for hosted');
     expect([entry.state, entry.error]).toEqual(['failed', 'no upstream for hosted']);
   });

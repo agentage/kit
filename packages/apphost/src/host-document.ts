@@ -10,40 +10,36 @@ import {
   VersionSchema,
 } from '@agentage/extension/internal';
 import { appRowOf, type AppRow } from './app-files.js';
+import { readDocument } from './document-read.js';
 import { type Entries } from './entries.js';
 import { type Shell } from './shell-routes.js';
 import { type Entry } from './supervisor.js';
 
-const DOC_PATH = '/.well-known/agentage-extension.json';
 // A child that does not answer in this time is read from its last good document.
 export const DOC_READ_MS = 1_500;
-const MAX_BYTES = 256 * 1024;
 
-// By id: the last valid document a child gave, so a stopped child keeps its nav row.
-export type LastGood = Map<string, unknown>;
+// By id, one per row: the last valid documents, so a stopped child keeps its nav row.
+export type LastGood = Map<string, unknown[]>;
 
 // The document of a running extension at its address, or undefined (no answer, too big, not JSON).
-export const readChildDocument = async (address: string): Promise<unknown> => {
-  try {
-    const signal = AbortSignal.timeout(DOC_READ_MS);
-    const res = await fetch(`${address}${DOC_PATH}`, { signal });
-    const text = await res.text();
-    return res.ok && text.length <= MAX_BYTES ? JSON.parse(text) : undefined;
-  } catch {
-    return undefined;
-  }
-};
+export const readChildDocument = (address: string): Promise<unknown> =>
+  readDocument(address, DOC_READ_MS);
 
-const answerOf = async (entry: Entry, lastGood: LastGood): Promise<Answer | undefined> => {
-  const address = entry.lane?.child.address();
-  const read = address === undefined ? undefined : await readChildDocument(address);
-  if (read !== undefined && DiscoveryDocumentSchema.safeParse(read).success)
-    lastGood.set(entry.id, read);
+const isValid = (doc: unknown) =>
+  doc !== undefined && DiscoveryDocumentSchema.safeParse(doc).success;
+
+// Every row of the id, as the routes read them: a pages row is in the document too.
+const answersOf = async (entry: Entry, lastGood: LastGood): Promise<Answer[]> => {
+  const addresses = entry.lane?.child.addresses() ?? [];
+  const read = await Promise.all(addresses.map(readChildDocument));
+  const last = lastGood.get(entry.id) ?? [];
+  read.forEach((doc, i) => isValid(doc) && (last[i] = doc));
+  lastGood.set(entry.id, last);
   // A slow or failed read of a running child keeps its last good document (a bad one is refused).
-  const document = read ?? lastGood.get(entry.id);
-  return document === undefined
-    ? undefined
-    : { upstream: entry.id, document, expectedId: entry.id };
+  const docs = addresses.length ? read.map((doc, i) => doc ?? last[i]) : last;
+  return docs
+    .filter((document) => document !== undefined)
+    .map((document) => ({ upstream: entry.id, document, expectedId: entry.id }));
 };
 
 const toldOf = ({ state }: Entry): CallerState | undefined =>
@@ -67,8 +63,7 @@ const statesOf = (all: Entry[]): Record<string, CallerState> => {
 
 // The combine input of the daemon: its entries as installation rows, each child its own answer.
 const inputOf = async (all: Entry[], lastGood: LastGood, shell?: Shell): Promise<CombineInput> => {
-  const read = await Promise.all(all.map((e) => answerOf(e, lastGood)));
-  const answers = read.filter((a): a is Answer => a !== undefined);
+  const answers = (await Promise.all(all.map((e) => answersOf(e, lastGood)))).flat();
   const extensions = all.map((e) => ({
     id: e.id,
     version: e.version,

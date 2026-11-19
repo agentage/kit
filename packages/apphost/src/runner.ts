@@ -1,4 +1,6 @@
 import { forkLaunch, type Child, type Launch, type LaunchSpec } from './child.js';
+import { LIMITS } from './limits.js';
+import { healthy } from './start-checks.js';
 
 // What a started extension is to the host: an address, a state, a stop; never a process id it uses.
 // `down`: an upstream that fails its health check; it can come back, an exited child cannot.
@@ -15,6 +17,8 @@ export interface Run extends Child {
 // One way to run an extension: a child process here; a running upstream on a cloud host (J.4.4).
 export interface Runner {
   readonly kind: 'child' | 'upstream';
+  // A child runs from a package folder; an upstream has none (no manifest, no secrets to check).
+  readonly readsPackage: boolean;
   start(spec: LaunchSpec): Promise<Run>;
 }
 
@@ -39,8 +43,19 @@ export const runOf = (child: Child): Run => {
   });
 };
 
+// A child is ready when its own /health answers 200; one that is not is stopped.
+const readyChild = async (run: Run, healthMs: number): Promise<Run> => {
+  await healthy(run.address(), healthMs).catch(async (err: unknown) => {
+    await run.stop();
+    throw err;
+  });
+  return run;
+};
+
 // The child runner: install, seal and fork are the launch (child.ts); restarts stay in the supervisor.
-export const childRunner = (launch: Launch = forkLaunch()): Runner => ({
+// start resolves once the run is ready for its route: for a child, its /health answered 200.
+export const childRunner = (launch: Launch = forkLaunch(), healthMs = LIMITS.healthMs): Runner => ({
   kind: 'child',
-  start: async (spec) => runOf(await launch(spec)),
+  readsPackage: true,
+  start: async (spec) => readyChild(runOf(await launch(spec)), healthMs),
 });

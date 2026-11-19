@@ -18,13 +18,13 @@ export type Upstream = z.infer<typeof UpstreamSchema>;
 export const readUpstreams = async (file: string): Promise<Upstream[]> =>
   UpstreamListSchema.parse(JSON.parse(await readFile(file, 'utf8')));
 
+// The state of an id as the discovery of the host sees it: the runner never probes an upstream.
+export type StateOf = (id: string) => 'running' | 'down';
+
 export interface UpstreamOptions {
   upstreams: Upstream[];
-  intervalMs?: number;
-  timeoutMs?: number;
-  fetch?: typeof fetch;
+  stateOf: StateOf;
 }
-type Options = Required<UpstreamOptions>;
 
 // Every row of an id (api and pages are two services), in list order: the first answer wins.
 const rowsOf = (upstreams: Upstream[], id: string): Upstream[] => {
@@ -33,34 +33,9 @@ const rowsOf = (upstreams: Upstream[], id: string): Upstream[] => {
   return rows;
 };
 
-// One health probe; any failure (status, refusal, timeout) is down, never a throw.
-const probe = async (address: string, opts: Options): Promise<RunState> => {
-  const signal = AbortSignal.timeout(opts.timeoutMs);
-  const res = await opts.fetch(`${address}/health`, { signal }).catch(() => undefined);
-  await res?.body?.cancel().catch(() => undefined);
-  return res?.status === 200 ? 'running' : 'down';
-};
-
-// The health of one row: at most one probe in flight, also when intervalMs < timeoutMs.
-const rowWatch = (address: string, opts: Options) => {
-  let state: RunState = 'down';
-  let inFlight: Promise<void> | undefined;
-  const tick = () =>
-    (inFlight ??= probe(address, opts)
-      .then((next) => void (state = next))
-      .finally(() => (inFlight = undefined)));
-  return { tick, state: () => state };
-};
-
-const watch = async (rows: Upstream[], opts: Options): Promise<Run> => {
-  const watches = rows.map((row) => rowWatch(row.address, opts));
-  const tick = () => Promise.all(watches.map((w) => w.tick()));
-  await tick();
+const connect = (rows: Upstream[], stateOf: StateOf): Run => {
   let stopped = false;
   const { promise: exited, resolve: done } = Promise.withResolvers<Exit>();
-  const timer = setInterval(() => void tick(), opts.intervalMs).unref();
-  // As the stub: an id with any row that answers is up.
-  const up = () => watches.some((w) => w.state() === 'running');
   const [first] = rows as [Upstream, ...Upstream[]];
   return {
     // No local process: the service runs in its own container.
@@ -69,20 +44,18 @@ const watch = async (rows: Upstream[], opts: Options): Promise<Run> => {
     exited,
     address: () => first.address,
     addresses: () => rows.map((row) => row.address),
-    state: () => (stopped ? 'exited' : up() ? 'running' : 'down'),
+    state: (): RunState => (stopped ? 'exited' : stateOf(first.id)),
     stop: async () => {
-      clearInterval(timer);
       stopped = true;
       done({ code: null, signal: null });
     },
   };
 };
 
-// The upstream runner (J.4.4 row 1): it starts nothing; it connects to listed addresses and watches health.
-export const upstreamRunner = (options: UpstreamOptions): Runner => {
-  const opts = { intervalMs: 5_000, timeoutMs: 2_000, fetch: globalThis.fetch, ...options };
-  return {
-    kind: 'upstream',
-    start: async (spec: Pick<LaunchSpec, 'id'>) => watch(rowsOf(opts.upstreams, spec.id), opts),
-  };
-};
+// The upstream runner (J.4.4 row 1): it starts nothing; it gives the listed addresses of an id.
+// A run is ready at once: whether it serves is the discovery state (one source), never /health.
+export const upstreamRunner = ({ upstreams, stateOf }: UpstreamOptions): Runner => ({
+  kind: 'upstream',
+  readsPackage: false,
+  start: async (spec: Pick<LaunchSpec, 'id'>) => connect(rowsOf(upstreams, spec.id), stateOf),
+});

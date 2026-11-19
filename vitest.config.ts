@@ -30,6 +30,7 @@ export default defineConfig({
         '**/index.ts',
         'packages/extension/src/runtime/main.ts',
         'packages/extension/src/host/main.ts',
+        'packages/apphost/src/cloud-main.ts',
         'packages/extension/src/tool/cli.ts',
         'packages/extension/src/schemas/write-schemas.ts',
         'packages/widget/src/bundle/cli.ts',

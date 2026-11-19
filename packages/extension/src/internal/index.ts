@@ -20,6 +20,7 @@ export { clearOldLock, DATA_DIR_LOCKED, lockDataDir } from '../host/data-lock.js
 export { localOnly } from '../host/guard.js';
 export { guardOf } from '../host/host-env.js';
 export { HOST_MAIN } from '../host/host-main.js';
+export { kitShellDir } from '../host/kit-shell.js';
 export { serveHost } from '../host/serve-host.js';
 export { createLog, type Log } from '../log/log.js';
 export { type ExtensionPackage } from '../manifest/manifest.schema.js';

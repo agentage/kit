@@ -89,6 +89,8 @@ jobs:
           test ! -e node_modules/@agentage/app
           test ! -e node_modules/@agentage/shell-dashboard
           node --input-type=module -e "const a = await import('@agentage/extension/app'); if (typeof a.useAppHost !== 'function') throw new Error('no useAppHost'); console.log('PASS kit app subpath')"
+          # apphost 0.1.0 imports kitShellDir by name and calls it at start: kept, no folder, no throw.
+          node --input-type=module -e "const i = await import('@agentage/extension/internal'); if (i.kitShellDir() !== undefined) throw new Error('kitShellDir names a folder'); console.log('PASS kitShellDir kept')"
           node --input-type=module -e "await import('@agentage/extension'); const l = await import('@agentage/extension/logs'); const e = l.parseLine('hello', { extension: 'smoke', part: 'ci' }); l.EventSchema.parse(e); console.log('PASS kit alone', e.kind, l.KINDS.length)"
 
       - name: Pack smoke - apphost (dist in, tests out, the kit not inside)

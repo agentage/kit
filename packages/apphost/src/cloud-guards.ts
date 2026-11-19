@@ -12,10 +12,17 @@ export const originForm = (target: string): boolean =>
   URL.canParse(target, BASE) &&
   new URL(target, BASE).origin === BASE;
 
-// Before every route: the target form, and HEAD as GET with no body.
+// One path for every route: dot segments (also %2e%2e) resolved once, as the stub router read them.
+export const normalPath = (target: string): string => {
+  const url = new URL(target, BASE);
+  return `${url.pathname}${url.search}`;
+};
+
+// Before every route: the target form, one normalized path, and HEAD as GET with no body.
 export const requestGuard: RequestHandler = (req, res, next) => {
   if (!originForm(req.url))
     throw fail('VALIDATION_ERROR', 'request target is not origin-form', { code: 'BAD_REQUEST' });
+  req.url = req.originalUrl = normalPath(req.url);
   // A kit that skips its scope check on HEAD leaks nothing: node already sends no body.
   if (req.method === 'HEAD') {
     req.method = 'GET';

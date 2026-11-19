@@ -1,5 +1,6 @@
 // The stub router's pages.test.mjs (apphosts), ported: the site route, the reserved paths, D82.
 import { describe, expect, it } from 'vitest';
+import { normalPath } from './cloud-guards.js';
 import { partRoute, type Route, routeOf } from './route-of.js';
 
 const SITE: Route[] = [
@@ -56,5 +57,18 @@ describe('partRoute: one function, the policy a parameter', () => {
     expect(partRoute([inner], 'site', 'api', 'any')).toBe(inner);
     expect(partRoute(SITE, 'site', 'mcp', 'any')).toBeUndefined();
     expect(partRoute(SITE, 'other', 'api', 'any')).toBeUndefined();
+  });
+});
+
+describe('routeOf reads the one normalized path (requestGuard)', () => {
+  it.each([
+    ['/x/../api/other/y', { id: 'other', part: 'api' }],
+    ['/x/%2e%2e/api/site/y', { route: SITE[0], under: '/api/site' }],
+    ['/x/%2E%2E/app/site/a.js', { id: 'site', part: 'app' }],
+    ['/x/../.well-known/agentage.json', { route: SITE[0], under: '/.well-known' }],
+    ['/x/../health', undefined],
+    ['/x/%2e%2e/health', undefined],
+  ])('%s never reaches the site', (target, want) => {
+    expect(routeOf(SITE, normalPath(target).split('?')[0] as string)).toEqual(want);
   });
 });

@@ -70,10 +70,24 @@ describe('the site of a pages host (D81, D82)', () => {
     expect([exchangesOf(auth), pages.seen]).toEqual([[], []]);
   });
 
-  it('a dot segment cannot take a well-known name out of /.well-known: 400', async () => {
-    const { api, call } = await start();
-    expect((await call('/.well-known/%2e%2e/api/site/x')).status).toBe(400);
-    expect(api.seen).toEqual([]);
+  it.each([
+    ['/x/../api/other/y', 404, 'none'],
+    ['/x/%2e%2e/api/other/y', 404, 'none'],
+    ['/x/%2E%2E/app/site/a.js', 404, 'none'],
+    ['/x/../health', 200, 'none'],
+    ['/x/%2e%2e/health', 200, 'none'],
+    ['/x/../api/site/y', 200, 'api /api/site/y'],
+    ['/x/../.well-known/agentage.json', 200, 'api /.well-known/agentage.json'],
+    ['/.well-known/%2e%2e/api/site/x', 200, 'api /api/site/x'],
+    ['/a/./b/../c?q=1', 200, 'pages /a/c?q=1'],
+  ])('dot segments resolve once before routing: %s is %i, reaches %s', async (path, status, to) => {
+    const { api, pages, call } = await start();
+    expect((await call(path)).status).toBe(status);
+    const seen = [
+      ...api.seen.map((s) => `api ${s.url}`),
+      ...pages.seen.map((s) => `pages ${s.url}`),
+    ];
+    expect(seen).toEqual(to === 'none' ? [] : [to]);
   });
 
   it('a pages container that does not answer its discovery: no site route, / is 404', async () => {

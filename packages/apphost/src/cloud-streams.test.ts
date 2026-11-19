@@ -115,9 +115,10 @@ describe('/files/{id}/* and /connector/{id} (PD9, stub streams)', () => {
     expect([res.status, res.headers['retry-after']]).toEqual([503, '5']);
   });
 
-  it('a dot segment that leaves /files/{id} is refused', async () => {
-    const { cloud } = await start();
-    expect((await host!.call('/files/cloud/%2e%2e/%2e%2e/api/cloud/x')).status).toBe(400);
-    expect(cloud.seen).toEqual([]);
+  it('dot segments resolve before routing: the path the upstream gets is the one routed', async () => {
+    const { cloud, apionly } = await start();
+    expect((await host!.call('/files/cloud/%2e%2e/%2e%2e/connector/cloud')).status).toBe(200);
+    expect((await host!.call('/files/apionly/../../files/mcponly/a')).status).toBe(404);
+    expect([...cloud.seen, ...apionly.seen].map((s) => s.url)).toEqual(['/connector/cloud']);
   });
 });

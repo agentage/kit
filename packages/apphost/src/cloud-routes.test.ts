@@ -153,10 +153,11 @@ describe('cloud routes: only public routes of running entries', () => {
     }
   );
 
-  it('a path that leaves the upstream is refused', async () => {
-    const { echo, call } = await start();
-    const res = await call('/api/echo/../../api/inner/x');
-    expect([res.status, JSON.parse(res.body).error.code]).toEqual([400, 'BAD_REQUEST']);
+  it('a path that leaves the upstream is refused; dot segments are routed after they resolve', async () => {
+    const { echo, inner, call } = await start();
+    // /api/inner/x: inner is internal, so 404 and inner never sees it (the stub router routes the same).
+    expect((await call('/api/echo/../../api/inner/x')).status).toBe(404);
+    expect(inner.seen).toEqual([]);
     expect((await call('/api/echo/%2f%2fevil.example/x')).status).toBe(200);
     expect(last(echo).url).toBe('/api/echo/%2f%2fevil.example/x');
     const next = vi.fn();

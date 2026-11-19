@@ -37,8 +37,7 @@ const shellRoutes = (app: Express, { session, events }: CloudParts) => {
   });
 };
 
-// The cloud host: /health, then Host allow-listed, its documents, the shell session, the streams,
-// the parts, the site; the stub router's order.
+// The cloud host, in the stub router's order: health, Host, documents, shell, streams, parts, site.
 export const cloudApp = (parts: CloudParts): Express => {
   const app = express();
   app.disable('x-powered-by');

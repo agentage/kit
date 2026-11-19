@@ -13,8 +13,7 @@ export const unavailableIf = ({ document }: Combined, id: string, part: RoutedPa
   throw fail('UNAVAILABLE', `${id} is ${entry.state}`, { retryAfter: 5 });
 };
 
-// The app part is a page: no credential reaches it; only an /api path is a call of the user.
-// A well-known name sent to the api part (D82) is anonymous: no token is exchanged for it.
+// No credential to the app part; a token only for an /api path (a D82 well-known name gets none).
 const headersOf = async (
   session: CloudSession,
   req: Parameters<RequestHandler>[0],

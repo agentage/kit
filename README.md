@@ -50,8 +50,8 @@ npm run verify
   auth, get a one-hour token for the parts, `mintToken`, `revokeToken`, sign out.
 - [`packages/app`](packages/app): the app kit, `useAppShell`, `useAppHost`, `Region`, `Split`.
   It is private: import it from `@agentage/extension/app`.
-- [`packages/shell-dashboard`](packages/shell-dashboard): the dashboard shell. It is private: the
-  kit ships it at `dist/shell`, and the daemon serves it at `/`.
+- [`@agentage/shell-dashboard`](packages/shell-dashboard): the dashboard shell. The app host program
+  (`@agentage/apphost`) depends on it and serves it at `/`.
 
 ## Write the parts
 

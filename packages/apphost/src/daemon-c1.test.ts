@@ -76,7 +76,7 @@ describe('the daemon routes of C1', () => {
           parts: PARTS,
           tools: [{ name: 'all__echo', scope: 'all:read' }],
           openapi: '/api/all/openapi.json',
-          expose: {},
+          expose: { api: 'internal', mcp: 'internal' },
         },
       ],
     });

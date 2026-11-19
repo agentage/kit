@@ -1,15 +1,12 @@
 import { type RequestHandler } from 'express';
 import { combineHost, fail } from '@agentage/extension/internal';
 import { type Entries } from './entries.js';
-import { readChildDocument } from './host-document.js';
+import { LOCAL_EXPOSE, readChildDocument } from './host-document.js';
 import { SERVED_BY, type Lane, type Served } from './lane.js';
 import { partRoute } from './route-of.js';
 import { type Entry } from './supervisor.js';
 
 export type LanePart = 'api' | 'mcp';
-
-// On a machine the api and mcp parts are for loopback callers; the app is served from the folder.
-const LOCAL_EXPOSE = { api: 'internal', mcp: 'internal' } as const;
 
 // How long a failed read answers 503 at once, so a broken child does not cost each request a read.
 export const FAILED_READ_MS = 5_000;

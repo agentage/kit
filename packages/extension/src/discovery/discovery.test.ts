@@ -92,7 +92,11 @@ describe('build record', () => {
     expect(validateRecord(one).image).toBe(one.image);
     const nested = { ...one, image: `ghcr.io/agentage/team/probe@${DIGEST}` };
     expect(validateRecord(nested).image).toBe(nested.image);
-    const doc = discoveryDocument(validateRecord(one), 'https://probe.next.agentage.io', API_SERVES);
+    const doc = discoveryDocument(
+      validateRecord(one),
+      'https://probe.next.agentage.io',
+      API_SERVES
+    );
     expect(DiscoveryDocumentSchema.safeParse(doc).success).toBe(true);
     const both = { ...one, parts: { api: { image: API_IMAGE } } };
     expect(() => validateRecord(both)).toThrow(/the one image and no part image/);
@@ -108,7 +112,15 @@ describe('discovery document', () => {
   it('is the record plus the host and what it serves, in the order of the spec', () => {
     const record = validateRecord(recordOf(API_MANIFEST, BUILD, { api: API_IMAGE }));
     const doc = discoveryDocument(record, 'https://probe.next.agentage.io', API_SERVES);
-    expect(Object.keys(doc)).toEqual(['id', 'version', 'commit', 'buildTime', 'host', 'parts', 'serves']);
+    expect(Object.keys(doc)).toEqual([
+      'id',
+      'version',
+      'commit',
+      'buildTime',
+      'host',
+      'parts',
+      'serves',
+    ]);
     expect(doc).toEqual({ ...record, host: 'https://probe.next.agentage.io', serves: ['api'] });
     expect(DiscoveryDocumentSchema.safeParse(doc).success).toBe(true);
   });

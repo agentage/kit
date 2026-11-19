@@ -73,7 +73,9 @@ describe('public surface', () => {
       'ErrorEnvelopeSchema',
       'ExtensionRecordSchema',
       'HealthSchema',
+      'HostDocumentSchema',
       'OkEnvelopeSchema',
+      'entryOfDocument',
       'isAgcid',
     ]);
   });
@@ -82,6 +84,7 @@ describe('public surface', () => {
     expect(Object.keys(host).sort()).toEqual([
       'DAEMON_PORT',
       'capabilities',
+      'combineHost',
       'createDaemon',
       'hostExtension',
       'localOnly',

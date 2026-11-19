@@ -99,4 +99,3 @@ export const discoveryDocument = (record: ServedRecord, host: string, serving: S
   const app = serving.app && { app: serving.app };
   return { id, version, commit, buildTime, host, ...rest, serves: serving.serves, ...app };
 };
-

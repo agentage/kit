@@ -68,7 +68,7 @@ describe('api app: kit routes', () => {
     expect(res.headers.get('access-control-allow-origin')).toBe('*');
     const { buildTime } = BUILD;
     const want = { id: 'probe', version: '0.1.0', commit: SHA, buildTime, host: base };
-    expect(await res.json()).toEqual({ ...want, parts: { api: { image } } });
+    expect(await res.json()).toEqual({ ...want, parts: { api: { image } }, serves: ['api'] });
   });
 
   it('serves the mounted record by digest, on the configured origin', async () => {

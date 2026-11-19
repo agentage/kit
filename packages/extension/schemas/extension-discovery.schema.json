@@ -222,6 +222,55 @@
       "type": "string",
       "maxLength": 270,
       "pattern": "^(https:\\/\\/[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?(\\.[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?)+|http:\\/\\/(127\\.0\\.0\\.1|localhost))(:[0-9]{1,5})?$"
+    },
+    "serves": {
+      "minItems": 1,
+      "type": "array",
+      "items": {
+        "type": "string",
+        "enum": [
+          "pages",
+          "ui",
+          "api",
+          "mcp",
+          "worker",
+          "app"
+        ]
+      }
+    },
+    "app": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 40
+        },
+        "icon": {
+          "type": "string",
+          "maxLength": 64,
+          "pattern": "^[a-z][a-z0-9-]*$"
+        },
+        "order": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 1000
+        },
+        "entry": {
+          "type": "string",
+          "pattern": "^\\/app\\/[a-z][a-z0-9-]*\\/app-[0-9a-f]+\\.js$"
+        },
+        "css": {
+          "type": "string",
+          "pattern": "^\\/app\\/[a-z][a-z0-9-]*\\/app-[0-9a-f]+\\.css$"
+        }
+      },
+      "required": [
+        "title",
+        "entry",
+        "css"
+      ],
+      "additionalProperties": false
     }
   },
   "required": [
@@ -230,7 +279,8 @@
     "commit",
     "buildTime",
     "parts",
-    "host"
+    "host",
+    "serves"
   ],
   "additionalProperties": false
 }

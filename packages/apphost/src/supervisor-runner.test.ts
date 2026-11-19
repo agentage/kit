@@ -72,17 +72,13 @@ describe('a runner with no package folder (the upstream runner)', () => {
 });
 
 describe('the supervisor runs an extension through the runner it is given (one seam)', () => {
-  it('starts with the given runner and checks health at the run address', async () => {
+  it('starts with the given runner; readiness is the runner job, the supervisor reads no /health', async () => {
     const { seen, address } = await service();
     const start = vi.fn(async () => runAt(address));
     const { deps, entry } = await setup({ kind: 'upstream', readsPackage: true, start });
     expect(await startEntry(deps, entry)).toBeUndefined();
     expect(start).toHaveBeenCalledWith(expect.objectContaining({ id: 'hosted' }));
-    expect([entry.state, entry.lane?.child.address(), seen]).toEqual([
-      'running',
-      address,
-      ['/health'],
-    ]);
+    expect([entry.state, entry.lane?.child.address(), seen]).toEqual(['running', address, []]);
   });
 
   it('a runner that refuses is a failed start with its words', async () => {

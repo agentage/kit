@@ -11,7 +11,7 @@ import { type PendingChanges } from './pending.js';
 import { type Queue } from './queue.js';
 import { type Runner } from './runner.js';
 import { crashed, healthyFor, reasonOf, resetRestarts, type Retry } from './restart.js';
-import { assertSecrets, healthy, redact } from './start-checks.js';
+import { assertSecrets, redact } from './start-checks.js';
 import { type Stopping } from './stopping.js';
 
 // Called on every boot for each entry with a version: idempotent (docs/part-image.md).
@@ -87,7 +87,7 @@ const dirOf = async (deps: SupervisorDeps, entry: Entry, install: InstallEntry, 
   return (await runInstaller(deps, { id: entry.id, version: install.version })).dir;
 };
 
-// A new child for to, healthy, then the route; fresh: a start the owner asked for (restarts reset).
+// A new run for to, ready (the runner's own check), then the route; fresh: a start the owner asked for (restarts reset).
 // The folder and version to run: read and checked when the runner runs a package, else as listed.
 const packageOf = async (deps: SupervisorDeps, entry: Entry, to: Next) => {
   if (!deps.runner.readsPackage) return { dir: '', version: to.install.version ?? entry.version };
@@ -105,10 +105,6 @@ const launchFor = async (deps: SupervisorDeps, entry: Entry, to: Next, fresh: bo
     .catch((err: Error) =>
       Promise.reject(Object.assign(err, { message: redact(err.message, to.values.secrets) }))
     );
-  await healthy(child.address(), deps.healthMs).catch(async (err: unknown) => {
-    await child.stop();
-    throw err;
-  });
   const lane = laneOf(child);
   Object.assign(entry, { dir, version, lane, state: 'running', error: undefined });
   if (fresh) resetRestarts(entry);

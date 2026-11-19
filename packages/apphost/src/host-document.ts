@@ -10,29 +10,20 @@ import {
   VersionSchema,
 } from '@agentage/extension/internal';
 import { appRowOf, type AppRow } from './app-files.js';
+import { readDocument } from './document-read.js';
 import { type Entries } from './entries.js';
 import { type Shell } from './shell-routes.js';
 import { type Entry } from './supervisor.js';
 
-const DOC_PATH = '/.well-known/agentage-extension.json';
 // A child that does not answer in this time is read from its last good document.
 export const DOC_READ_MS = 1_500;
-const MAX_BYTES = 256 * 1024;
 
 // By id, one per row: the last valid documents, so a stopped child keeps its nav row.
 export type LastGood = Map<string, unknown[]>;
 
 // The document of a running extension at its address, or undefined (no answer, too big, not JSON).
-export const readChildDocument = async (address: string): Promise<unknown> => {
-  try {
-    const signal = AbortSignal.timeout(DOC_READ_MS);
-    const res = await fetch(`${address}${DOC_PATH}`, { signal });
-    const text = await res.text();
-    return res.ok && text.length <= MAX_BYTES ? JSON.parse(text) : undefined;
-  } catch {
-    return undefined;
-  }
-};
+export const readChildDocument = (address: string): Promise<unknown> =>
+  readDocument(address, DOC_READ_MS);
 
 const isValid = (doc: unknown) =>
   doc !== undefined && DiscoveryDocumentSchema.safeParse(doc).success;

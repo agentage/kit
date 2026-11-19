@@ -121,7 +121,7 @@ const launchMarks = (launch: Launch) => ({
 const depsOf = (opts: DaemonOptions, launch: Launch, origin: () => string, stopping: Stopping) =>
   ({
     configDir: opts.configDir,
-    runner: childRunner(launchUnlessStopping(stopping, launch)),
+    runner: childRunner(launchUnlessStopping(stopping, launch), limitsOf(opts).healthMs),
     stopping,
     install: opts.install,
     log: createLog({ extension: 'host', part: 'api', version: opts.version }),

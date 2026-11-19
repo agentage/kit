@@ -2,7 +2,7 @@ import { writeFile } from 'node:fs/promises';
 import { createServer, type Server } from 'node:http';
 import { type AddressInfo } from 'node:net';
 import { join } from 'node:path';
-import { afterEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, describe, expect, it } from 'vitest';
 import { tempDir } from '../../extension/src/test-support/packages.js';
 import { type Run } from './runner.js';
 import { readUpstreams, upstreamRunner, type Upstream } from './upstream-runner.js';
@@ -25,16 +25,12 @@ afterEach(async () => {
   open.splice(0).forEach((s) => s.close());
 });
 
-const fast = (upstreams: Upstream[], fetchImpl?: typeof fetch) =>
-  upstreamRunner({
-    upstreams,
-    intervalMs: 20,
-    timeoutMs: 100,
-    ...(fetchImpl ? { fetch: fetchImpl } : {}),
-  });
-
-const startOf = async (upstreams: Upstream[], id: string, fetchImpl?: typeof fetch) => {
-  const run = await fast(upstreams, fetchImpl).start({ id } as never);
+const startOf = async (
+  upstreams: Upstream[],
+  id: string,
+  state: { now: 'running' | 'down' } = { now: 'running' }
+) => {
+  const run = await upstreamRunner({ upstreams, stateOf: () => state.now }).start({ id } as never);
   runs.push(run);
   return run;
 };
@@ -85,90 +81,45 @@ describe('the upstream list', () => {
 });
 
 describe('the upstream runner (J.4.4 row 1)', () => {
-  it('starts nothing: a healthy service is running at its listed address', async () => {
-    const s = await service({ status: 200 });
+  it('starts nothing and reads no /health: the run is at its listed address, its state from discovery', async () => {
+    const s = await service({ status: 500 });
     open.push(s.server);
-    const run = await startOf([{ id: 'probe', service: 'probe', address: s.address }], 'probe');
+    const seen: string[] = [];
+    s.server.on('request', (req: { url?: string }) => seen.push(req.url ?? ''));
+    const state = { now: 'running' as 'running' | 'down' };
+    const run = await startOf(
+      [{ id: 'probe', service: 'probe', address: s.address }],
+      'probe',
+      state
+    );
     expect([run.state(), run.address(), run.pid]).toEqual(['running', s.address, 0]);
-    expect(run.port).toBe(Number(new URL(s.address).port));
+    state.now = 'down';
+    expect([run.state(), run.port, seen]).toEqual(['down', Number(new URL(s.address).port), []]);
   });
 
   it('an id with no row is refused, naming the id', async () => {
     await expect(startOf([], 'probe')).rejects.toThrow('no upstream for probe');
   });
 
-  it('keeps every row of an id in list order; it is up while any row answers', async () => {
+  it('keeps every row of an id in list order', async () => {
     const rows = [
       { id: 'site', service: 'site', address: 'http://site:8080' },
       { id: 'site', service: 'site-pages', address: 'http://site-pages:8080' },
       { id: 'other', service: 'other', address: 'http://other:8080' },
     ];
-    const pagesOnly = vi.fn(async (url: string | URL | Request) => {
-      const ok = String(url).startsWith('http://site-pages:8080/');
-      return new Response('{}', { status: ok ? 200 : 503 });
-    });
-    const run = await startOf(rows, 'site', pagesOnly as typeof fetch);
+    const run = await startOf(rows, 'site');
     expect(run.addresses()).toEqual(['http://site:8080', 'http://site-pages:8080']);
-    expect([run.address(), run.state()]).toEqual(['http://site:8080', 'running']);
+    expect(run.address()).toBe('http://site:8080');
   });
 
-  it('one probe in flight per row, also when intervalMs < timeoutMs', async () => {
-    // The first probe answers; each one after it hangs until its timeout.
-    const hang = vi.fn((_url: string | URL | Request, init?: RequestInit) =>
-      hang.mock.calls.length === 1
-        ? Promise.resolve(new Response('{}', { status: 200 }))
-        : new Promise<Response>((_resolve, reject) =>
-            init?.signal?.addEventListener('abort', () => reject(new Error('aborted')))
-          )
-    );
-    const rows = [{ id: 'p', service: 'p', address: 'http://p:8080' }];
-    const run = await upstreamRunner({
-      upstreams: rows,
-      intervalMs: 10,
-      timeoutMs: 150,
-      fetch: hang,
-    }).start({ id: 'p' } as never);
-    runs.push(run);
-    await new Promise((r) => setTimeout(r, 100));
-    expect([hang.mock.calls.length, run.state()]).toEqual([2, 'running']);
-    await vi.waitFor(() => expect(run.state()).toBe('down'));
-  });
-
-  it('is down on a 500, a refused port and a hang, and never throws', async () => {
-    const bad = await service({ status: 500 });
-    const hang = await service({ status: 200, hang: true });
-    open.push(bad.server, hang.server);
-    const closed = await service({ status: 200 });
-    closed.server.close();
-    for (const s of [bad, closed, hang]) {
-      const run = await startOf([{ id: 'x', service: 'x', address: s.address }], 'x');
-      expect(run.state(), s.address).toBe('down');
-    }
-  });
-
-  it('follows the health of the service: down, then running again', async () => {
-    const s = await service({ status: 200 });
-    open.push(s.server);
-    const run = await startOf([{ id: 'probe', service: 'probe', address: s.address }], 'probe');
-    s.health.status = 503;
-    await vi.waitFor(() => expect(run.state()).toBe('down'));
-    s.health.status = 200;
-    await vi.waitFor(() => expect(run.state()).toBe('running'));
-  });
-
-  it('stop ends the watch: exited, and no probe after it', async () => {
-    const calls = vi.fn(async () => new Response('{}', { status: 200 }));
-    const run = await startOf([{ id: 'p', service: 'p', address: 'http://p:8080' }], 'p', calls);
+  it('stop: exited, whatever discovery says', async () => {
+    const run = await startOf([{ id: 'p', service: 'p', address: 'http://p:8080' }], 'p');
     await run.stop();
-    expect(await run.exited).toEqual({ code: null, signal: null });
-    const seen = calls.mock.calls.length;
-    await new Promise((r) => setTimeout(r, 80));
-    expect([run.state(), calls.mock.calls.length]).toEqual(['exited', seen]);
+    expect([await run.exited, run.state()]).toEqual([{ code: null, signal: null }, 'exited']);
   });
 
   it('an https address without a port is port 443', async () => {
-    const ok = vi.fn(async () => new Response('{}', { status: 200 }));
-    const run = await startOf([{ id: 'p', service: 'p', address: 'https://p.example' }], 'p', ok);
+    const run = await startOf([{ id: 'p', service: 'p', address: 'https://p.example' }], 'p');
     expect(run.port).toBe(443);
   });
 });

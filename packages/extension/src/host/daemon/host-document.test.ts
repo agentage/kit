@@ -17,11 +17,24 @@ const docOf = (id: string, version = '1.0.0') => ({
 });
 
 const servers: Server[] = [];
-afterEach(() => servers.splice(0).forEach((s) => s.close()));
+afterEach(() =>
+  servers.splice(0).forEach((s) => {
+    s.closeAllConnections();
+    s.close();
+  })
+);
 
 // A child on loopback that answers its document path with status and body.
 const child = async (status: number, body: string): Promise<number> => {
   const server = createServer((_req, res) => res.writeHead(status).end(body));
+  servers.push(server);
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+  return (server.address() as AddressInfo).port;
+};
+
+// A child that takes the request and never answers.
+const slow = async (): Promise<number> => {
+  const server = createServer(() => undefined);
   servers.push(server);
   await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
   return (server.address() as AddressInfo).port;
@@ -77,6 +90,20 @@ describe('hostDocumentOf: the host document from the discovery of each child (J.
     const doc = await hostDocumentOf(entriesOf(entryOf('a', 'failed')), lastGood);
     expect(doc.extensions).toMatchObject([{ id: 'a', state: 'failed', app: { title: 'A' } }]);
   });
+
+  it.each([
+    ['answers slower than DOC_READ_MS', () => slow()],
+    ['answers 500', () => child(500, 'no')],
+  ])(
+    'a running child with no app part that %s stays running on its last good document',
+    async (_n, next) => {
+      const lastGood: LastGood = new Map();
+      const first = await child(200, JSON.stringify(docOf('a')));
+      await hostDocumentOf(entriesOf(entryOf('a', 'running', first)), lastGood);
+      const doc = await hostDocumentOf(entriesOf(entryOf('a', 'running', await next())), lastGood);
+      expect(doc.extensions).toMatchObject([{ id: 'a', state: 'running', parts: ['api'] }]);
+    }
+  );
 
   it('a running child with a bad document is down and not listed; another id is refused', async () => {
     const bad = await child(200, '{"id":"a"}');

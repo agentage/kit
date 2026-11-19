@@ -38,7 +38,8 @@ const answerOf = async (entry: Entry, lastGood: LastGood): Promise<Answer | unde
   const read = port === undefined ? undefined : await readChildDocument(port);
   if (read !== undefined && DiscoveryDocumentSchema.safeParse(read).success)
     lastGood.set(entry.id, read);
-  const document = entry.lane ? read : lastGood.get(entry.id);
+  // A slow or failed read of a running child keeps its last good document (a bad one is refused).
+  const document = read ?? lastGood.get(entry.id);
   return document === undefined
     ? undefined
     : { upstream: entry.id, document, expectedId: entry.id };

@@ -8,6 +8,7 @@ import { hasApp } from './app-files.js';
 import { type CliUser } from './cli-user-watch.js';
 import { type Entries } from './entries.js';
 import { type ShellEvents } from './shell-events.js';
+import { cliUserSource, sessionOf } from './session.js';
 import { LOCAL_SIGN_IN, signInPage } from './sign-in-page.js';
 
 // The shell the kit carries (dist/shell, written by the kit build); none when run from src.
@@ -29,25 +30,6 @@ export const readShell = async (dir: string, version?: string): Promise<Shell> =
   if (typeof pkg.version !== 'string' || typeof (pkg as { name?: unknown }).name !== 'string')
     throw new Error(`${dir}/package.json has no name or version: not a shell package`);
   return { dir, package: (pkg as { name: string }).name, version: version ?? pkg.version };
-};
-
-type User = { id: string; email?: string };
-type Session = { user: User | null; host: 'local'; signIn?: string };
-
-const textOf = (value: unknown) => (typeof value === 'string' ? value : undefined);
-
-// K9: the user the children run as (issuer checked in cli-user.ts) and the email of its auth.json.
-// The fields of a cloud app host's session (id, email; no name), so both frames show one label.
-export const sessionOf = ({ sub, text }: CliUser): Session => {
-  if (sub === undefined) return { user: null, host: 'local', signIn: LOCAL_SIGN_IN };
-  let shown: Record<string, unknown> = {};
-  try {
-    shown = (JSON.parse(text ?? '') as { user?: Record<string, unknown> }).user ?? {};
-  } catch {
-    // the sub alone
-  }
-  const email = textOf(shown['email']);
-  return { user: { id: sub, ...(email && { email }) }, host: 'local' };
 };
 
 // First path segments that are daemon routes: an unknown path under them stays a JSON 404.
@@ -77,7 +59,7 @@ const notAFile: RequestHandler = (req) => {
 // and the page of the Sign in link.
 export const shellRoutes = (app: Express, { shell, entries, events, user }: ShellDeps): void => {
   app.get('/shell/session', async (_req, res) => {
-    res.set('Cache-Control', 'no-store').json(sessionOf(user));
+    res.set('Cache-Control', 'no-store').json(sessionOf(cliUserSource(user)));
   });
   app.get(LOCAL_SIGN_IN, signInPage);
   app.get('/shell/events', events.stream);

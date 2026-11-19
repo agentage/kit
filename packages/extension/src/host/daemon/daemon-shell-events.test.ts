@@ -99,7 +99,8 @@ describe('/shell/session (S1.2.1 row 7, K9): the user the children run as', () =
     const issuer = await fakeIssuer({ 'opaque-alice': 'u_alice' });
     try {
       h = await startHarness({ userPollMs: 20 });
-      const out = { user: null, host: 'local', signIn: '/shell/sign-in' };
+      const host = { kind: 'local' };
+      const out = { host, signIn: '/shell/sign-in', signOut: null, user: null };
       expect(JSON.parse(await session())).toEqual(out);
       const user = { id: 'ignored', email: 'a@b.c', name: 'Not Sent', hidden: 'opaque-alice' };
       await writeFile(
@@ -110,7 +111,12 @@ describe('/shell/session (S1.2.1 row 7, K9): the user the children run as', () =
         timeout: 5000,
       });
       const text = await session();
-      expect(JSON.parse(text)).toEqual({ user: { id: 'u_alice', email: 'a@b.c' }, host: 'local' });
+      expect(JSON.parse(text)).toEqual({
+        host,
+        signIn: null,
+        signOut: null,
+        user: { id: 'u_alice', email: 'a@b.c' },
+      });
       expect(text).not.toContain('opaque-alice');
       // The same file with no issuer is no user (cli-user.ts), not the user field it holds.
       await writeFile(

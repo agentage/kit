@@ -45,7 +45,7 @@ describe('the shell routes at their edges', () => {
     h = await startHarness({ shellDir: await tempDir() });
     expect((await fetch(at('/'), { headers: { accept: 'text/html' } })).status).toBe(404);
     const doc = await (await fetch(at('/.well-known/agentage-host.json'))).json();
-    expect(doc).toEqual({ host: 'local', extensions: [] });
+    expect(doc).toEqual({ host: 'local', kind: 'local', extensions: [] });
   });
 
   it('a full reload from dist.next keeps the app row when dist.next has app/', async () => {
@@ -67,6 +67,6 @@ describe('the shell routes at their edges', () => {
     await built(dir);
     const added = await h.call('POST', '/host/extensions', { source: dir });
     expect(added.status).toBe(201);
-    expect(await rows()).toMatchObject([{ id: 'hosted', parts: [], app: { title: 'H' } }]);
+    expect(await rows()).toMatchObject([{ id: 'hosted', parts: ['app'], app: { title: 'H' } }]);
   });
 });

@@ -1,7 +1,8 @@
 import { forkLaunch, type Child, type Launch, type LaunchSpec } from './child.js';
 
 // What a started extension is to the host: an address, a state, a stop; never a process id it uses.
-export type RunState = 'running' | 'exited';
+// `down`: an upstream that fails its health check; it can come back, an exited child cannot.
+export type RunState = 'running' | 'down' | 'exited';
 
 export interface Run extends Child {
   // The origin the host sends requests of this extension to.

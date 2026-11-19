@@ -6,8 +6,7 @@ import { type CloudEnv } from './cloud-env.js';
 // The part a cloud host reports on /health, as the stub router did (estate verify reads .part).
 export const ROUTER_PART = 'router';
 
-// The process health only (the image probe on 127.0.0.1), never a state of an extension.
-// The shape of the stub router and of api-standards /health: estate verify.sh needs every key.
+// Process health only, read by the image check on 127.0.0.1 (the edge does not route /health).
 export const cloudHealth = (
   host: string,
   { build }: Pick<CloudEnv, 'build'>,

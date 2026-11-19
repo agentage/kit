@@ -23,6 +23,12 @@ export const cloudLog = (
 ): Log =>
   createLog({ extension: 'host', part: 'api', version }, (line) => void write(redactUrls(line)));
 
+// Sign-in off still starts the host; the line says why (the value is never logged).
+export const signInOff = (issuer: string | undefined): string =>
+  issuer
+    ? 'AGENTAGE_ISSUER refused: not an https origin; sign-in is off'
+    : 'AGENTAGE_ISSUER not set; sign-in is off';
+
 export interface CloudHost extends Drain {
   port: number;
   stop(): Promise<void>;
@@ -42,6 +48,7 @@ export interface CloudHostOptions {
 const partsOf = async (environment: NodeJS.ProcessEnv, o: CloudHostOptions) => {
   const env = cloudEnvOf(environment);
   const log = o.log ?? cloudLog(env.build.version);
+  if (env.issuer === null) log.warn(signInOff(environment['AGENTAGE_ISSUER']));
   const files = await readCloudFiles(env.installationFile, env.upstreamsFile, env.own);
   const entries = entriesOf(files);
   const events = shellEvents();

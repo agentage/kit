@@ -35,7 +35,8 @@ and the installation exposes it. An answer for an id that is not installed is re
 set a row to `starting` or `failed`; with its last good document the entry keeps its `app` row and
 has no route. A document with an old `/api/v{N}` openapi is refused, and so is a tool that is not
 `{id}__{name}` of its own id. An answer can carry `expectedId`, the id its container was listed for;
-an answer for another id is refused as `claims another id`. A bad answer never throws. Only an
+an answer for another id is refused as `claims another id`. When some answer is listed for an id, an
+answer with no `expectedId` for that id is refused as `not listed for this id`. A bad answer never throws. Only an
 installation that gives an invalid host document (two rows of one id) throws.
 
 JSON Schemas for the manifest, the build record, the discovery document, the host document,

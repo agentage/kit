@@ -56,14 +56,22 @@ const refusalOf = (doc: DiscoveryDocument, row: AnswerRow | undefined, first?: S
 
 type Sorted = { byId: Map<string, Served[]>; refused: Refusal[] };
 
+// The ids some answer is listed for: an unlisted answer never joins them.
+type Context = { rows: AnswerRow[]; listed: Set<string>; byId: Sorted['byId'] };
+
+const idRefusal = (doc: DiscoveryDocument, expectedId: string | undefined, listed: Set<string>) => {
+  if (expectedId === undefined) return listed.has(doc.id) ? 'not listed for this id' : null;
+  return doc.id === expectedId ? null : `claims another id: ${doc.id}`;
+};
+
 // The answer's refusal, or the container it adds to its id.
-const judge = (rows: AnswerRow[], byId: Sorted['byId'], answer: Answer): Refusal | Served => {
+const judge = ({ rows, listed, byId }: Context, answer: Answer): Refusal | Served => {
   const { upstream, document, expectedId } = answer;
   const parsed = DiscoveryDocumentSchema.safeParse(document);
   if (!parsed.success) return { upstream, reason: `invalid: ${issuesOf(parsed.error)}` };
   const doc = parsed.data;
-  if (expectedId !== undefined && doc.id !== expectedId)
-    return { upstream, id: expectedId, reason: `claims another id: ${doc.id}` };
+  const claim = idRefusal(doc, expectedId, listed);
+  if (claim) return { upstream, id: expectedId ?? doc.id, reason: claim };
   const reason = refusalOf(
     doc,
     rows.find((r) => r.id === doc.id),
@@ -72,16 +80,20 @@ const judge = (rows: AnswerRow[], byId: Sorted['byId'], answer: Answer): Refusal
   return reason ? { upstream, id: doc.id, reason } : { upstream, doc };
 };
 
-const sortOne = (rows: AnswerRow[], { byId, refused }: Sorted, answer: Answer) => {
-  const out = judge(rows, byId, answer);
+const sortOne = (context: Context, refused: Refusal[], answer: Answer) => {
+  const out = judge(context, answer);
+  const { byId } = context;
   if ('reason' in out) refused.push(out);
   else byId.set(out.doc.id, [...(byId.get(out.doc.id) ?? []), out]);
 };
 
 // Each valid answer under its id, in answer order; every other answer is refused with its reason.
 export const sortAnswers = (rows: AnswerRow[], answers: Answer[]): Sorted => {
-  const sorted: Sorted = { byId: new Map(), refused: [] };
+  const listed = new Set(answers.flatMap((a) => (a.expectedId ? [a.expectedId] : [])));
+  const context: Context = { rows, listed, byId: new Map() };
+  const refused: Refusal[] = [];
   for (const answer of answers)
-    if (answer.document !== null && answer.document !== undefined) sortOne(rows, sorted, answer);
-  return sorted;
+    if (answer.document !== null && answer.document !== undefined)
+      sortOne(context, refused, answer);
+  return { byId: context.byId, refused };
 };

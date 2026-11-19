@@ -58,13 +58,30 @@ describe('combineHost checks the id each container was listed for', () => {
     expect([...upstreams]).toEqual(['probe http://probe:8080']);
   });
 
-  it('merges an answer with the expected id and one with none into one entry', async () => {
+  it.each([
+    ['after', false],
+    ['before', false],
+    ['before, with another commit', true],
+  ])('refuses an unlisted answer for a listed id, %s the listed one', async (order, rebuilt) => {
     const { probe, installation } = await setup();
     const listed = { ...at('probe', probe), expectedId: 'probe' };
-    const second = { upstream: 'http://probe-2:8080', document: probe };
-    const out = combineHost({ kind: 'cloud', installation, answers: [listed, second] });
-    expect(out.refused).toEqual([]);
-    expect(out.document.extensions.filter((e) => e.id === 'probe')).toHaveLength(1);
+    const document = rebuilt ? { ...probe, commit: 'f'.repeat(40) } : probe;
+    const stray = { upstream: 'http://stray:8080', document };
+    const answers = order === 'after' ? [listed, stray] : [stray, listed];
+    const out = combineHost({ kind: 'cloud', installation, answers });
+    expect(out.refused).toEqual([
+      { upstream: 'http://stray:8080', id: 'probe', reason: 'not listed for this id' },
+    ]);
+    expect(entry(out, 'probe')).toMatchObject({ state: 'running', commit: probe['commit'] });
     expect(out.routes.every((r) => r.upstream === 'http://probe:8080')).toBe(true);
+    expect(out.routes.length).toBeGreaterThan(0);
+  });
+
+  it('merges two unlisted answers of one id, as before', async () => {
+    const { probe, installation } = await setup();
+    const answers = [at('probe', probe), { upstream: 'http://probe-2:8080', document: probe }];
+    const out = combineHost({ kind: 'cloud', installation, answers });
+    expect(out.refused).toEqual([]);
+    expect(entry(out, 'probe')?.state).toBe('running');
   });
 });

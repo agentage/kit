@@ -1,7 +1,9 @@
 export {
   combineHost,
   type Answer,
+  type CallerState,
   type Combined,
+  type CombineInput,
   type HostInstallation,
   type Refusal,
   type Route,

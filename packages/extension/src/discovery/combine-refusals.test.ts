@@ -2,9 +2,10 @@ import { describe, expect, it } from 'vitest';
 import { at, entry, setup } from '../test-support/combine-setup.js';
 import { combineHost } from './combine.js';
 
-// A site: the pages part by its image, nothing else.
+// A site: the pages part by its image {id}-{part}, nothing else.
 const site = (doc: Record<string, unknown>) => {
-  const image = `ghcr.io/agentage/${String(doc['id'])}-pages@sha256:${'c'.repeat(64)}`;
+  const part = 'pages';
+  const image = `ghcr.io/agentage/${String(doc['id'])}-${part}@sha256:${'c'.repeat(64)}`;
   const bare = { app: undefined, openapi: undefined, tools: undefined };
   return { ...doc, ...bare, parts: { pages: { image } }, serves: ['pages'] };
 };

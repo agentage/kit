@@ -7,6 +7,7 @@ import {
   type DiscoveryDocument,
   type ExtensionRecord,
 } from './discovery.schema.js';
+import { type AppRowDoc, type ServesKind } from './served.schema.js';
 
 export interface BuildInfo {
   commit: string;
@@ -81,9 +82,20 @@ export const loadRecord = async (file: string): Promise<ExtensionRecord | null> 
   return record === undefined ? null : validateRecord(record);
 };
 
-export const discoveryDocument = (record: ServedRecord, host: string) => {
+// What this container answers for (its part kinds, app with its nav row): read where it is served.
+export interface Serving {
+  serves: ServesKind[];
+  app?: AppRowDoc;
+}
+
+// A part image serves its own part; a host every part it runs, and app when it has a nav row.
+export const servingOf = (parts: readonly ImagePartKind[], app?: AppRowDoc): Serving =>
+  app ? { serves: [...parts, 'app'], app } : { serves: [...parts] };
+
+export const discoveryDocument = (record: ServedRecord, host: string, serving: Serving) => {
   const { id, version, commit, buildTime, ...rest } = record;
   delete rest.secrets;
   delete rest.secretParts;
-  return { id, version, commit, buildTime, host, ...rest };
+  const app = serving.app && { app: serving.app };
+  return { id, version, commit, buildTime, host, ...rest, serves: serving.serves, ...app };
 };

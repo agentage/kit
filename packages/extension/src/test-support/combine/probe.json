@@ -1,0 +1,17 @@
+{
+  "id": "probe",
+  "version": "0.4.0",
+  "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+  "buildTime": "2026-11-19T10:00:00Z",
+  "host": "https://apps.example.com",
+  "parts": { "api": {}, "mcp": {}, "worker": {} },
+  "openapi": "/api/probe/openapi.json",
+  "tools": [{ "name": "probe__echo", "scope": "probe:read" }],
+  "serves": ["api", "mcp", "worker", "app"],
+  "app": {
+    "title": "Probe",
+    "icon": "flask-conical",
+    "entry": "/app/probe/app-1a2b3c.js",
+    "css": "/app/probe/app-1a2b3c.css"
+  }
+}

@@ -1,0 +1,71 @@
+{
+  "document": {
+    "host": "apps",
+    "kind": "cloud",
+    "shell": { "package": "@agentage/shell-dashboard", "version": "0.2.0" },
+    "extensions": [
+      {
+        "id": "probe",
+        "version": "0.4.0",
+        "commit": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "parts": ["api", "mcp", "worker", "app"],
+        "tools": [{ "name": "probe__echo", "scope": "probe:read" }],
+        "openapi": "/api/probe/openapi.json",
+        "app": {
+          "title": "Probe",
+          "icon": "flask-conical",
+          "entry": "/app/probe/app-1a2b3c.js",
+          "css": "/app/probe/app-1a2b3c.css"
+        },
+        "expose": { "api": "public", "mcp": "public", "app": "public" },
+        "state": "running"
+      },
+      {
+        "id": "fixture",
+        "version": "1.2.0",
+        "commit": "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+        "parts": ["api"],
+        "expose": { "api": "internal", "mcp": "public" },
+        "state": "running"
+      },
+      {
+        "id": "relay",
+        "version": "0.1.0",
+        "parts": [],
+        "expose": { "api": "public" },
+        "state": "down"
+      }
+    ]
+  },
+  "routes": [
+    {
+      "prefix": "/api/probe",
+      "id": "probe",
+      "part": "api",
+      "upstream": "http://probe:8080",
+      "expose": "public"
+    },
+    {
+      "prefix": "/mcp/probe",
+      "id": "probe",
+      "part": "mcp",
+      "upstream": "http://probe:8080",
+      "expose": "public"
+    },
+    {
+      "prefix": "/app/probe",
+      "id": "probe",
+      "part": "app",
+      "upstream": "http://probe:8080",
+      "expose": "public"
+    },
+    {
+      "prefix": "/api/fixture",
+      "id": "fixture",
+      "part": "api",
+      "upstream": "http://fixture:8080",
+      "expose": "internal"
+    }
+  ],
+  "refused": []
+}

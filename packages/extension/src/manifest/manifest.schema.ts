@@ -78,7 +78,7 @@ const SecretSchema = z.union([
 ]);
 
 // The nav row of the app part; icon is a lucide icon name.
-const AppMetaSchema = z.strictObject({
+export const AppMetaSchema = z.strictObject({
   title: z.string().min(1).max(40),
   icon: z
     .string()

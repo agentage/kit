@@ -69,7 +69,7 @@ const buildStep = async (s: Session, env: Env) => {
   const images = plural(built.images.length, 'image');
   s.line('build', `${images} from the release recipes`, 'same recipe and tags as a release');
   const { file, record } = await writeLocalRecord(s.dir, s.pkg, built, s.deps.run);
-  assertDiscoverable(record, GATEWAY);
+  assertDiscoverable(record, GATEWAY, imageParts(s.pkg));
   s.line('record', `${LOCAL_DIR}/record.json`, 'discovery valid');
   await renderFiles(s, file, Object.fromEntries(built.images.map((i) => [i.part, i.tag])));
   return built.commit;

@@ -2,6 +2,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { discoveryDocument } from '../../discovery/discovery.js';
 import { DiscoveryDocumentSchema, type ExtensionRecord } from '../../discovery/discovery.schema.js';
+import { type ServesKind } from '../../discovery/served.schema.js';
 import { formatIssues } from '../../manifest/read-manifest.js';
 import { type ExtensionPackage } from '../../manifest/manifest.schema.js';
 import { recordFor, type BuildResult, type BuiltImage } from '../build.js';
@@ -18,8 +19,12 @@ const localImage = async (run: Run, built: BuiltImage): Promise<BuiltImage> => {
   return { ...built, digest: id, image: `${repository}@${id}` };
 };
 
-export const assertDiscoverable = (record: ExtensionRecord, origin: string): void => {
-  const result = DiscoveryDocumentSchema.safeParse(discoveryDocument(record, origin));
+export const assertDiscoverable = (
+  record: ExtensionRecord,
+  origin: string,
+  serves: ServesKind[]
+): void => {
+  const result = DiscoveryDocumentSchema.safeParse(discoveryDocument(record, origin, { serves }));
   if (!result.success)
     throw new Error(`discovery would be invalid: ${formatIssues(result.error.issues)}`);
 };

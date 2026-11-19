@@ -1,5 +1,6 @@
 import { z } from 'zod';
 import { DiscoveryDocumentSchema, ExtensionRecordSchema } from '../discovery/discovery.schema.js';
+import { HostDocumentSchema } from '../discovery/host-document.schema.js';
 import { ErrorEnvelopeSchema, OkEnvelopeSchema } from '../envelope/envelope.schema.js';
 import { HealthSchema } from '../health/health.schema.js';
 import { PackageSchema } from '../manifest/manifest.schema.js';
@@ -18,6 +19,10 @@ const SOURCES: Record<string, { schema: z.ZodType; title: string }> = {
   'extension-discovery.schema.json': {
     schema: DiscoveryDocumentSchema,
     title: 'GET /.well-known/agentage-extension.json',
+  },
+  'host-document.schema.json': {
+    schema: HostDocumentSchema,
+    title: 'GET /.well-known/agentage-host.json',
   },
   'health.schema.json': { schema: HealthSchema, title: 'GET /health of every part container' },
   'error-envelope.schema.json': { schema: ErrorEnvelopeSchema, title: 'REST error envelope' },

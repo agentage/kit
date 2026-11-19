@@ -8,7 +8,7 @@ when it runs the image. The audience (`AGENTAGE_AUDIENCE`) is the host a token i
 | Entry                                                     | `node node_modules/@agentage/extension/dist/runtime/main.js <part>`; port `3000` (`PORT` overrides)                                  |
 | `/api/{id}/*`, `/api/v1/*`                                | the api part's routes; the `/api/v1` prefix stays during the move                                                                    |
 | `/health`                                                 | loopback only (the container `HEALTHCHECK`, an operator on the node); `404` from any other address                                   |
-| `/.well-known/agentage-extension.json`                    | the record at `/run/agentage/agentage-extension.json` (`AGENTAGE_RECORD_FILE`) plus the host                                         |
+| `/.well-known/agentage-extension.json`                    | the record at `/run/agentage/agentage-extension.json` (`AGENTAGE_RECORD_FILE`), the host, `serves` and `app` ([below](#discovery))   |
 | `AGENTAGE_ORIGIN`                                         | the deployment's origin; pages and ui take it from the request without it                                                            |
 | `AGENTAGE_SETTINGS`                                       | JSON of setting values over the manifest defaults                                                                                    |
 | `AGENTAGE_STORE_URL` / `_FILE`                            | the store, opened as in the host ([Estate stores](#estate-stores-in-the-host)); postgres also takes the URL or libpq `PG*` variables |
@@ -19,8 +19,24 @@ when it runs the image. The audience (`AGENTAGE_AUDIENCE`) is the host a token i
 | `AGENTAGE_DEV_ISSUER`                                     | set by `up` for the ui part only: its CSP then lets the harness reach the dev issuer                                                 |
 | `Cookie` request header                                   | dropped before any handler; a part sets no cookie and its CORS carries no credentials                                                |
 
-JSON Schemas for the manifest, the build record, the discovery document, `/health` and the
-envelope are in [`packages/extension/schemas`](../packages/extension/schemas). Regenerate them with
+## Discovery
+
+The discovery document says what this container serves. `serves` lists its part kinds; a host
+lists every part it runs, and `app` when it serves the app bundle. `app` is then the nav row:
+`{ title, icon?, order?, entry, css }`. The schema is strict, so a reader on an older kit refuses
+the new keys.
+
+An app host combines these documents and its installation into
+`/.well-known/agentage-host.json`: `host`, `kind`, `shell` and one entry for each installed id.
+`combineHost` (`@agentage/extension/host`) does it with no I/O and also gives the route table. An
+id with no valid answer is `down` and has no route. A part routes only when a container serves it
+and the installation exposes it. An answer for an id that is not installed is refused, and so is a second pages route. The caller can
+set a row to `starting` or `failed`; with its last good document the entry keeps its `app` row and
+has no route. A document with an old `/api/v{N}` openapi is refused. An installation that gives an
+invalid host document (two rows of one id) throws.
+
+JSON Schemas for the manifest, the build record, the discovery document, the host document,
+`/health` and the envelope are in [`packages/extension/schemas`](../packages/extension/schemas). Regenerate them with
 `npm run build && npm run schemas`.
 
 ## Host one extension

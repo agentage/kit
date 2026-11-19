@@ -43,7 +43,9 @@ describe('the kit host serves the full discovery record', () => {
       parts: { api: {}, mcp: {}, worker: {}, store: { kind: 'postgres', migrations: 1 } },
       openapi: '/api/all/openapi.json',
       tools: [{ name: 'all__echo', scope: 'all:read' }],
+      serves: ['api', 'mcp', 'worker'],
     });
+    expect(doc).not.toHaveProperty('app');
     expect(doc).not.toHaveProperty('secretParts');
     expect(DiscoveryDocumentSchema.safeParse(doc).error?.issues).toBeUndefined();
   });

@@ -1,3 +1,11 @@
+export {
+  combineHost,
+  type Answer,
+  type Combined,
+  type HostInstallation,
+  type Refusal,
+  type Route,
+} from '../discovery/combine.js';
 export { capabilities } from '../tool/capabilities.js';
 export { localOnly } from './daemon/guard.js';
 export { createDaemon, DAEMON_PORT, type Daemon, type DaemonOptions } from './daemon/daemon.js';

@@ -1,6 +1,7 @@
 import { mkdir, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { DiscoveryDocumentSchema } from '../discovery/discovery.schema.js';
 import { hostedPackage, NO_STORE_MANIFEST } from '../test-support/hosted-fixture.js';
 import { AUDIENCE, startIssuer, type TestIssuer } from '../test-support/issuer.js';
 import { json, tempDir } from '../test-support/packages.js';
@@ -69,6 +70,15 @@ describe('the one container serves the app part at /app/{id}/* (C4)', () => {
       entry: `/app/hosted/${FILES.entry}`,
       css: `/app/hosted/${FILES.css}`,
     });
+  });
+
+  it('discovery lists app in serves and carries the same nav row', async () => {
+    const get = await serve(await appPackage(APP_MANIFEST));
+    const doc = (await (await get('/.well-known/agentage-extension.json')).json()) as object;
+    const row = await (await get('/app/hosted/')).json();
+    expect(doc).toMatchObject({ serves: ['api', 'app'], app: row });
+    const host = { host: 'https://hosted.example.com' };
+    expect(DiscoveryDocumentSchema.safeParse({ ...doc, ...host }).error?.issues).toBeUndefined();
   });
 
   it('bundle files are anonymous: hashed immutable, app.json no-cache, a miss 404', async () => {

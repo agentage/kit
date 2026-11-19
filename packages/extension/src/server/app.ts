@@ -1,5 +1,5 @@
 import cors, { type CorsOptions } from 'cors';
-import express, { type Express, type Request, type RequestHandler } from 'express';
+import express, { type Express, type RequestHandler } from 'express';
 import helmet, { type HelmetOptions } from 'helmet';
 import { type WellKnownEntry, type WellKnownRender } from '../api/well-known.js';
 import { agcidMiddleware } from '../agcid/scope.js';
@@ -7,18 +7,14 @@ import { mountFiles } from '../api/files.js';
 import { type FilesEntry } from '../api/files-registry.js';
 import { methodsOf, routeAccess, sameShape } from '../auth/route-access.js';
 import { setCaller, setCleared, type TokenCheck } from '../auth/token-check.js';
-import {
-  discoveryDocument,
-  recordOf,
-  type BuildInfo,
-  type PartImages,
-  type ServedRecord,
-} from '../discovery/discovery.js';
+import { type BuildInfo, type ServedRecord } from '../discovery/discovery.js';
+import { type AppRowDoc } from '../discovery/served.schema.js';
 import { apiPrefix } from '../discovery/openapi.js';
 import { createHealthHandler, type HealthCheck } from '../health/health.js';
 import { type Log } from '../log/log.js';
 import { type ExtensionPackage } from '../manifest/manifest.schema.js';
 import { type ImagePartKind } from '../manifest/primitives.schema.js';
+import { discoveryHandler } from './discovery-handler.js';
 import { errorHandler, notFound } from './errors.js';
 import { requestLine } from './request-line.js';
 import { type ApiHandler } from './part.types.js';
@@ -46,6 +42,8 @@ export interface PartAppBase {
   parts?: ImagePartKind[];
   // The host's test clock, shown on /health when it is not 1.
   clockRate?: number;
+  // The app nav row, when this container serves the app bundle at /app/{id}/.
+  app?: AppRowDoc;
 }
 
 interface PartAppOptions extends PartAppBase {
@@ -88,16 +86,6 @@ const dropCookie: RequestHandler = (req, _res, next) => {
 };
 
 export const BODY_LIMIT = '1mb';
-
-const requestOrigin = (req: Request): string => `${req.protocol}://${req.get('host') ?? ''}`;
-
-const discoveryHandler = (options: PartAppOptions): RequestHandler => {
-  const images: PartImages = options.ownImage ? { [options.part]: options.ownImage } : {};
-  const record = options.record ?? recordOf(options.pkg, options.build, images);
-  return (req, res) => {
-    res.json(discoveryDocument(record, options.origin ?? requestOrigin(req)));
-  };
-};
 
 const healthHandler = (options: PartAppOptions): RequestHandler =>
   createHealthHandler({

@@ -79,11 +79,11 @@ export const startCloud = async (
 };
 
 // An open shell feed (GET /shell/events): every chunk it got so far.
-export const openFeed = (port: number) =>
+export const openFeed = (port: number, headers: Record<string, string> = {}) =>
   new Promise<{ chunks: string[]; close(): void }>((resolve, reject) => {
     const chunks: string[] = [];
     const req = request(
-      { host: '127.0.0.1', port, path: '/shell/events', headers: { host: OWN_HOST } },
+      { host: '127.0.0.1', port, path: '/shell/events', headers: { host: OWN_HOST, ...headers } },
       (res) => {
         res.on('data', (c: Buffer) => chunks.push(c.toString()));
         resolve({ chunks, close: () => req.destroy() });

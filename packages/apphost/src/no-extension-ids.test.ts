@@ -28,4 +28,11 @@ describe('no extension id in the app host program (J.4.3 row 6)', () => {
     // A type literal: the host kinds of J.4.4 include the word cloud.
     expect(await errorsOf("export type Kind = 'local' | 'cloud';\n")).toEqual([]);
   });
+
+  it('allows a host kind on a kind property only', async () => {
+    expect(await errorsOf("export const e = { kind: 'cloud' };\n")).toEqual([]);
+    expect(await errorsOf("export const f = { kind: 'market' };\n")).toHaveLength(1);
+    expect(await errorsOf("export const g = { host: 'cloud' };\n")).toHaveLength(1);
+    expect(await errorsOf("export const h = 'cloud';\n")).toHaveLength(1);
+  });
 });

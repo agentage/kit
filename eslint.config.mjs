@@ -9,6 +9,9 @@ import reactHooks from 'eslint-plugin-react-hooks';
 export const EXTENSION_IDS =
   '/^(account|catalog|cloud|dashboard|docs|fixture|logs|market|memory|platform|probe|root|users)$/';
 
+// The host kinds (HostDocumentSchema kind): a value of a `kind` property may be one of them.
+const HOST_KINDS = '/^(local|cloud)$/';
+
 export default [
   {
     ignores: [
@@ -109,8 +112,8 @@ export default [
       'no-restricted-syntax': [
         'error',
         {
-          // A type names a word (a host kind 'cloud'), not an extension the program runs.
-          selector: `Literal[value=${EXTENSION_IDS}]:not(TSLiteralType > Literal)`,
+          // A type or a kind property names a host kind ('cloud'), not an extension the program runs.
+          selector: `Literal[value=${EXTENSION_IDS}]:not(TSLiteralType > Literal):not(Property[key.name='kind'] > Literal[value=${HOST_KINDS}])`,
           message: 'An extension id in the app host program: read it from the installation.',
         },
         {

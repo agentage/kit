@@ -3,7 +3,25 @@ import { createServer } from 'node:http';
 import { type AddressInfo } from 'node:net';
 import { join } from 'node:path';
 import { type Child, type Exit, type Launch } from '../host/daemon/child.js';
+import { appRowIn } from '../host/app-bundle.js';
+import { readManifest } from '../manifest/read-manifest.js';
 import { json, tempPackage } from './packages.js';
+
+// The discovery document a kit child serves: the package's id and version, api, and app when built.
+const documentOf = async (dir: string, port: number) => {
+  const pkg = await readManifest(dir);
+  const app = await appRowIn(dir, pkg, pkg.agentage.id);
+  return {
+    id: pkg.agentage.id,
+    version: pkg.version,
+    commit: '0'.repeat(40),
+    buildTime: '2026-11-19T00:00:00Z',
+    host: `http://127.0.0.1:${port}`,
+    parts: { api: {} },
+    serves: app ? ['api', 'app'] : ['api'],
+    ...(app && { app }),
+  };
+};
 
 // A folder row with no store or secret: dist/word.txt is what its child answers.
 export const wordPackage = (word: string, id = 'word') =>
@@ -41,9 +59,12 @@ export const wordLaunch = (exitMs = 0): WordLaunch => {
     const pid = 1000 + children.length;
     let done = (_how: Exit) => undefined as void;
     const exited = new Promise<Exit>((resolve) => (done = resolve));
-    const server = createServer((_req, res) => {
+    const server = createServer((req, res) => {
       res.setHeader('content-type', 'application/json');
-      res.end(JSON.stringify({ success: true, data: { word, pid } }));
+      if (req.url !== '/.well-known/agentage-extension.json')
+        return void res.end(JSON.stringify({ success: true, data: { word, pid } }));
+      const { port: at } = server.address() as AddressInfo;
+      void documentOf(spec.dir, at).then((doc) => res.end(JSON.stringify(doc)));
     });
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
     let ended = false;

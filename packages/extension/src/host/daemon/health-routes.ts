@@ -1,8 +1,8 @@
 import { type Express } from 'express';
-import { hostParts, type HostPartKind } from '../../manifest/parts.js';
+import { hostParts } from '../../manifest/parts.js';
 import { readManifest } from '../../manifest/read-manifest.js';
-import { appRowOf } from './app-files.js';
 import { summary, type Entries } from './entries.js';
+import { hostDocumentOf, type LastGood } from './host-document.js';
 import { restartsOf } from './restart.js';
 import { sealOfEntry, type Seal } from './seal.js';
 import { type Shell } from './shell-routes.js';
@@ -33,11 +33,6 @@ export interface DaemonInfo {
 // Read at each call: a reload can change the package in its folder.
 const pkgOf = async ({ dir }: Entry) =>
   dir ? readManifest(dir).catch(() => undefined) : undefined;
-
-const partsOf = async (entry: Entry): Promise<HostPartKind[]> => {
-  const pkg = await pkgOf(entry);
-  return pkg ? hostParts(pkg) : [];
-};
 
 // PD2: a git store's child is on with a child-process grant: partial; the daemon's status stays ok.
 const reported = async (entry: Entry, info: DaemonInfo) => {
@@ -75,25 +70,6 @@ const healthOf = async (deps: SupervisorDeps, entries: Entries, info: DaemonInfo
   return { status, version: info.version, ...self, extensions, ...marks };
 };
 
-const rowOf = async (e: Entry) => {
-  const app = await appRowOf(e);
-  return {
-    id: e.id,
-    version: e.version,
-    state: e.state,
-    parts: await partsOf(e),
-    ...(app && { app }),
-  };
-};
-
-// C10 (D10): each running extension and each enabled one with an app (a crashed child keeps its nav row), its state; the shell.
-const discoveryOf = async (entries: Entries, { shell }: DaemonInfo) => {
-  const rows = await Promise.all([...entries.values()].map(rowOf));
-  const extensions = rows.filter((row) => row.state === 'running' || row.app);
-  const served = shell && { shell: { package: shell.package, version: shell.version } };
-  return { host: 'local', ...served, extensions };
-};
-
 const HOST_DISCOVERY_PATH = '/.well-known/agentage-host.json';
 
 export const healthRoutes = (
@@ -102,10 +78,11 @@ export const healthRoutes = (
   entries: Entries,
   info: DaemonInfo
 ) => {
+  const lastGood: LastGood = new Map();
   app.get('/health', async (_req, res) => {
     res.set('Cache-Control', 'no-store').json(await healthOf(deps, entries, info));
   });
   app.get(HOST_DISCOVERY_PATH, async (_req, res) => {
-    res.set('Cache-Control', 'no-store').json(await discoveryOf(entries, info));
+    res.set('Cache-Control', 'no-store').json(await hostDocumentOf(entries, lastGood, info.shell));
   });
 };

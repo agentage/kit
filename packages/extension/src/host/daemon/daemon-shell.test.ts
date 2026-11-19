@@ -107,13 +107,16 @@ describe('the shell page (S1.2.1 rows 1, 5, 6, 8)', () => {
     const doc = await (await fetch(at('/.well-known/agentage-host.json'))).json();
     expect(doc).toEqual({
       host: 'local',
+      kind: 'local',
       shell: { package: '@agentage/shell-dashboard', version: '0.1.0' },
       extensions: [
         {
           id: 'hosted',
           version: '1.0.0',
+          commit: '0'.repeat(40),
           state: 'running',
-          parts: ['api'],
+          parts: ['api', 'app'],
+          expose: {},
           app: {
             title: 'Hosted',
             icon: 'radar',
@@ -130,7 +133,7 @@ describe('the shell page (S1.2.1 rows 1, 5, 6, 8)', () => {
     h = await startHarness();
     expect((await html('/')).status).toBe(404);
     const doc = await (await fetch(at('/.well-known/agentage-host.json'))).json();
-    expect(doc).toEqual({ host: 'local', extensions: [] });
+    expect(doc).toEqual({ host: 'local', kind: 'local', extensions: [] });
   });
 });
 

@@ -66,7 +66,19 @@ describe('the daemon routes of C1', () => {
     const doc = await fetch(at('/.well-known/agentage-host.json'));
     expect(await doc.json()).toEqual({
       host: 'local',
-      extensions: [{ id: 'all', version: '1.0.0', state: 'running', parts: PARTS }],
+      kind: 'local',
+      extensions: [
+        {
+          id: 'all',
+          version: '1.0.0',
+          commit: '0'.repeat(40),
+          state: 'running',
+          parts: PARTS,
+          tools: [{ name: 'all__echo', scope: 'all:read' }],
+          openapi: '/api/all/openapi.json',
+          expose: {},
+        },
+      ],
     });
   });
 

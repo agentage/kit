@@ -22,8 +22,10 @@ describe('no extension id in the app host program (J.4.3 row 6)', () => {
     expect(await errorsOf('export const b = `logs`;\n')).toHaveLength(1);
   });
 
-  it('allows a word that only contains an id, and an id read from data', async () => {
+  it('allows a word that only contains an id, an id read from data, a type literal', async () => {
     expect(await errorsOf("export const c = 'marketplace';\n")).toEqual([]);
     expect(await errorsOf('export const d = (row: { id: string }) => row.id;\n')).toEqual([]);
+    // A type literal: the host kinds of J.4.4 include the word cloud.
+    expect(await errorsOf("export type Kind = 'local' | 'cloud';\n")).toEqual([]);
   });
 });

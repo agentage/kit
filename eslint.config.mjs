@@ -109,7 +109,8 @@ export default [
       'no-restricted-syntax': [
         'error',
         {
-          selector: `Literal[value=${EXTENSION_IDS}]`,
+          // A type names a word (a host kind 'cloud'), not an extension the program runs.
+          selector: `Literal[value=${EXTENSION_IDS}]:not(TSLiteralType > Literal)`,
           message: 'An extension id in the app host program: read it from the installation.',
         },
         {

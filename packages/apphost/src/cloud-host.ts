@@ -8,7 +8,7 @@ import { cloudEnvOf } from './cloud-env.js';
 import { readCloudFiles } from './cloud-files.js';
 import { createCloudSession } from './cloud-session.js';
 import { entriesOf, startRuns } from './cloud-run.js';
-import { shellEvents } from './shell-events.js';
+import { HEARTBEAT_MS, shellEvents } from './shell-events.js';
 
 // Only this cloud entry listens on every interface; the daemon (daemon.ts) binds loopback only.
 const EVERY_INTERFACE = '0.0.0.0';
@@ -51,7 +51,8 @@ const partsOf = async (environment: NodeJS.ProcessEnv, o: CloudHostOptions) => {
   if (env.issuer === null) log.warn(signInOff(environment['AGENTAGE_ISSUER']));
   const files = await readCloudFiles(env.installationFile, env.upstreamsFile, env.own);
   const entries = entriesOf(files);
-  const events = shellEvents();
+  // The discovery is made below; the feed reads it only once a page connects.
+  const events = shellEvents(HEARTBEAT_MS, () => discovery.current().document);
   const onChange = () => events.send('extensions', { op: 'update' });
   const { installation } = files;
   const discovery = createCloudDiscovery({

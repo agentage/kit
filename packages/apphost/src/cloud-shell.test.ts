@@ -68,7 +68,7 @@ describe('the cloud session routes (L7 wired)', () => {
     await call('/shell/sign-out', { method: 'POST', headers: PAGE });
     await host!.refresh();
     await new Promise((resolve) => setTimeout(resolve, 50));
-    expect(feed.chunks.join('')).toBe('retry: 1000\n\n');
+    expect(feed.chunks.join('')).toMatch(/^retry: 1000\nid: [0-9a-f]{12}\n\n$/);
     feed.close();
   });
 });

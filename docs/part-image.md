@@ -30,7 +30,10 @@ An app host combines these documents and its installation into
 `/.well-known/agentage-host.json`: `host`, `kind`, `shell` and one entry for each installed id.
 `combineHost` (`@agentage/extension/host`) does it with no I/O and also gives the route table. An
 id with no valid answer is `down` and has no route. A part routes only when a container serves it
-and the installation exposes it. An answer for an id that is not installed is refused.
+and the installation exposes it. An answer for an id that is not installed is refused, and so is a second pages route. The caller can
+set a row to `starting` or `failed`; with its last good document the entry keeps its `app` row and
+has no route. A document with an old `/api/v{N}` openapi is refused. An installation that gives an
+invalid host document (two rows of one id) throws.
 
 JSON Schemas for the manifest, the build record, the discovery document, the host document,
 `/health` and the envelope are in [`packages/extension/schemas`](../packages/extension/schemas). Regenerate them with

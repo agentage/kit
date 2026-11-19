@@ -1,23 +1,7 @@
-import { readFile } from 'node:fs/promises';
-import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { combineHost, type Answer, type HostInstallation } from './combine.js';
+import { at, entry, read, setup } from '../test-support/combine-setup.js';
+import { combineHost } from './combine.js';
 import { HostDocumentSchema } from './host-document.schema.js';
-
-const FIXTURES = join(import.meta.dirname, '..', 'test-support', 'combine');
-const read = async (name: string): Promise<Record<string, unknown>> =>
-  JSON.parse(await readFile(join(FIXTURES, name), 'utf8')) as Record<string, unknown>;
-
-const setup = async () => ({
-  probe: await read('probe.json'),
-  fixture: await read('fixture.json'),
-  installation: (await read('installation.json')) as unknown as HostInstallation,
-});
-
-const at = (id: string, document: unknown): Answer => ({ upstream: `http://${id}:8080`, document });
-
-const entry = (out: ReturnType<typeof combineHost>, id: string) =>
-  out.document.extensions.find((e) => e.id === id);
 
 describe('combineHost', () => {
   it('two documents and one installation equal the golden file', async () => {

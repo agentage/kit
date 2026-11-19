@@ -132,11 +132,15 @@ const HOSTED_RULE = {
   path: ['parts'],
 };
 
-// The api prefix is /api/{id}, or the old /api/v{N}: never another extension's id.
+// In a build record the api prefix is /api/{id}, or the old /api/v{N}: never another extension's id.
 const openapiNamesItsExtension = ({ id, openapi }: { id: string; openapi?: string }) =>
   !openapi || /^\/api\/v[0-9]+\//.test(openapi) || openapi === `/api/${id}/openapi.json`;
 
 const OPENAPI_RULE = { message: 'openapi is /api/{id}/openapi.json', path: ['openapi'] };
+
+// A served document has no old /api/v{N} form: what serves it now runs this kit.
+const openapiIsOwn = ({ id, openapi }: { id: string; openapi?: string }) =>
+  !openapi || openapi === `/api/${id}/openapi.json`;
 
 // A scoped name lives only in secretParts, so an estate that does not read it mounts nothing.
 const scoped = (name: string) =>
@@ -168,7 +172,7 @@ export const DiscoveryDocumentSchema = z
   .refine(servedForm, HOSTED_RULE)
   .refine(appRowFits, APP_ROW_RULE)
   .refine(imagesNameTheirExtension, IMAGE_RULE)
-  .refine(openapiNamesItsExtension, OPENAPI_RULE);
+  .refine(openapiIsOwn, OPENAPI_RULE);
 
 // The form the cloud serves: every part by its image, or the one image; never a part with no image.
 export const CloudDiscoveryDocumentSchema = z
@@ -176,7 +180,7 @@ export const CloudDiscoveryDocumentSchema = z
   .refine(oneImageForm, FORM_RULE)
   .refine(appRowFits, APP_ROW_RULE)
   .refine(imagesNameTheirExtension, IMAGE_RULE)
-  .refine(openapiNamesItsExtension, OPENAPI_RULE);
+  .refine(openapiIsOwn, OPENAPI_RULE);
 
 export type ExtensionRecord = z.infer<typeof ExtensionRecordSchema>;
 export type DiscoveryDocument = z.infer<typeof DiscoveryDocumentSchema>;

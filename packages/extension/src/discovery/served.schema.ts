@@ -22,14 +22,14 @@ export const AppRowSchema = AppMetaSchema.extend({
 
 export type AppRowDoc = z.infer<typeof AppRowSchema>;
 
-interface Served {
+interface ServedRow {
   id: string;
   serves: readonly ServesKind[];
   app?: AppRowDoc;
 }
 
 // The app row comes with app in serves, and its files sit under /app/{id}/ of this id.
-export const appRowFits = ({ id, serves, app }: Served) => {
+export const appRowFits = ({ id, serves, app }: ServedRow) => {
   if (!app) return !serves.includes('app');
   const at = `/app/${id}/`;
   return serves.includes('app') && app.entry.startsWith(at) && app.css.startsWith(at);

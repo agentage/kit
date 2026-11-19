@@ -22,9 +22,10 @@ export interface Served {
 
 const prefixOf = (part: RoutedPart, id: string) => (part === 'pages' ? '/' : `/${part}/${id}`);
 
-// A part routes to the first container that serves it, and only when the installation exposes it.
+// A running entry's part routes to the first container that serves it, when the installation exposes it.
 const routesOf = (entry: HostEntry, served: Served[]): Route[] =>
   ROUTED.flatMap((part) => {
+    if (entry.state !== 'running') return [];
     const expose: Expose[RoutedPart] = entry.expose[part];
     const by = served.find(({ doc }) => doc.serves.includes(part));
     if (!expose || !by) return [];
@@ -33,9 +34,10 @@ const routesOf = (entry: HostEntry, served: Served[]): Route[] =>
     ];
   });
 
-// In installation order; the one pages route (the first row's) goes last, since / matches every path.
-export const routeTable = (entries: { entry: HostEntry; served: Served[] }[]): Route[] => {
+// In installation order; one pages route (the first row's) goes last, since / matches every path.
+export const routeTable = (entries: { entry: HostEntry; served: Served[] }[]) => {
   const all = entries.flatMap(({ entry, served }) => routesOf(entry, served));
-  const site = all.find((r) => r.part === 'pages');
-  return [...all.filter((r) => r.part !== 'pages'), ...(site ? [site] : [])];
+  const [site, ...more] = all.filter((r) => r.part === 'pages');
+  const routes = [...all.filter((r) => r.part !== 'pages'), ...(site ? [site] : [])];
+  return { routes, dropped: more };
 };

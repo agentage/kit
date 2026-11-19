@@ -1,6 +1,6 @@
 # The daemon
 
-The local app host, `createDaemon` from `@agentage/extension/host`. The part contract it builds on is in [part-image.md](part-image.md).
+The local app host, `createDaemon` from `@agentage/apphost` (the app host program, `packages/apphost`). The part contract it builds on is in [part-image.md](part-image.md).
 
 `localOnly(port)` from `@agentage/extension/host` is the guard of the daemon, as Express middleware.
 A request needs the Host `127.0.0.1` or `localhost` at that port (`[::1]` is refused: nothing

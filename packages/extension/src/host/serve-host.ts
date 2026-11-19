@@ -4,7 +4,7 @@ import { setTimeout as sleep } from 'node:timers/promises';
 import { createLog } from '../log/log.js';
 import { type Env } from '../runtime/build-info.js';
 import { listen, shutdownOn } from '../server/serve.js';
-import { loopbackPorts } from './daemon/guard.js';
+import { loopbackPorts } from './guard.js';
 import { guardOf, hostEnvOf } from './host-env.js';
 import { hostBuildInfo, hostWith, type HostedExtension } from './host-extension.js';
 

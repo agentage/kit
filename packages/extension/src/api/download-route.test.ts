@@ -1,13 +1,9 @@
 import { Readable } from 'node:stream';
-import express from 'express';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fail } from '../envelope/envelope.js';
-import { laneOf } from '../host/daemon/lane.js';
-import { proxyTo } from '../host/daemon/proxy.js';
-import { type Entry } from '../host/daemon/supervisor.js';
 import { ErrorEnvelopeSchema } from '../envelope/envelope.schema.js';
 import { API_MANIFEST } from '../test-support/packages.js';
-import { startOn, startTestServer, type TestServer } from '../testing/test-server.js';
+import { startTestServer, type TestServer } from '../testing/test-server.js';
 import { download } from './download.js';
 import { generatedOpenapi } from './openapi-doc.js';
 import { createRouteRegistry, type ApiContext } from './routes.js';
@@ -107,22 +103,6 @@ describe('a route that answers a file', () => {
   it('a JSON answer to produces, or a file with no produces, is INTERNAL', async () => {
     expect((await get('/json')).status).toBe(500);
     expect((await get('/undeclared')).status).toBe(500);
-  });
-});
-
-describe('a file through the daemon proxy', () => {
-  it('keeps the bytes, the content type and the attachment name', async () => {
-    server = await startTestServer({ create });
-    const child = { port: Number(new URL(server.url).port), pid: 1, stop: async () => undefined };
-    const entry: Entry = { id: 'test', install: { id: 'test' }, state: 'running', version: '1' };
-    entry.lane = laneOf({ ...child, exited: new Promise<never>(() => undefined) });
-    const proxy = proxyTo(new Map([['test', entry]]), { gateMs: 1_000, answerMs: 5_000 });
-    const daemon = await startOn(express().use('/api/:id', proxy));
-    const res = await daemon.fetch('/api/test/export');
-    expect(res.headers.get('content-type')).toBe('application/zip');
-    expect(res.headers.get('content-disposition')).toBe('attachment; filename=memories.zip');
-    expect(new Uint8Array(await res.arrayBuffer())).toEqual(ZIP);
-    await daemon.close();
   });
 });
 

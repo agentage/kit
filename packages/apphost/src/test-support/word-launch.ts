@@ -1,0 +1,88 @@
+import { readFile } from 'node:fs/promises';
+import { createServer } from 'node:http';
+import { type AddressInfo } from 'node:net';
+import { join } from 'node:path';
+import { type Child, type Exit, type Launch } from '../child.js';
+import { appRowIn, readManifest } from '@agentage/extension/internal';
+import { json, tempPackage } from '../../../extension/src/test-support/packages.js';
+
+// The discovery document a kit child serves: the package's id and version, api, and app when built.
+const documentOf = async (dir: string, port: number) => {
+  const pkg = await readManifest(dir);
+  const app = await appRowIn(dir, pkg, pkg.agentage.id);
+  return {
+    id: pkg.agentage.id,
+    version: pkg.version,
+    commit: '0'.repeat(40),
+    buildTime: '2026-11-19T00:00:00Z',
+    host: `http://127.0.0.1:${port}`,
+    parts: { api: {} },
+    serves: app ? ['api', 'app'] : ['api'],
+    ...(app && { app }),
+  };
+};
+
+// A folder row with no store or secret: dist/word.txt is what its child answers.
+export const wordPackage = (word: string, id = 'word') =>
+  tempPackage({
+    'package.json': json({
+      name: `@agentage/extension-${id}`,
+      version: '1.0.0',
+      type: 'module',
+      engines: { agentage: '^0.18' },
+      agentage: { id, parts: { api: true } },
+    }),
+    'dist/api/index.js': 'export const create = () => (_req, _res, next) => next();\n',
+    'dist/word.txt': word,
+  });
+
+export interface WordChild extends Child {
+  // Ends the child as a crash would: the daemon sees an exit it did not ask for.
+  crash(words?: string): void;
+}
+
+export interface WordLaunch {
+  launch: Launch;
+  children: WordChild[];
+  // 'start <n>', 'exit <n>' in the order they happened.
+  events: string[];
+}
+
+// Each start reads dist/word.txt again, as a fork would; "throw" fails it; exitMs: a draining stop.
+export const wordLaunch = (exitMs = 0): WordLaunch => {
+  const children: WordChild[] = [];
+  const events: string[] = [];
+  const launch: Launch = async (spec) => {
+    const word = await readFile(join(spec.dir, 'dist', 'word.txt'), 'utf8');
+    if (word === 'throw') throw new Error('fails at start');
+    const pid = 1000 + children.length;
+    let done = (_how: Exit) => undefined as void;
+    const exited = new Promise<Exit>((resolve) => (done = resolve));
+    const server = createServer((req, res) => {
+      res.setHeader('content-type', 'application/json');
+      if (req.url !== '/.well-known/agentage-extension.json')
+        return void res.end(JSON.stringify({ success: true, data: { word, pid } }));
+      const { port: at } = server.address() as AddressInfo;
+      void documentOf(spec.dir, at).then((doc) => res.end(JSON.stringify(doc)));
+    });
+    await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+    let ended = false;
+    const end = (how: Exit) => {
+      if (ended) return;
+      ended = true;
+      server.closeAllConnections();
+      server.close(() => (events.push(`exit ${pid}`), done(how)));
+    };
+    const stop = async () => {
+      setTimeout(() => end({ code: 0, signal: null }), exitMs);
+      await exited;
+    };
+    const crash = (words = 'boom') => end({ code: 1, signal: null, words });
+    const { port } = server.address() as AddressInfo;
+    const child = { port, pid, exited, stop, crash };
+    events.push(`start ${pid}`);
+    children.push(child);
+    return child;
+  };
+  return { launch, children, events };
+};

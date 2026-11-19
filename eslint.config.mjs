@@ -103,7 +103,7 @@ export default [
   },
   {
     // J.4.3 row 6: the app host program names no extension; ids come from its installation.
-    files: ['packages/extension/src/host/daemon/**/*.ts'],
+    files: ['packages/apphost/src/**/*.ts'],
     ignores: ['**/*.test.ts'],
     rules: {
       'no-restricted-syntax': [

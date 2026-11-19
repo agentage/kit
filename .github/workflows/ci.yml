@@ -26,7 +26,7 @@ jobs:
         env:
           TITLE: ${{ github.event.pull_request.title }}
         run: |
-          scoped='^(feat|fix|refactor|test|chore|ci|docs|perf|build)\((extension|logs|widget|identity|shell|app|release|ci|docs|deps)\)!?: .{1,60}$'
+          scoped='^(feat|fix|refactor|test|chore|ci|docs|perf|build)\((extension|apphost|logs|widget|identity|shell|app|release|ci|docs|deps)\)!?: .{1,60}$'
           bare='^(ci|docs|chore|build): '
           if [ "${#TITLE}" -le 72 ] && { [[ $TITLE =~ $scoped ]] || [[ $TITLE =~ $bare ]]; }; then exit 0; fi
           echo "::error::PR title '$TITLE' breaks the commit title rules in CLAUDE.md (type(scope): text, max 72)"; exit 1
@@ -81,6 +81,8 @@ jobs:
           grep -qx 'package/dist/shell/dist/vendor/app.js' /tmp/pack/files.txt
           if grep -Eq '/e2e/|\.spec\.' /tmp/pack/files.txt; then echo 'shell e2e files in the tarball'; exit 1; fi
           if grep -q '\.test\.' /tmp/pack/files.txt; then echo 'test files in the tarball'; exit 1; fi
+          # J.4.3 row 1: the app host program is its own package.
+          if grep -q 'dist/host/daemon' /tmp/pack/files.txt; then echo 'the daemon is in the kit tarball'; exit 1; fi
           node packages/extension/dist/tool/cli.js --help
           # The kit carries logs and the app kit inside: a clean install of the tarball alone resolves every entry.
           mkdir -p /tmp/kit-alone && cd /tmp/kit-alone && npm init -y >/dev/null
@@ -90,6 +92,22 @@ jobs:
           test ! -e node_modules/@agentage/shell-dashboard
           node --input-type=module -e "const a = await import('@agentage/extension/app'); if (typeof a.useAppHost !== 'function') throw new Error('no useAppHost'); console.log('PASS kit app subpath')"
           node --input-type=module -e "await import('@agentage/extension'); const l = await import('@agentage/extension/logs'); const e = l.parseLine('hello', { extension: 'smoke', part: 'ci' }); l.EventSchema.parse(e); console.log('PASS kit alone', e.kind, l.KINDS.length)"
+
+      - name: Pack smoke - apphost (dist in, tests out, the kit not inside)
+        run: |
+          set -euo pipefail
+          npm pack -w @agentage/apphost --pack-destination /tmp/pack
+          tar -tzf /tmp/pack/agentage-apphost-*.tgz > /tmp/pack/apphost-files.txt
+          grep -qx 'package/dist/index.js' /tmp/pack/apphost-files.txt
+          grep -qx 'package/dist/daemon.js' /tmp/pack/apphost-files.txt
+          if grep -Eq '\.test\.|test-support' /tmp/pack/apphost-files.txt; then echo 'test files in the apphost tarball'; exit 1; fi
+          # The two tarballs alone, outside the workspace, as the cli installs them: one kit, the daemon loads.
+          alone=$(mktemp -d)
+          cp /tmp/pack/agentage-extension-*.tgz /tmp/pack/agentage-apphost-*.tgz "$alone"
+          cd "$alone" && npm init -y >/dev/null
+          npm install --omit=dev --no-audit --no-fund ./agentage-extension-*.tgz ./agentage-apphost-*.tgz
+          test "$(find node_modules -path '*/@agentage/extension/package.json' | wc -l)" = 1
+          node --input-type=module -e "const a = await import('@agentage/apphost'); if (typeof a.createDaemon !== 'function') throw new Error('no createDaemon'); console.log('PASS apphost', a.DAEMON_PORT)"
 
       - name: Pack smoke - widget (bin and harness in, tests out)
         run: |

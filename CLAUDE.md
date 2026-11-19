@@ -14,7 +14,7 @@ docker-deploy, security, backend); this file only adds what the tree does not sa
 - Test helpers: `docs/parts.md` "Tests" (proof: `src/context/test-context.ts`, `src/testing/`).
 - Build steps, six rules, image recipe, `up`, `down`, `token`, timeouts: `docs/tool.md` (proof: `src/tool/`).
 - Part image entry, port, `AGENTAGE_*` settings: `docs/part-image.md` (proof: `src/runtime/`, `src/auth/part-auth.ts`).
-- Host, daemon routes, limits, seal: `docs/part-image.md` "Host one extension" and `docs/daemon.md` (proof: `src/host/`).
+- Host, daemon routes, limits, seal: `docs/part-image.md` "Host one extension" and `docs/daemon.md` (proof: `src/host/`, `packages/apphost/src/`).
 - Manifest, record, discovery, `/health` and envelope schemas: `packages/extension/schemas/*.json` (generated, never edit by hand).
 - Check report JSON, secrets: `packages/extension/README.md`.
 - Event line kinds, redaction and limits, events client: `packages/logs/README.md` (proof: `packages/logs/src/`).
@@ -50,7 +50,7 @@ Read the file named here before you read `src/` (`src/` = `packages/extension/sr
 
 ## Commits
 
-- Scopes: `extension, logs, widget, identity, shell, app, release, ci, docs, deps`; repo-level `ci`, `docs`, `chore`
+- Scopes: `extension, apphost, logs, widget, identity, shell, app, release, ci, docs, deps`; repo-level `ci`, `docs`, `chore`
   and `build` commits may go scopeless. Titles are conventional commits, 72 characters at most; CI
   checks the PR title.
 - A release bump commit touches one package, or uses the `release` scope.
@@ -81,9 +81,11 @@ Read the file named here before you read `src/` (`src/` = `packages/extension/sr
   `@agentage/extension/contracts`; it imports zod only (`contracts-imports.test.ts` guards it)
 - `index.test.ts` pins the three public surfaces (sealing): main keeps the author surface
 - `host/` `hostExtension` (one package's api, mcp and worker on one app: `/api/{id}/*`, `/mcp/{id}`, no token, PGlite in a data
-  folder), `main.ts` (the daemon child and the one container entry `dist/host/main.js`) and
-  `daemon/` (`createDaemon`: the daemon routes, one child per extension, `installation.json`);
-  exported as `@agentage/extension/host`
+  folder), `main.ts` (the daemon child and the one container entry `dist/host/main.js`);
+  exported as `@agentage/extension/host`. `internal/` the kit modules `@agentage/apphost` builds
+  on (`@agentage/extension/internal`, not a public api)
+- `packages/apphost` `@agentage/apphost`, the app host program (J.4.3): `createDaemon`, the daemon
+  routes, the runner, one child per extension, `installation.json`; it imports the kit, never the reverse
 - `core-client/` `createCoreClient`, the one client of the core (market reads, logs send); it
   never throws, one deadline per call; exported as `@agentage/extension/core`
 - `schemas/` JSON Schema generation; `test-support/` fixtures, excluded from the build

@@ -105,7 +105,7 @@ More: [docs/part-image.md](docs/part-image.md).
 ## Host extensions on a machine
 
 `@agentage/extension/host` runs the api, mcp and worker parts of one package in one process
-(`hostExtension`). `createDaemon` is the local app host: one child per extension, `/api/{id}/*`,
+(`hostExtension`). `createDaemon` of `@agentage/apphost` is the local app host: one child per extension, `/api/{id}/*`,
 `/mcp/{id}`, `/app/{id}/*` and the dashboard shell at `/`. The cli starts it as `agentage daemon`.
 The contract is in [docs/part-image.md](docs/part-image.md#host-one-extension) and [docs/daemon.md](docs/daemon.md).
 

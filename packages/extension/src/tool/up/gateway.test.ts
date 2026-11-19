@@ -21,7 +21,6 @@ describe('gatewayConfig', () => {
     );
     expect(rules).toMatchObject({
       api: ['PathPrefix(`/api/probe/`)', 100, 'api'],
-      'api-v1': ['PathPrefix(`/api/v1/`)', 100, 'api'],
       files: ['PathPrefix(`/files/probe/`)', 100, 'api'],
       mcp: [
         'Path(`/mcp`) || Path(`/mcp/probe`) || Path(`/connector`) || Path(`/connector/probe`) || ' +
@@ -69,9 +68,8 @@ describe('gatewayConfig', () => {
       service: 'gateway-miss',
     });
     expect(api.routers['well-known']?.service).toBe('api');
-    expect(
-      gatewayConfig(['mcp'], { id: 'probe', version: '1.0.0' }).http.routers['api-v1']
-    ).toBeUndefined();
+    // J.4.3 row 6: the v13 api alias is gone, also with an api part.
+    expect(api.routers['api-v1']).toBeUndefined();
     expect(
       gatewayConfig(['mcp'], { id: 'probe', version: '1.0.0' }).http.routers['well-known']?.service
     ).toBe('mcp');

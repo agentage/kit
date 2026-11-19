@@ -58,8 +58,6 @@ export interface ApiAppOptions extends PartAppBase {
   wellKnown?: WellKnownEntry[];
   // Registered ctx.route routes: a request none of them matches is 404 before any token check.
   routes?: { method: string; path: string }[];
-  // More prefixes that serve the same router (runPart keeps /api/v1 for the cloud until phase 4).
-  aliases?: string[];
   // ctx.files: git smart-HTTP at /files/{id}/*.
   files?: FilesEntry;
 }
@@ -172,14 +170,14 @@ const routeGuard = (options: ApiAppOptions): RequestHandler => {
 export const mountApiRoutes = (app: Express, options: ApiAppOptions): void => {
   const { id } = options.pkg.agentage;
   if (options.files) mountFiles(app, id, options.files, options.tokenCheck);
-  const prefixes = [apiPrefix(id), ...(options.aliases ?? [])];
-  app.use(prefixes, cors(PUBLIC_CORS));
+  const prefix = apiPrefix(id);
+  app.use(prefix, cors(PUBLIC_CORS));
   for (const { name, render } of options.wellKnown ?? [])
     app.get(`/.well-known/${name}`, wellKnownHandler(render));
   const { openapi } = options;
-  if (openapi) for (const at of prefixes) app.get(`${at}/openapi.json`, openapiHandler(openapi));
+  if (openapi) app.get(`${prefix}/openapi.json`, openapiHandler(openapi));
   const json = express.json({ limit: BODY_LIMIT });
-  app.use(prefixes, routeGuard(options), json, options.router);
+  app.use(prefix, routeGuard(options), json, options.router);
 };
 
 export const createApiApp = (options: ApiAppOptions): Express =>

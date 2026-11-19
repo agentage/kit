@@ -136,8 +136,6 @@ const inputFor = async (options: RunPartOptions, start: Start): Promise<RunnerIn
     base,
     openapi,
     importModule: options.importModule,
-    // The old prefix as a second mount, so next stays green; it goes in phase 4.
-    apiAliases: ['/api/v1'],
     // /mcp/{id} (and /connector/{id}) as the app host routes it; bare /mcp for the estate gateway.
     mcpPaths: [MCP_PATH, mcpPathOf(start.pkg.agentage.id)],
   };

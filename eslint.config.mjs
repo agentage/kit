@@ -5,6 +5,10 @@ import prettierConfig from 'eslint-config-prettier';
 import jsxA11y from 'eslint-plugin-jsx-a11y';
 import reactHooks from 'eslint-plugin-react-hooks';
 
+// The extension ids of next and the plan: none may be a literal in the app host program.
+export const EXTENSION_IDS =
+  '/^(account|catalog|cloud|dashboard|docs|fixture|logs|market|memory|platform|probe|root|users)$/';
+
 export default [
   {
     ignores: [
@@ -93,6 +97,25 @@ export default [
                 "Use `import * as z from 'zod/mini'`: full zod puts about 400 KB into every bundle.",
             },
           ],
+        },
+      ],
+    },
+  },
+  {
+    // J.4.3 row 6: the app host program names no extension; ids come from its installation.
+    files: ['packages/extension/src/host/daemon/**/*.ts'],
+    ignores: ['**/*.test.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          // A type names a word (a host kind 'cloud'), not an extension the program runs.
+          selector: `Literal[value=${EXTENSION_IDS}]:not(TSLiteralType > Literal)`,
+          message: 'An extension id in the app host program: read it from the installation.',
+        },
+        {
+          selector: `TemplateElement[value.raw=${EXTENSION_IDS}]`,
+          message: 'An extension id in the app host program: read it from the installation.',
         },
       ],
     },

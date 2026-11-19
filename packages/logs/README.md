@@ -12,9 +12,9 @@ import { createLogger, createEventsClient, EventSchema, parseLine } from '@agent
 
 const log = createLogger({ extension: 'probe', part: 'api', version: '0.6.0' });
 log.info('ready');
-log.http({ method: 'GET', route: '/api/v1/items/{id}', status: 200, ms: 12 });
+log.http({ method: 'GET', route: '/api/probe/items/{id}', status: 200, ms: 12 });
 await log.span('store.query', () => query());
-log.error(new Error('forced'), '/api/v1/emit');
+log.error(new Error('forced'), '/api/probe/emit');
 
 await createEventsClient({ url: 'https://logs.example', token }).post([
   {

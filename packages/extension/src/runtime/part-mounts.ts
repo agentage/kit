@@ -28,8 +28,6 @@ export interface RunnerInput {
   base: PartAppBase;
   openapi: Record<string, unknown> | null;
   importModule?: ImportModule;
-  // More api prefixes that serve the same router.
-  apiAliases?: string[];
   // Where the mcp endpoint is; /mcp when left out (a part image).
   mcpPaths?: string[];
   // A host with no token check: tools/list stays open whatever mcp.listing says.
@@ -61,7 +59,7 @@ const api = async (input: RunnerInput): Promise<PartMount> => {
   const openapi = routes.length > 0 ? generatedOpenapi(input.pkg, routes) : input.openapi;
   const options = { ...input.base, router, routes, openapi, wellKnown: documents, files };
   const record = openapi ? { openapi: openapiPath(input.pkg.agentage.id) } : {};
-  return { mount: (app) => mountApiRoutes(app, { ...options, aliases: input.apiAliases }), record };
+  return { mount: (app) => mountApiRoutes(app, options), record };
 };
 
 const mcp = async (input: RunnerInput): Promise<PartMount> => {

@@ -38,7 +38,7 @@ describe('createLogger', () => {
 
   it('http: level by status and time, health paths leave no row, the template only', () => {
     const { log, lines } = capture();
-    const row = { method: 'GET', route: '/api/v1/machines', ms: 12 };
+    const row = { method: 'GET', route: '/api/platform/machines', ms: 12 };
     log.http({ ...row, status: 200, bytes: 418 });
     log.http({ ...row, status: 401, reason: 'missing_token' });
     log.http({ ...row, status: 200, ms: 1500 });
@@ -50,7 +50,7 @@ describe('createLogger', () => {
       ['http', 'warn'],
       ['http', 'error'],
     ]);
-    expect(lines[0]).toMatchObject({ msg: 'GET /api/v1/machines 200' });
+    expect(lines[0]).toMatchObject({ msg: 'GET /api/platform/machines 200' });
     expect(lines[1]?.['fields']).toMatchObject({ 'agentage.auth.reason': 'missing_token' });
     expect(lines[3]?.['fields']).toMatchObject({
       'error.type': 'TypeError',
@@ -91,10 +91,10 @@ describe('createLogger', () => {
 
   it('error: type, message, stack and where; a fingerprint only when the author gives one', () => {
     const { log, lines } = capture();
-    log.error(new Error('outer', { cause: new Error('root') }), '/api/v1/emit');
+    log.error(new Error('outer', { cause: new Error('root') }), '/api/probe/emit');
     log.error(new Error('grouped'), { 'agentage.fingerprint': 'mine' });
     const first = lines[0]?.['fields'] as Record<string, unknown>;
-    expect(first).toMatchObject({ 'exception.type': 'Error', 'agentage.where': '/api/v1/emit' });
+    expect(first).toMatchObject({ 'exception.type': 'Error', 'agentage.where': '/api/probe/emit' });
     expect(Object.keys(first).filter((k) => /cause|frame|fingerprint|code/.test(k))).toEqual([]);
     expect(lines[1]?.['fields']).toMatchObject({ 'agentage.fingerprint': 'mine' });
   });

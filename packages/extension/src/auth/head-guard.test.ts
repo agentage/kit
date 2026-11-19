@@ -48,7 +48,7 @@ const routerApp = async (check: TokenCheck) => {
   const router = Router();
   router.get(['/wipe', '/echo'], (_req: Request, res: Response) => void res.json({ ok: 1 }));
   const base = { pkg: PKG, build: BUILD, log: recordedLog().log, openapi: OPENAPI };
-  const app = createApiApp({ ...base, router, tokenCheck: check, aliases: ['/api/v1'] });
+  const app = createApiApp({ ...base, router, tokenCheck: check });
   return (server = await serveApp(app));
 };
 
@@ -60,12 +60,12 @@ describe('a HEAD request gets the token check of its GET route', () => {
     expect((await head(null, '/api/test/open'))[0]).toBe(200);
   });
 
-  it('a router part and an alias prefix ask for the access the GET operation declares', async () => {
+  it('a router part asks for the access the GET operation declares', async () => {
     const { asked, check } = asker();
     const s = await routerApp(check);
-    for (const path of ['/api/probe/wipe', '/api/v1/wipe', '/api/probe/echo'])
+    for (const path of ['/api/probe/wipe', '/api/probe/echo'])
       await fetch(`${s.url}${path}`, { method: 'HEAD' });
-    expect(asked).toEqual(['admin', 'admin', 'public']);
+    expect(asked).toEqual(['admin', 'public']);
   });
 
   it('ctx.files: a HEAD needs write, as any request that is not a clone or a fetch', async () => {

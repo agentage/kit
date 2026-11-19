@@ -15,7 +15,7 @@ const base = {
 const SAMPLES: Record<string, Record<string, unknown>> = {
   http: {
     'http.request.method': 'GET',
-    'http.route': '/api/v1/machines',
+    'http.route': '/api/platform/machines',
     'http.response.status_code': 401,
   },
   mcp: {

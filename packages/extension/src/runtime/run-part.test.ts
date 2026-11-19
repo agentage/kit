@@ -77,7 +77,7 @@ describe('runPart', () => {
     });
   });
 
-  it('also answers the old /api/v1 prefix with the same router and access', async () => {
+  it('answers its own prefix only: the v13 /api/v1 alias is gone (J.4.3 row 6)', async () => {
     const dir = await tempPackage({
       'package.json': json(API_MANIFEST),
       'openapi.json': json({
@@ -94,10 +94,9 @@ describe('runPart', () => {
     const importModule = async () => echoModule;
     server = await runPart({ dir, part: 'api', env, importModule, serve: { signals: [] } });
     const base = `http://127.0.0.1:${portOf(server)}`;
-    for (const prefix of ['/api/probe', '/api/v1']) {
-      const echo = await fetch(`${base}${prefix}/echo?msg=hi`);
-      expect(await echo.json()).toEqual({ success: true, data: { msg: 'hi' } });
-    }
+    const echo = await fetch(`${base}/api/probe/echo?msg=hi`);
+    expect(await echo.json()).toEqual({ success: true, data: { msg: 'hi' } });
+    expect((await fetch(`${base}/api/v1/echo?msg=hi`)).status).toBe(404);
   });
 
   it('refuses a part the manifest does not have, and modules without create', async () => {

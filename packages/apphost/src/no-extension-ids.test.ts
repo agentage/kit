@@ -29,10 +29,22 @@ describe('no extension id in the app host program (J.4.3 row 6)', () => {
     expect(await errorsOf("export type Kind = 'local' | 'cloud';\n")).toEqual([]);
   });
 
-  it('allows a host kind on a kind property only', async () => {
-    expect(await errorsOf("export const e = { kind: 'cloud' };\n")).toEqual([]);
-    expect(await errorsOf("export const f = { kind: 'market' };\n")).toHaveLength(1);
-    expect(await errorsOf("export const g = { host: 'cloud' };\n")).toHaveLength(1);
-    expect(await errorsOf("export const h = 'cloud';\n")).toHaveLength(1);
+  it.each([
+    "export const e = { kind: 'cloud' };\n",
+    "export const e = (x: { kind: string }) => x.kind === 'cloud';\n",
+    "export const e = (x: { kind: string }) => x.kind !== 'cloud';\n",
+  ])('allows the host kind cloud as a kind value or comparison: %s', async (text) => {
+    expect(await errorsOf(text)).toEqual([]);
+  });
+
+  it.each([
+    "export const f = { kind: 'memory' };\n",
+    "export const f = (x: { kind: string }) => x.kind === 'memory';\n",
+    "export const f = { host: 'cloud' };\n",
+    "export const f = (x: { id: string }) => x.id === 'cloud';\n",
+    "export const f = (x: { kind: string }) => x.kind == 'cloud';\n",
+    "export const f = 'cloud';\n",
+  ])('refuses any other id under kind and cloud elsewhere: %s', async (text) => {
+    expect(await errorsOf(text)).toHaveLength(1);
   });
 });

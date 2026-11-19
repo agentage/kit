@@ -65,7 +65,6 @@ const answerOf =
     const credential = credentialOf(req);
     const data = credential && (await exchange(credential, host, 'read', addressOf(req)));
     const source: SignInSource = {
-      // eslint-disable-next-line no-restricted-syntax -- a host kind (HostKind), not an extension id
       kind: 'cloud',
       user: () => data?.user ?? null,
       signIn,

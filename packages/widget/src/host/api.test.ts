@@ -5,20 +5,19 @@ import { type FetchLike, type TokenSource } from './host.types.js';
 
 const anonymous = () => Promise.resolve(undefined);
 const withToken = () => Promise.resolve('aga_t');
-const to = (fetch: FetchLike, token: TokenSource = anonymous, id?: string): ApiTarget => ({
+const to = (fetch: FetchLike, token: TokenSource = anonymous): ApiTarget => ({
   fetch,
   token,
-  id,
-  bases: {},
+  id: 'probe',
 });
 
 afterEach(() => vi.restoreAllMocks());
 
 describe('callApi', () => {
-  it('fetches /api/v1{path} and resolves the envelope data', async () => {
+  it('fetches /api/{id}{path} and resolves the envelope data', async () => {
     const { fetch, calls } = fakeFetch(jsonResponse({ success: true, data: { n: 3 } }));
     await expect(callApi(to(fetch), '/ticks?limit=1')).resolves.toEqual({ n: 3 });
-    expect(calls[0]?.url).toBe('/api/v1/ticks?limit=1');
+    expect(calls[0]?.url).toBe('/api/probe/ticks?limit=1');
     const headers = new Headers(calls[0]?.init.headers);
     expect(headers.get('accept')).toBe('application/json');
     expect(headers.has('authorization')).toBe(false);
@@ -66,7 +65,7 @@ describe('callApi', () => {
     expect(calls[0]?.init.signal?.aborted).toBe(true);
     await expect(pending).rejects.toMatchObject({
       code: 'TIMEOUT',
-      message: '/api/v1/ticks did not answer in 30 s',
+      message: '/api/probe/ticks did not answer in 30 s',
     });
   });
 

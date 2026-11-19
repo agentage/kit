@@ -86,11 +86,7 @@ export default [
     rules: { ...jsxA11y.flatConfigs.recommended.rules, ...reactHooks.configs.recommended.rules },
   },
   {
-    files: [
-      'packages/widget/src/**/*.{ts,tsx}',
-      'packages/identity/src/**/*.ts',
-      'packages/shell/src/**/*.ts',
-    ],
+    files: ['packages/widget/src/**/*.{ts,tsx}', 'packages/identity/src/**/*.ts'],
     rules: {
       'no-restricted-imports': [
         'error',

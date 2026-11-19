@@ -5,7 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest';
 import { errorHandler, createLog, startOn, type TestServer } from '@agentage/extension/internal';
 import { type Entries } from './entries.js';
 import { type Lane } from './lane.js';
-import { servesPart } from './lane-routes.js';
+import { FAILED_READ_MS, laneRoutes, servesPart } from './lane-routes.js';
 import { type Entry } from './supervisor.js';
 
 const docOf = (id: string, serves: string[]) => ({
@@ -70,13 +70,47 @@ describe('servesPart: the routes of a local child come from combineHost (J.4.3 r
     expect((await call('/api/a/x')).status).toBe(404);
   });
 
-  it('no document (a 500) is 503 with a retry, and the next request reads again', async () => {
+  it('no document (a 500) is 503 with a retry; the failure is kept, then read again', async () => {
     const { port, reads } = await child(500, 'no');
     const call = await start(new Map([['a', entryOf('a', port)]]));
     const res = await call('/api/a/x');
     expect([res.status, res.headers.get('retry-after')]).toEqual([503, '5']);
-    await call('/api/a/x');
+    expect((await call('/api/a/x')).status).toBe(503);
+    expect(reads.n).toBe(1);
+  });
+
+  it('a failed read is read again after FAILED_READ_MS', async () => {
+    const { port, reads } = await child(500, 'no');
+    const entry = entryOf('a', port);
+    const lane = entry.lane as Lane;
+    let at = 0;
+    const now = () => at;
+    expect(await laneRoutes(entry, lane, now)).toBeUndefined();
+    at = FAILED_READ_MS - 1;
+    expect(await laneRoutes(entry, lane, now)).toBeUndefined();
+    expect(reads.n).toBe(1);
+    at = FAILED_READ_MS;
+    await laneRoutes(entry, lane, now);
     expect(reads.n).toBe(2);
+  });
+
+  it('a read that throws is a failed read: nothing stays on the lane, the failure is kept', async () => {
+    const lane = {
+      get child(): never {
+        throw new Error('no child');
+      },
+    } as unknown as Lane;
+    const entry = { ...entryOf('a'), lane };
+    expect(await laneRoutes(entry, lane, () => 0)).toBeUndefined();
+    expect([lane.routes, lane.failedUntil]).toEqual([undefined, FAILED_READ_MS]);
+  });
+
+  it('parallel first requests share one read', async () => {
+    const { port, reads } = await child(200, JSON.stringify(docOf('a', ['api'])));
+    const call = await start(new Map([['a', entryOf('a', port)]]));
+    const all = await Promise.all([1, 2, 3, 4].map(() => call('/api/a/x')));
+    expect(all.map((r) => r.status)).toEqual([204, 204, 204, 204]);
+    expect(reads.n).toBe(1);
   });
 
   it('no entry or no child: the proxy decides, as before', async () => {

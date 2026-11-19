@@ -7,8 +7,10 @@ export interface Lane {
   child: Run;
   open: number;
   idle: (() => void)[];
-  // The parts this child serves, from its discovery (lane-routes.ts); unset until read.
-  routes?: Set<string>;
+  // The parts this child serves, from its discovery (lane-routes.ts): one read shared by the
+  // requests that wait on it; a failed read is kept until failedUntil.
+  routes?: Promise<Set<string> | undefined>;
+  failedUntil?: number;
 }
 
 export const laneOf = (child: Child): Lane => ({ child: runOf(child), open: 0, idle: [] });

@@ -53,7 +53,7 @@ export const useHostFeeds = (deps: ShellDeps) => {
   const loadSession = useCallback(
     () =>
       void getJson<Session>(deps, SESSION_URL).then((s) =>
-        setSession(s ?? { user: null, host: 'local' })
+        setSession(s ?? { user: null, host: null })
       ),
     [deps]
   );

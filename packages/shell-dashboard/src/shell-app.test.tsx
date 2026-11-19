@@ -42,7 +42,7 @@ const main = () => el().querySelector('[data-region="main"]')!;
 beforeEach(() => {
   host = fakeHost(structuredClone(DOC), {
     user: { id: 'u1', email: 'lab@example.test' },
-    host: 'local',
+    host: { kind: 'local' },
   });
   host.modules.set('/app/probe/app-1.js', Probe);
   host.modules.set('/app/probe/app-2.js', ProbeTwo);
@@ -73,19 +73,23 @@ describe('ShellApp', () => {
 
   it('signed out on a cloud host: a Sign in link to a safe session signIn; else the hint', async () => {
     const signIn = 'https://auth.agentage.io/sign-in?next=x';
-    host = fakeHost(structuredClone(DOC), { user: null, host: 'platform', signIn });
+    host = fakeHost(structuredClone(DOC), { user: null, host: { kind: 'cloud' }, signIn });
     await start('/');
     const account = () => el().querySelector('[data-region="account"]')!;
     expect(account().querySelector('a')?.getAttribute('href')).toBe(signIn);
     act(() => root?.unmount());
     document.body.innerHTML = '';
-    host = fakeHost(structuredClone(DOC), { user: null, host: 'local', signIn: '/shell/sign-in' });
+    host = fakeHost(structuredClone(DOC), {
+      user: null,
+      host: { kind: 'local' },
+      signIn: '/shell/sign-in',
+    });
     await start('/');
     expect(account().querySelector('a.acct.signin')?.getAttribute('href')).toBe('/shell/sign-in');
     for (const session of [{ signIn: 'javascript:alert(1)' }, {}]) {
       act(() => root?.unmount());
       document.body.innerHTML = '';
-      host = fakeHost(structuredClone(DOC), { user: null, host: 'local', ...session });
+      host = fakeHost(structuredClone(DOC), { user: null, host: { kind: 'local' }, ...session });
       await start('/');
       expect(account().querySelector('a')).toBeNull();
       expect(account().textContent).toContain('run agentage setup');
@@ -182,7 +186,10 @@ describe('ShellApp', () => {
 
   it('a session event reloads the user; the inbox lists notices in the aside', async () => {
     await start('/probe');
-    host.state.session = { user: { id: 'u1', email: 'e@x.test', name: 'Alex Doe' }, host: 'local' };
+    host.state.session = {
+      user: { id: 'u1', email: 'e@x.test', name: 'Alex Doe' },
+      host: { kind: 'local' },
+    };
     await act(async () => host.emit('session'));
     await flush();
     expect(el().querySelector('[data-region="account"]')?.textContent).toContain('Alex Doe');

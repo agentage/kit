@@ -55,12 +55,13 @@ export const ShellApp = ({ deps, version }: { deps: ShellDeps; version: string }
   const removed = !row && discovery && seen[route.id];
   const title = row?.app.title ?? (route.id ? (removed ? removed : 'Not found') : 'Home');
   let page = null;
-  if (row)
+  // The app waits for the session: its adapter follows the host kind.
+  if (row && session)
     page = (
       <AppPage
         key={row.id}
         row={row}
-        user={user}
+        session={session}
         deps={deps}
         shell={shellFor(row.id)}
         route={route.app}
@@ -68,7 +69,7 @@ export const ShellApp = ({ deps, version }: { deps: ShellDeps; version: string }
         regions={regions}
       />
     );
-  else if (!discovery) page = null;
+  else if (row || !discovery) page = null;
   else if (removed) page = <Removed title={removed} />;
   else if (route.id) page = <NotFound path={location.pathname} />;
   else page = rows.length ? <Home /> : <NoExtensions />;

@@ -23,8 +23,17 @@ export const localAt = (origin = globalThis.location.origin): HostInfo => ({
   url: origin,
 });
 
-// The local adapter: the daemon proxies `/api/{id}/*` to the child, no token on the machine.
 // Bound to one app: the caller's id is ignored and the path checked, so no app reaches another.
+export const boundRequest =
+  (id: string, fetchImpl: typeof fetch): HostAdapter['request'] =>
+  async (_appId, path, init) => {
+    checkApiPath(path);
+    const headers = new Headers(init.headers);
+    headers.set('X-Agentage-App', id);
+    return fetchImpl(`/api/${id}${path}`, { ...init, headers });
+  };
+
+// The local adapter: the daemon proxies `/api/{id}/*` to the child, no token on the machine.
 // `at` is the daemon's origin, kind local; the desktop shell passes kind desktop.
 export const createLocalHost = (
   { id, version }: ExtensionInfo,
@@ -36,10 +45,5 @@ export const createLocalHost = (
   version,
   user: appUserOf(user),
   scopes: localScopes(id),
-  request: async (_appId, path, init) => {
-    checkApiPath(path);
-    const headers = new Headers(init.headers);
-    headers.set('X-Agentage-App', id);
-    return fetchImpl(`/api/${id}${path}`, { ...init, headers });
-  },
+  request: boundRequest(id, fetchImpl),
 });

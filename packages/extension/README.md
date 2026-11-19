@@ -8,6 +8,7 @@ correlation id, the response envelope, the store pool, the scheduler and argumen
 schemas.
 `@agentage/extension/logs` is the event line (`EventSchema`, `parseLine`, `createLogger`,
 `createEventsClient`, `KINDS`, `LEVELS`, `USER_TYPES`), built into the kit's own tarball.
+`@agentage/extension/core` is the one client of the core's services (see "The core client").
 `@agentage/extension/app` is the app part: `useAppShell()` (route, regions, notices, state) and
 `useAppHost()` (`user`, `scopes`, `api`, and since 0.18.2 `extension { id, version }` and
 `host { kind, url }`, kind `local`, `desktop` or `cloud`).
@@ -15,6 +16,33 @@ schemas.
 ```bash
 npm install @agentage/extension express zod
 ```
+
+## The core client
+
+`createCoreClient({ url, timeoutMs, token })` calls the core: `market.latest(id)`, `market.list()`,
+`logs.send(rows)` and `down()`. It never throws. Each method call ends before `timeoutMs` (default
+2000 ms), all its requests together.
+
+- Each call answers `{ data, down }`. When the core is silent, `data` is the empty answer: `null`
+  or an empty listing. `down` then has a `code` and the message `market not reachable` or `logs not reachable`.
+- `data: null, down: null` from `market.latest` means the market has no such id (its 404).
+  A caller that must not read silence as "no release" checks `down`.
+- `down()` keeps the first reason of any call of the client.
+- The address: `url` (an origin, or a function that resolves one), else `AGENTAGE_CORE_URL` of
+  `env`. A missing or empty address is no error: each call answers `down.code` `no_core`.
+- `logs.send` drops a failed send with one warning, until a send goes through again. It needs
+  `token`, sent over https or to a loopback host only.
+- The market reads import nothing from Node; `logs.send` uses the Node events client.
+
+| `down.code`   | When                                                         |
+| ------------- | ------------------------------------------------------------ |
+| `no_core`     | no address, not a URL, or the `url` function threw (`cause`) |
+| `unreachable` | no connection                                                |
+| `timeout`     | no answer before `timeoutMs`                                 |
+| `failed`      | a status that is not 2xx or 404, a redirect, too large       |
+| `not_json`    | a market body that is not JSON                               |
+| `refused`     | a market answer that is not an exact version of that id      |
+| `no_token`    | `logs.send` with no token                                    |
 
 `agentage extension check [dir] --json` prints the conformance report (exit 1 when `conforms` is
 false); `file` and `line` are there only when a problem has them. `warnings` is there only when a

@@ -84,6 +84,8 @@ Read the file named here before you read `src/` (`src/` = `packages/extension/sr
   folder), `main.ts` (the daemon child and the one container entry `dist/host/main.js`) and
   `daemon/` (`createDaemon`: the daemon routes, one child per extension, `installation.json`);
   exported as `@agentage/extension/host`
+- `core-client/` `createCoreClient`, the one client of the core (market reads, logs send); it
+  never throws, one deadline per call; exported as `@agentage/extension/core`
 - `schemas/` JSON Schema generation; `test-support/` fixtures, excluded from the build
 
 ## Layout (`packages/widget`)

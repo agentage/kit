@@ -36,6 +36,10 @@
       "types": "./dist/host/index.d.ts",
       "default": "./dist/host/index.js"
     },
+    "./core": {
+      "types": "./dist/core-client/index.d.ts",
+      "default": "./dist/core-client/index.js"
+    },
     "./logs": {
       "types": "./dist/logs/index.d.ts",
       "default": "./dist/logs/index.js"

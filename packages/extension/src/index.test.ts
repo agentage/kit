@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import * as contracts from './contracts/index.js';
+import * as core from './core-client/index.js';
 import * as host from './host/index.js';
 import * as kit from './index.js';
 import * as logs from './logs/index.js';
@@ -90,6 +91,16 @@ describe('public surface', () => {
       'localOnly',
       'updateInstallation',
       'withFileLock',
+    ]);
+  });
+
+  it('the core subpath exports the one client of the core', () => {
+    expect(Object.keys(core).sort()).toEqual([
+      'CORE_URL_ENV',
+      'DEFAULT_TIMEOUT_MS',
+      'MAX_PAGES',
+      'coreUrlOf',
+      'createCoreClient',
     ]);
   });
 

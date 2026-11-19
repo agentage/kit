@@ -70,6 +70,7 @@ jobs:
           grep -qx 'package/dist/store/migrate.js' /tmp/pack/files.txt
           grep -qx 'package/dist/tool/up/dev-issuer.js' /tmp/pack/files.txt
           grep -qx 'package/dist/logs/index.js' /tmp/pack/files.txt
+          grep -qx 'package/dist/core-client/index.js' /tmp/pack/files.txt
           grep -qx 'package/dist/vendor/logs/index.js' /tmp/pack/files.txt
           grep -qx 'package/dist/vendor/app/index.js' /tmp/pack/files.txt
           grep -qx 'package/dist/vendor/app/test-host.js' /tmp/pack/files.txt

@@ -1,11 +1,13 @@
 import express, { type Express } from 'express';
 import { agcidMiddleware, errorHandler, type Log, notFound } from '@agentage/extension/internal';
+import { authMirror } from './cloud-auth-mirror.js';
 import { type CloudDiscovery } from './cloud-discovery.js';
 import { closeWhileDraining } from './cloud-drain.js';
 import { type CloudEnv } from './cloud-env.js';
 import { HEAD, ownHostOnly, requestGuard } from './cloud-guards.js';
 import { cloudHealth } from './cloud-health.js';
 import { partRoutes } from './cloud-parts.js';
+import { recordRoutes } from './cloud-records.js';
 import { streamRoutes } from './cloud-streams.js';
 import { CLOUD_SIGN_OUT, type CloudSession } from './cloud-session.js';
 import { HOST_DOC, ROUTER_DOC } from './route-of.js';
@@ -20,6 +22,8 @@ export interface CloudParts {
   session: CloudSession;
   events: ShellEvents;
   log: Log;
+  // The fetch of auth calls: the exchange, the sign-out, the metadata mirror.
+  fetcher?: typeof fetch | undefined;
   draining(): boolean;
 }
 
@@ -48,6 +52,8 @@ export const cloudApp = (parts: CloudParts): Express => {
   // The program's own version and commit: the host document schema has no such field.
   const { version, commit } = parts.env.build;
   app.get(ROUTER_DOC, (_req, res) => void res.set(NO_STORE).json({ version, commit }));
+  app.use(recordRoutes(parts.discovery, parts.env.own));
+  app.use(authMirror(parts.env.issuer, { fetcher: parts.fetcher }));
   shellRoutes(app, parts);
   app.use(streamRoutes(parts.discovery));
   app.use(partRoutes(parts.discovery, parts.session));

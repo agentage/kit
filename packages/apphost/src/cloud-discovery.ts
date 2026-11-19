@@ -13,6 +13,8 @@ export interface CloudDiscovery {
   current(): Combined;
   // The run state of an id as the upstream runner gives it: a view of current(), nothing else.
   stateOf: StateOf;
+  // The addresses of an id whose valid document the combine took, in row order (the records).
+  servedBy(id: string): string[];
   refresh(): Promise<void>;
   start(): Promise<void>;
   stop(): void;
@@ -96,11 +98,16 @@ export const createCloudDiscovery = (o: DiscoveryOptions): CloudDiscovery => {
     current().document.extensions.find((e) => e.id === id)?.state === 'running'
       ? 'running'
       : 'down';
+  const servedBy = (id: string) => {
+    const refused = new Set(current().refused.map((r) => r.upstream));
+    const ok = (a: Answer) => a.expectedId === id && a.document && !refused.has(a.upstream);
+    return seen.answers.filter(ok).map((a) => a.upstream);
+  };
   const refresh = singleFlight(readOf(o, seen), o.log);
   let timer: NodeJS.Timeout | undefined;
   const start = () => {
     timer ??= setInterval(() => void refresh(), o.everyMs ?? EVERY_MS).unref();
     return refresh();
   };
-  return { current, stateOf, refresh, start, stop: () => clearInterval(timer) };
+  return { current, stateOf, servedBy, refresh, start, stop: () => clearInterval(timer) };
 };

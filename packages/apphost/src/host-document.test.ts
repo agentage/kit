@@ -40,8 +40,11 @@ const slow = async (): Promise<number> => {
   return (server.address() as AddressInfo).port;
 };
 
+const at = (port: number) => `http://127.0.0.1:${port}`;
+
 const entryOf = (id: string, state: State, port?: number): Entry => {
-  const lane = port === undefined ? undefined : ({ child: { port } } as unknown as Lane);
+  const child = port === undefined ? undefined : { port, address: () => at(port) };
+  const lane = child && ({ child } as unknown as Lane);
   return { id, install: { id }, state, version: '1.0.0', lane };
 };
 
@@ -49,13 +52,17 @@ const entriesOf = (...list: Entry[]): Entries => new Map(list.map((e) => [e.id, 
 
 describe('readChildDocument: an answer from outside the daemon', () => {
   it('reads a JSON document; a 500, a body that is not JSON, or one over 256 KiB is none', async () => {
-    expect(await readChildDocument(await child(200, JSON.stringify(docOf('a'))))).toMatchObject({
-      id: 'a',
-    });
-    expect(await readChildDocument(await child(500, JSON.stringify(docOf('a'))))).toBeUndefined();
-    expect(await readChildDocument(await child(200, '<html>'))).toBeUndefined();
+    expect(await readChildDocument(at(await child(200, JSON.stringify(docOf('a')))))).toMatchObject(
+      {
+        id: 'a',
+      }
+    );
+    expect(
+      await readChildDocument(at(await child(500, JSON.stringify(docOf('a')))))
+    ).toBeUndefined();
+    expect(await readChildDocument(at(await child(200, '<html>')))).toBeUndefined();
     const big = JSON.stringify({ ...docOf('a'), pad: 'x'.repeat(300 * 1024) });
-    expect(await readChildDocument(await child(200, big))).toBeUndefined();
+    expect(await readChildDocument(at(await child(200, big)))).toBeUndefined();
   });
 
   it('a child that never answers is none after DOC_READ_MS', async () => {
@@ -63,7 +70,7 @@ describe('readChildDocument: an answer from outside the daemon', () => {
     servers.push(server);
     await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
     const started = Date.now();
-    expect(await readChildDocument((server.address() as AddressInfo).port)).toBeUndefined();
+    expect(await readChildDocument(at((server.address() as AddressInfo).port))).toBeUndefined();
     expect(Date.now() - started).toBeLessThan(DOC_READ_MS + 1_000);
     server.closeAllConnections();
   });
@@ -71,7 +78,7 @@ describe('readChildDocument: an answer from outside the daemon', () => {
   it('a closed port is none, at once', async () => {
     const port = await child(200, '{}');
     servers.splice(0).forEach((s) => s.close());
-    expect(await readChildDocument(port)).toBeUndefined();
+    expect(await readChildDocument(at(port))).toBeUndefined();
   });
 });
 

@@ -9,6 +9,7 @@ import {
   kitShellDir,
 } from '@agentage/extension/internal';
 import { forkLaunch, type Launch } from './child.js';
+import { childRunner } from './runner.js';
 import { syncCliUser, watchCliUser } from './cli-user-watch.js';
 import { shellEvents } from './shell-events.js';
 import { removeDaemonFile, writeDaemonFile, DAEMON_PROTOCOL } from './daemon-files.js';
@@ -120,7 +121,7 @@ const launchMarks = (launch: Launch) => ({
 const depsOf = (opts: DaemonOptions, launch: Launch, origin: () => string, stopping: Stopping) =>
   ({
     configDir: opts.configDir,
-    launch: launchUnlessStopping(stopping, launch),
+    runner: childRunner(launchUnlessStopping(stopping, launch)),
     stopping,
     install: opts.install,
     log: createLog({ extension: 'host', part: 'api', version: opts.version }),

@@ -7,6 +7,8 @@ export type RunState = 'running' | 'down' | 'exited';
 export interface Run extends Child {
   // The origin the host sends requests of this extension to.
   address(): string;
+  // Every address of the extension in answer order (a child has one; an upstream id has a row each).
+  addresses(): string[];
   state(): RunState;
 }
 
@@ -16,6 +18,12 @@ export interface Runner {
   start(spec: LaunchSpec): Promise<Run>;
 }
 
+// The port of an address: as written, else the default of its scheme.
+export const portOf = (address: string): number => {
+  const url = new URL(address);
+  return Number(url.port) || (url.protocol === 'https:' ? 443 : 80);
+};
+
 // The address and state of a started child: loopback on the port it reported, running until it exits.
 const isRun = (child: Child): child is Run => 'address' in child && 'state' in child;
 
@@ -23,8 +31,10 @@ export const runOf = (child: Child): Run => {
   if (isRun(child)) return child;
   let state: RunState = 'running';
   void child.exited.then(() => (state = 'exited'));
+  const address = `http://127.0.0.1:${child.port}`;
   return Object.assign(child, {
-    address: () => `http://127.0.0.1:${child.port}`,
+    address: () => address,
+    addresses: () => [address],
     state: () => state,
   });
 };

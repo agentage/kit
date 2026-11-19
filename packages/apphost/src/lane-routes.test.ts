@@ -1,10 +1,10 @@
 import { createServer, type Server } from 'node:http';
 import { type AddressInfo } from 'node:net';
-import express from 'express';
+import express, { type RequestHandler } from 'express';
 import { afterEach, describe, expect, it } from 'vitest';
 import { errorHandler, createLog, startOn, type TestServer } from '@agentage/extension/internal';
 import { type Entries } from './entries.js';
-import { type Lane } from './lane.js';
+import { addressFor, type Lane } from './lane.js';
 import { FAILED_READ_MS, laneRoutes, servesPart } from './lane-routes.js';
 import { type Entry } from './supervisor.js';
 
@@ -35,16 +35,25 @@ const child = async (status: number, body: string) => {
   return { port: (server.address() as AddressInfo).port, reads };
 };
 
-const entryOf = (id: string, port?: number): Entry => {
-  const lane = port === undefined ? undefined : ({ child: { port } } as unknown as Lane);
+const at = (port: number) => `http://127.0.0.1:${port}`;
+
+// A lane with one address per port: a child has one; an upstream id may have two (api, pages).
+const entryOf = (id: string, ...ports: number[]): Entry => {
+  const child = { address: () => at(ports[0] ?? 0), addresses: () => ports.map(at) };
+  const lane = ports.length ? ({ child } as unknown as Lane) : undefined;
   return { id, install: { id }, state: 'running', version: '1.0.0', lane };
 };
 
-// The check alone, with a stand-in for the proxy that answers 204.
+// The check alone, with a stand-in for the proxy that answers 204 and names its address.
 const start = async (entries: Entries) => {
   const app = express();
-  app.use('/api/:id', servesPart(entries, 'api'), (_req, res) => void res.sendStatus(204));
-  app.use('/mcp/:id', servesPart(entries, 'mcp'), (_req, res) => void res.sendStatus(204));
+  const proxy: RequestHandler = (req, res) => {
+    const lane = entries.get(String(req.params['id']))?.lane;
+    if (lane) res.setHeader('x-to', addressFor(lane, res.locals));
+    res.sendStatus(204);
+  };
+  app.use('/api/:id', servesPart(entries, 'api'), proxy);
+  app.use('/mcp/:id', servesPart(entries, 'mcp'), proxy);
   app.use(errorHandler(createLog({ extension: 'host', part: 'api', version: '0.0.0' })));
   daemon = await startOn(app);
   return (path: string) => fetch(`${daemon?.url}${path}`);
@@ -62,6 +71,20 @@ describe('servesPart: the routes of a local child come from combineHost (J.4.3 r
       { error: { code: 'NOT_FOUND' } },
     ]);
     expect(reads.n).toBe(1);
+  });
+
+  it('every address of an id is an answer: each part goes to the address that serves it', async () => {
+    const api = await child(200, JSON.stringify(docOf('site', ['api'])));
+    const mcp = await child(200, JSON.stringify(docOf('site', ['mcp'])));
+    const entry = entryOf('site', api.port, mcp.port);
+    const call = await start(new Map([['site', entry]]));
+    expect((await call('/api/site/x')).headers.get('x-to')).toBe(at(api.port));
+    expect((await call('/mcp/site')).headers.get('x-to')).toBe(at(mcp.port));
+    const routes = await laneRoutes(entry, entry.lane as Lane);
+    expect([...(routes ?? [])]).toEqual([
+      ['api', at(api.port)],
+      ['mcp', at(mcp.port)],
+    ]);
   });
 
   it('a document of another id is refused: 404 on the api of a child that runs', async () => {

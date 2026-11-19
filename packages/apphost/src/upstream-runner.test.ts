@@ -52,10 +52,35 @@ describe('the upstream list', () => {
     ['an id that is not an id', { id: 'Probe!', service: 'probe', address: 'http://p:1' }],
     ['an address that is not http', { id: 'probe', service: 'probe', address: 'file:///x' }],
     ['an extra key', { id: 'probe', service: 'probe', address: 'http://p:1', token: 'x' }],
+    ['a trailing slash', { id: 'probe', service: 'probe', address: 'http://p:1/' }],
+    ['a path', { id: 'probe', service: 'probe', address: 'http://p:1/api' }],
+    ['a user and password', { id: 'probe', service: 'probe', address: 'http://u:pw@p:1' }],
+    ['a query', { id: 'probe', service: 'probe', address: 'http://p:1?x=1' }],
   ])('refuses a row with %s', async (_name, row) => {
     const file = join(await tempDir('agentage-upstreams-'), 'upstreams.json');
     await writeFile(file, JSON.stringify([row]));
     await expect(readUpstreams(file)).rejects.toThrow();
+  });
+
+  it('keeps an origin with the default port as written', async () => {
+    const file = join(await tempDir('agentage-upstreams-'), 'upstreams.json');
+    const rows = [{ id: 'p', service: 'p', address: 'http://p:80' }];
+    await writeFile(file, JSON.stringify(rows));
+    expect(await readUpstreams(file)).toEqual(rows);
+  });
+
+  it.each([
+    ['an object', '{"id":"probe"}', 'expected array'],
+    ['text that is not JSON', 'not json', 'JSON'],
+  ])('refuses a file that holds %s', async (_name, text, words) => {
+    const file = join(await tempDir('agentage-upstreams-'), 'upstreams.json');
+    await writeFile(file, text);
+    await expect(readUpstreams(file)).rejects.toThrow(words);
+  });
+
+  it('refuses a missing file', async () => {
+    const file = join(await tempDir('agentage-upstreams-'), 'upstreams.json');
+    await expect(readUpstreams(file)).rejects.toThrow('ENOENT');
   });
 });
 
@@ -72,13 +97,41 @@ describe('the upstream runner (J.4.4 row 1)', () => {
     await expect(startOf([], 'probe')).rejects.toThrow('no upstream for probe');
   });
 
-  it('picks the service named as the id among two rows of one id', async () => {
+  it('keeps every row of an id in list order; it is up while any row answers', async () => {
     const rows = [
-      { id: 'root', service: 'root-pages', address: 'http://pages:8080' },
-      { id: 'root', service: 'root', address: 'http://api:8080' },
+      { id: 'site', service: 'site', address: 'http://site:8080' },
+      { id: 'site', service: 'site-pages', address: 'http://site-pages:8080' },
+      { id: 'other', service: 'other', address: 'http://other:8080' },
     ];
-    const down = vi.fn(async () => new Response(null, { status: 503 }));
-    expect((await startOf(rows, 'root', down)).address()).toBe('http://api:8080');
+    const pagesOnly = vi.fn(async (url: string | URL | Request) => {
+      const ok = String(url).startsWith('http://site-pages:8080/');
+      return new Response('{}', { status: ok ? 200 : 503 });
+    });
+    const run = await startOf(rows, 'site', pagesOnly as typeof fetch);
+    expect(run.addresses()).toEqual(['http://site:8080', 'http://site-pages:8080']);
+    expect([run.address(), run.state()]).toEqual(['http://site:8080', 'running']);
+  });
+
+  it('one probe in flight per row, also when intervalMs < timeoutMs', async () => {
+    // The first probe answers; each one after it hangs until its timeout.
+    const hang = vi.fn((_url: string | URL | Request, init?: RequestInit) =>
+      hang.mock.calls.length === 1
+        ? Promise.resolve(new Response('{}', { status: 200 }))
+        : new Promise<Response>((_resolve, reject) =>
+            init?.signal?.addEventListener('abort', () => reject(new Error('aborted')))
+          )
+    );
+    const rows = [{ id: 'p', service: 'p', address: 'http://p:8080' }];
+    const run = await upstreamRunner({
+      upstreams: rows,
+      intervalMs: 10,
+      timeoutMs: 150,
+      fetch: hang,
+    }).start({ id: 'p' } as never);
+    runs.push(run);
+    await new Promise((r) => setTimeout(r, 100));
+    expect([hang.mock.calls.length, run.state()]).toEqual([2, 'running']);
+    await vi.waitFor(() => expect(run.state()).toBe('down'));
   });
 
   it('is down on a 500, a refused port and a hang, and never throws', async () => {

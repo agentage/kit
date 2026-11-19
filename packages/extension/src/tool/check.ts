@@ -54,12 +54,15 @@ const RECIPE = /^(?:dockerfile|containerfile)(?:\..+)?$|^(?:docker-)?compose(?:\
 export const NOT_BUILT = 'is missing: build the package first (npm run build)';
 
 const NO_PACKAGE = 'is missing: run it in an extension package folder';
+const NOT_EXTENSION = 'has no agentage key: not an extension';
 
 const manifest: CheckRule = {
   name: 'manifest',
   run: async ({ dir }) => {
     const value = await readJsonIfExists(join(dir, 'package.json'));
     if (value === undefined) return [{ file: 'package.json', problem: NO_PACKAGE }];
+    if (!(value instanceof Object) || !('agentage' in value))
+      return [{ file: 'package.json', problem: NOT_EXTENSION }];
     const issues = PackageSchema.safeParse(value).error?.issues ?? [];
     const recipes = (await readdir(dir)).filter((file) => RECIPE.test(file)).sort();
     const recipe = 'is not allowed: the kit writes every image recipe';

@@ -19,6 +19,13 @@ describe('the first refusals a caller meets', () => {
     }
   });
 
+  it('a package with no agentage key is refused as not an extension, in one line', async () => {
+    const dir = await tempPackage({ 'package.json': json({ name: '@x/lib', version: '1.0.0' }) });
+    expect((await check(dir)).problems).toEqual([
+      { rule: 'manifest', file: 'package.json', problem: 'has no agentage key: not an extension' },
+    ]);
+  });
+
   it('a package never built is one entries line that says to build it first', async () => {
     const dir = await tempPackage({ 'package.json': json(SPEC_MANIFEST) });
     expect((await check(dir, entries)).problems).toEqual([

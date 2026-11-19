@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { afterAll, beforeAll, describe, expect, it } from 'vitest';
 // @ts-expect-error the build script is plain ESM with no types
-import { buildAll, readKitVersion, shellFileOf } from '../../scripts/build.mjs';
+import { buildAll, readShellVersion, shellFileOf } from '../../scripts/build.mjs';
 
 const shellFile = shellFileOf as (path: string) => string | null;
 let out = '';
@@ -37,15 +37,13 @@ describe('the dist layout the daemon serves', () => {
   });
 });
 
-// The nav foot label is the kit version that built the shell, never a constant.
+// The nav foot label is the version of this package (J.4.5 row 1), never a constant or the kit's.
 describe('the shell version label', () => {
-  it('index.html carries the kit package version, not the shell package version', async () => {
-    const kit = JSON.parse(
-      readFileSync(join(__dirname, '../../../extension/package.json'), 'utf8')
-    );
+  it('index.html carries the shell package version, not the kit version', async () => {
+    const own = JSON.parse(readFileSync(join(__dirname, '../../package.json'), 'utf8'));
     const html = readFileSync(join(out, 'index.html'), 'utf8');
-    expect(html).toContain(`<meta name="agentage-shell" content="${kit.version}"`);
-    expect(await (readKitVersion as () => Promise<string>)()).toBe(kit.version);
+    expect(html).toContain(`<meta name="agentage-shell" content="${own.version}"`);
+    expect(await (readShellVersion as () => Promise<string>)()).toBe(own.version);
   });
 });
 

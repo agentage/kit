@@ -97,15 +97,18 @@ jobs:
         run: |
           set -euo pipefail
           npm pack -w @agentage/apphost --pack-destination /tmp/pack
+          npm pack -w @agentage/shell-dashboard --pack-destination /tmp/pack
           tar -tzf /tmp/pack/agentage-apphost-*.tgz > /tmp/pack/apphost-files.txt
           grep -qx 'package/dist/index.js' /tmp/pack/apphost-files.txt
           grep -qx 'package/dist/daemon.js' /tmp/pack/apphost-files.txt
           if grep -Eq '\.test\.|test-support' /tmp/pack/apphost-files.txt; then echo 'test files in the apphost tarball'; exit 1; fi
-          # The two tarballs alone, outside the workspace, as the cli installs them: one kit, the daemon loads.
+          # The tarballs alone, outside the workspace, as the cli installs them: one kit, the daemon loads,
+          # the shell package resolves with its built page (J.4.5 row 1).
           alone=$(mktemp -d)
-          cp /tmp/pack/agentage-extension-*.tgz /tmp/pack/agentage-apphost-*.tgz "$alone"
+          cp /tmp/pack/agentage-extension-*.tgz /tmp/pack/agentage-apphost-*.tgz /tmp/pack/agentage-shell-dashboard-*.tgz "$alone"
           cd "$alone" && npm init -y >/dev/null
-          npm install --omit=dev --no-audit --no-fund ./agentage-extension-*.tgz ./agentage-apphost-*.tgz
+          npm install --omit=dev --no-audit --no-fund ./agentage-extension-*.tgz ./agentage-shell-dashboard-*.tgz ./agentage-apphost-*.tgz
+          test -f node_modules/@agentage/shell-dashboard/dist/index.html
           test "$(find node_modules -path '*/@agentage/extension/package.json' | wc -l)" = 1
           node --input-type=module -e "const a = await import('@agentage/apphost'); if (typeof a.createDaemon !== 'function') throw new Error('no createDaemon'); console.log('PASS apphost', a.DAEMON_PORT)"
 

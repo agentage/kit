@@ -6,12 +6,14 @@ import { closeWhileDraining } from './cloud-drain.js';
 import { type CloudEnv } from './cloud-env.js';
 import { HEAD, ownHostOnly, requestGuard } from './cloud-guards.js';
 import { cloudHealth } from './cloud-health.js';
+import { cloudPageRule } from './cloud-page.js';
 import { partRoutes } from './cloud-parts.js';
 import { recordRoutes } from './cloud-records.js';
 import { streamRoutes } from './cloud-streams.js';
 import { CLOUD_SIGN_OUT, type CloudSession } from './cloud-session.js';
 import { HOST_DOC, ROUTER_DOC } from './route-of.js';
 import { type ShellEvents } from './shell-events.js';
+import { type Shell, shellFiles } from './shell-routes.js';
 
 const NO_STORE = { 'Cache-Control': 'no-store' };
 
@@ -21,6 +23,8 @@ export interface CloudParts {
   discovery: CloudDiscovery;
   session: CloudSession;
   events: ShellEvents;
+  // Set only for a host with a `shell` key: / and /shell/* serve it.
+  shell?: Shell | undefined;
   log: Log;
   // The fetch of auth calls: the exchange, the sign-out, the metadata mirror.
   fetcher?: typeof fetch | undefined;
@@ -57,6 +61,7 @@ export const cloudApp = (parts: CloudParts): Express => {
   shellRoutes(app, parts);
   app.use(streamRoutes(parts.discovery));
   app.use(partRoutes(parts.discovery, parts.session));
+  if (parts.shell) shellFiles(app, parts.shell, cloudPageRule(parts.discovery));
   app.use(notFound);
   app.use(errorHandler(parts.log));
   return app;

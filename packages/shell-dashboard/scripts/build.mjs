@@ -11,9 +11,9 @@ import { withCsp } from './csp.mjs';
 
 const pkgDir = join(dirname(fileURLToPath(import.meta.url)), '..');
 const require = createRequire(join(pkgDir, 'package.json'));
-// The shell ships inside the kit: the label shows the kit version that built it, not this package's.
-export const readKitVersion = async () =>
-  JSON.parse(await readFile(join(pkgDir, '../extension/package.json'), 'utf8')).version;
+// J.4.5 row 1: the page names this package's version, the one installation.json names.
+export const readShellVersion = async () =>
+  JSON.parse(await readFile(join(pkgDir, 'package.json'), 'utf8')).version;
 
 // What the import map serves; apps and the shell keep these external (K4).
 export const EXTERNALS = [
@@ -121,7 +121,7 @@ export const buildShell = async ({
   });
   const { SPLIT_PREPAINT } = await import('@agentage/app');
   const page = (await readFile(join(pkgDir, 'src/index.html'), 'utf8'))
-    .replace('%VERSION%', await readKitVersion())
+    .replace('%VERSION%', await readShellVersion())
     .replace('%SPLIT_PREPAINT%', SPLIT_PREPAINT)
     .replace('%ENTRY%', name);
   await writeFile(join(out, html), withCsp(page));

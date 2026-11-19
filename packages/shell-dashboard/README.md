@@ -4,19 +4,20 @@ The dashboard shell: one static folder that a host serves at `/`. It is the fram
 prototype (variant B; a copy is `e2e/prototype/index.html`) in React 19, styled by Tailwind v4 with the
 `@agentage/design-system` token files (no `base.css`) and the prototype CSS as a `components` layer.
 
-It is published on npm (`files`: `dist`), so an app host can serve the version that its
-`installation.json` names (J.4.5). Until the app host program does that, the root build also copies
-`dist/` into the kit at `dist/shell` (`scripts/inline-shell.mjs`), and the daemon serves the kit's copy.
+It is published on npm (`files`: `dist`). The app host program (`@agentage/apphost`) depends on it
+and serves this package on both kinds: the daemon, and a cloud host whose `installation.json` names it.
+The page names this package's version. The root build still copies `dist/` into the kit at `dist/shell`
+(`scripts/inline-shell.mjs`) until no host reads that copy.
 
 ## Bundle output
 
 `npm run build` writes `dist/`:
 
-| Path                              | Served at              | What                                                                                      |
-| --------------------------------- | ---------------------- | ----------------------------------------------------------------------------------------- |
-| `dist/index.html`                 | `/` and every app page | pre-paint scripts, the import map, `<meta name="agentage-shell" content="<kit version>">` |
-| `dist/shell.js`, `dist/shell.css` | `/shell/*`             | the frame                                                                                 |
-| `dist/vendor/*.js`                | `/shell/vendor/*`      | one React, react-dom and `@agentage/extension/app` for the shell and every app            |
+| Path                              | Served at              | What                                                                                        |
+| --------------------------------- | ---------------------- | ------------------------------------------------------------------------------------------- |
+| `dist/index.html`                 | `/` and every app page | pre-paint scripts, the import map, `<meta name="agentage-shell" content="<shell version>">` |
+| `dist/shell.js`, `dist/shell.css` | `/shell/*`             | the frame                                                                                   |
+| `dist/vendor/*.js`                | `/shell/vendor/*`      | one React, react-dom and `@agentage/extension/app` for the shell and every app              |
 
 The host serves `dist/*` at `/shell/*` (one mapping, `shellFileOf` in `scripts/build.mjs`). A host finds the folder with `import.meta.resolve('@agentage/shell-dashboard/dist/index.html')`.
 

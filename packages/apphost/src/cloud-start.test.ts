@@ -123,12 +123,10 @@ describe('start checks of the cloud entry', () => {
     );
     expect(cloudEnvOf({ ...env, AGENTAGE_ISSUER: 'http://auth.b.io' }).issuer).toBeNull();
     const local = { ...env, [LOCAL_FLAG]: '1' };
-    for (const near of [
-      'http://127.0.0.1:4291',
-      'http://issuer.localhost:3000',
-      'http://localhost:3000',
-    ])
-      expect(cloudEnvOf({ ...local, AGENTAGE_ISSUER: near }).issuer).toBe(near);
+    // One-label names: the compose services of the local stack (the dev issuer is `issuer`).
+    const near = ['http://issuer:3000', 'http://127.0.0.1:4291', 'http://issuer.localhost:3000'];
+    for (const one of [...near, 'http://localhost:3000'])
+      expect(cloudEnvOf({ ...local, AGENTAGE_ISSUER: one }).issuer).toBe(one);
     for (const far of ['http://auth.b.io', 'http://10.0.0.1:3000'])
       expect(cloudEnvOf({ ...local, AGENTAGE_ISSUER: far }).issuer).toBeNull();
     expect(cloudEnvOf({ ...env, AGENTAGE_ISSUER: 'https://auth.b.io/x' }).issuer).toBeNull();

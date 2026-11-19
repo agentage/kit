@@ -161,8 +161,8 @@ then publishes the real version (done this way for `@agentage/apphost` and
 
 1. Publish a placeholder by hand under its own dist-tag, so `latest` is not the real version yet:
    a two-file package (`package.json` and `README.md`) at version `0.0.0-bootstrap.0`,
-   `npm publish --access public --tag bootstrap`. npm accepts a trusted publisher only on a name
-   that exists. Do not use `0.0.0-stage`: npm reserves it (403 "You cannot publish using the
+   `npm publish --access public --tag bootstrap`. The trusted publisher was added on the name with this placeholder;
+   a name with no version was not tried. Do not use `0.0.0-stage`: npm reserves it (403 "You cannot publish using the
    version").
 2. Add the trusted publisher with publish allowed:
    `npx npm@12 trust github <name> --repo agentage/platform --file release.yml --allow-publish --yes`.

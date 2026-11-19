@@ -4,11 +4,14 @@ import {
   type IncomingHttpHeaders,
   type IncomingMessage,
 } from 'node:http';
+import { request as requestTls } from 'node:https';
+import { isIP } from 'node:net';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { type NextFunction, type Request, type RequestHandler, type Response } from 'express';
 import { fail } from '@agentage/extension/internal';
 import { carriesHostToken } from './host-token.js';
-import { enter, type Lane } from './lane.js';
+import { addressFor, enter } from './lane.js';
+import { portOf } from './runner.js';
 import { type Entries } from './entries.js';
 import { type Limits } from './limits.js';
 import { stopsNow, type Stopping } from './stopping.js';
@@ -72,11 +75,23 @@ const forChild = (req: Request, hostToken?: string): IncomingHttpHeaders => {
   return headers;
 };
 
-const requestTo = (req: Request, lane: Lane, hostToken?: string) => {
+// The transport and target of an address: node:https for an https upstream, else node:http.
+export const targetOf = (address: string) => {
+  const url = new URL(address);
+  const tls = url.protocol === 'https:';
+  const port = portOf(address);
+  // An IPv6 hostname comes in brackets; the request option takes it bare.
+  const host = url.hostname.replace(/^\[(.*)\]$/, '$1');
+  // TLS names the upstream, never the client's Host header; an IP address sends no SNI.
+  return { send: tls ? requestTls : request, host, port, servername: isIP(host) ? '' : host };
+};
+
+const requestTo = (req: Request, address: string, hostToken?: string) => {
   const { method, originalUrl: path } = req;
+  const { send, host, port, servername } = targetOf(address);
   const headers = forChild(req, hostToken);
-  const options = { host: '127.0.0.1', port: lane.child.port, method, path, headers, agent: false };
-  return request(options);
+  const options = { host, port, servername, method, path, headers, agent: false };
+  return send(options);
 };
 
 // The child's answer as it streams; an error before its headers is the envelope (504 when late).
@@ -113,7 +128,7 @@ const forward = (
   { to, ms, hostToken }: Forward
 ) => {
   const { lane, leave } = to;
-  const upstream = requestTo(req, lane, hostToken);
+  const upstream = requestTo(req, addressFor(lane, res.locals), hostToken);
   const stop = relay(upstream, res, next, ms);
   upstream.on('error', leave);
   // A client that went away aborts the request to the child too.

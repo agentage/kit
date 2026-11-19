@@ -22,11 +22,11 @@ const MAX_BYTES = 256 * 1024;
 // By id: the last valid document a child gave, so a stopped child keeps its nav row.
 export type LastGood = Map<string, unknown>;
 
-// The document of a running child on its loopback port, or undefined (no answer, too big, not JSON).
-export const readChildDocument = async (port: number): Promise<unknown> => {
+// The document of a running extension at its address, or undefined (no answer, too big, not JSON).
+export const readChildDocument = async (address: string): Promise<unknown> => {
   try {
     const signal = AbortSignal.timeout(DOC_READ_MS);
-    const res = await fetch(`http://127.0.0.1:${port}${DOC_PATH}`, { signal });
+    const res = await fetch(`${address}${DOC_PATH}`, { signal });
     const text = await res.text();
     return res.ok && text.length <= MAX_BYTES ? JSON.parse(text) : undefined;
   } catch {
@@ -35,8 +35,8 @@ export const readChildDocument = async (port: number): Promise<unknown> => {
 };
 
 const answerOf = async (entry: Entry, lastGood: LastGood): Promise<Answer | undefined> => {
-  const port = entry.lane?.child.port;
-  const read = port === undefined ? undefined : await readChildDocument(port);
+  const address = entry.lane?.child.address();
+  const read = address === undefined ? undefined : await readChildDocument(address);
   if (read !== undefined && DiscoveryDocumentSchema.safeParse(read).success)
     lastGood.set(entry.id, read);
   // A slow or failed read of a running child keeps its last good document (a bad one is refused).

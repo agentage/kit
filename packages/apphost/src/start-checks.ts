@@ -13,9 +13,9 @@ export const needsSecret = (err: unknown): boolean =>
   (err as { code?: unknown } | undefined)?.code === NEEDS_SECRET;
 
 // Healthy before it gets the route: the child's own /health answers 200.
-export const healthy = async (port: number, ms: number): Promise<void> => {
+export const healthy = async (address: string, ms: number): Promise<void> => {
   const signal = AbortSignal.timeout(ms);
-  const res = await fetch(`http://127.0.0.1:${port}/health`, { signal }).catch((err: Error) => {
+  const res = await fetch(`${address}/health`, { signal }).catch((err: Error) => {
     if (err.name === 'TimeoutError') throw new Error(`health did not answer in ${ms} ms`);
     const cause = (err.cause as { code?: string } | undefined)?.code ?? err.message;
     throw new Error(`health could not be reached (${cause})`);

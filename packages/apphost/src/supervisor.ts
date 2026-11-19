@@ -1,5 +1,5 @@
 import { fail, type Log, readManifest } from '@agentage/extension/internal';
-import { type Exit, type Launch } from './child.js';
+import { type Exit } from './child.js';
 import { type CliUser } from './cli-user-watch.js';
 import { dataDirOf, readValues } from './daemon-files.js';
 import { type InstallEntry } from './installation.js';
@@ -9,7 +9,7 @@ import { type Limits } from './limits.js';
 import { runInstaller } from './installer-call.js';
 import { type PendingChanges } from './pending.js';
 import { type Queue } from './queue.js';
-import { childRunner } from './runner.js';
+import { type Runner } from './runner.js';
 import { crashed, healthyFor, reasonOf, resetRestarts, type Retry } from './restart.js';
 import { assertSecrets, healthy, redact } from './start-checks.js';
 import { type Stopping } from './stopping.js';
@@ -59,7 +59,8 @@ export interface Next {
 
 export interface SupervisorDeps extends Limits {
   configDir: string;
-  launch: Launch;
+  // How an extension runs: the daemon gives the child runner.
+  runner: Runner;
   // The daemon's own origin: ctx.extension.origin of each child.
   origin: () => string;
   install?: Installer;
@@ -92,12 +93,12 @@ const launchFor = async (deps: SupervisorDeps, entry: Entry, to: Next, fresh: bo
   const pkg = await readManifest(dir);
   assertSecrets(pkg, to.values.secrets);
   const spec = { id: entry.id, dir, dataDir: dataDirOf(deps.configDir, entry.id), ...to.values };
-  const child = await childRunner(deps.launch)
+  const child = await deps.runner
     .start({ ...spec, origin: deps.origin(), storeOpenMs: deps.healthMs, userSub: deps.user.sub })
     .catch((err: Error) =>
       Promise.reject(Object.assign(err, { message: redact(err.message, to.values.secrets) }))
     );
-  await healthy(child.port, deps.healthMs).catch(async (err: unknown) => {
+  await healthy(child.address(), deps.healthMs).catch(async (err: unknown) => {
     await child.stop();
     throw err;
   });

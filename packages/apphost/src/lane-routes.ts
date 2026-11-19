@@ -2,7 +2,7 @@ import { type RequestHandler } from 'express';
 import { combineHost, fail } from '@agentage/extension/internal';
 import { type Entries } from './entries.js';
 import { readChildDocument } from './host-document.js';
-import { type Lane } from './lane.js';
+import { SERVED_BY, type Lane, type Served } from './lane.js';
 import { type Entry } from './supervisor.js';
 
 export type LanePart = 'api' | 'mcp';
@@ -13,16 +13,22 @@ const LOCAL_EXPOSE = { api: 'internal', mcp: 'internal' } as const;
 // How long a failed read answers 503 at once, so a broken child does not cost each request a read.
 export const FAILED_READ_MS = 5_000;
 
-// A document the combine refuses gives no routes; no document (or a row it throws on) is none.
-const readRoutes = async (entry: Entry, lane: Lane): Promise<Set<string> | undefined> => {
-  const document = await readChildDocument(lane.child.port);
-  if (document === undefined) return undefined;
+// Each address of the lane is one answer (an id with api and pages has two), as the stub router.
+const answersOf = async (entry: Entry, lane: Lane) => {
+  const addresses = lane.child.addresses();
+  const docs = await Promise.all(addresses.map(readChildDocument));
+  return addresses.map((upstream, i) => ({ upstream, document: docs[i], expectedId: entry.id }));
+};
+
+// Part to address; a document the combine refuses gives no routes; no document (or a throw) is none.
+const readRoutes = async (entry: Entry, lane: Lane): Promise<Served | undefined> => {
+  const answers = await answersOf(entry, lane);
+  if (answers.every((a) => a.document === undefined)) return undefined;
   const row = { id: entry.id, version: entry.version, expose: LOCAL_EXPOSE };
   const installation = { host: 'local', extensions: [row] };
-  const answers = [{ upstream: entry.id, document, expectedId: entry.id }];
   try {
     const { routes } = combineHost({ kind: 'local', installation, answers });
-    return new Set(routes.map((r) => r.part));
+    return new Map(routes.map((r) => [r.part, r.upstream]));
   } catch {
     return undefined;
   }
@@ -34,7 +40,7 @@ export const laneRoutes = (
   entry: Entry,
   lane: Lane,
   now = Date.now
-): Promise<Set<string> | undefined> => {
+): Promise<Served | undefined> => {
   if (lane.failedUntil !== undefined && now() < lane.failedUntil) return Promise.resolve(undefined);
   const failed = () => {
     lane.routes = undefined;
@@ -50,7 +56,7 @@ export const laneRoutes = (
 // No entry or no child: the proxy answers as before (404 unknown or disabled, 503 not running).
 export const servesPart =
   (entries: Entries, part: LanePart): RequestHandler =>
-  async (req, _res, next) => {
+  async (req, res, next) => {
     const entry = entries.get(String(req.params['id']));
     const lane = entry?.lane;
     if (!entry || !lane) return next();
@@ -59,6 +65,8 @@ export const servesPart =
       throw fail('UNAVAILABLE', `${entry.id} did not answer its discovery: try again`, {
         retryAfter: 5,
       });
-    if (!served.has(part)) throw fail('NOT_FOUND', `${entry.id} does not serve ${part}`);
+    const address = served.get(part);
+    if (!address) throw fail('NOT_FOUND', `${entry.id} does not serve ${part}`);
+    res.locals[SERVED_BY] = { lane, address };
     next();
   };

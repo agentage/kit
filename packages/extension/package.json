@@ -1,6 +1,6 @@
 {
   "name": "@agentage/extension",
-  "version": "0.19.1",
+  "version": "0.20.0",
   "description": "The agentage extension kit: create(ctx) per part (pages, ui, api, mcp, worker, cli), the store, /health, discovery, the envelope, and the build tool with up and token",
   "type": "module",
   "license": "MIT",
@@ -35,6 +35,10 @@
     "./host": {
       "types": "./dist/host/index.d.ts",
       "default": "./dist/host/index.js"
+    },
+    "./core": {
+      "types": "./dist/core-client/index.d.ts",
+      "default": "./dist/core-client/index.js"
     },
     "./logs": {
       "types": "./dist/logs/index.d.ts",

@@ -175,90 +175,27 @@ describe('the ingest path', () => {
   const post = (url: string, impl: typeof fetch) =>
     createEventsClient({ url, token: 't', fetch: impl, retryDelayMs: 0 }).post([row('a')]);
 
-  it('posts to /api/logs/events first', async () => {
+  it('posts to /api/logs/events', async () => {
     const { seen, impl } = paths(() => 200);
     await post('https://one-image.test', impl);
     expect(seen).toEqual(['/api/logs/events']);
   });
 
-  it('falls back to /api/v1/events on a 404, then remembers it per url', async () => {
-    const { seen, impl } = paths((path) => (path === '/api/v1/events' ? 200 : 404));
-    expect((await post('https://v13.test', impl)).accepted).toBe(1);
-    await post('https://v13.test', impl);
-    expect(seen).toEqual(['/api/logs/events', '/api/v1/events', '/api/v1/events']);
-    await post('https://other-v13.test', impl);
-    expect(seen.slice(3)).toEqual(['/api/logs/events', '/api/v1/events']);
+  it('a 404 is the error, with no other path tried', async () => {
+    const { seen, impl } = paths(() => 404);
+    await expect(post('https://none.test', impl)).rejects.toThrow(
+      /\/api\/logs\/events answered 404/
+    );
+    expect(seen).toEqual(['/api/logs/events']);
   });
 
-  it('a 404 on both paths is the error, naming the legacy path', async () => {
-    const { impl } = paths(() => 404);
-    await expect(post('https://none.test', impl)).rejects.toThrow(/\/api\/v1\/events answered 404/);
-  });
-
-  it('a 2xx with an unknown body throws and pins nothing', async () => {
+  it('a 2xx with an unknown body throws and is not retried', async () => {
     let calls = 0;
     const impl = (async () => (
       calls++,
       new Response('{"ok":true}', { status: 200 })
     )) as typeof fetch;
     await expect(post('https://odd.test', impl)).rejects.toThrow(/not the ingest result/);
-    await expect(post('https://odd.test', impl)).rejects.toThrow(/not the ingest result/);
-    expect(calls).toBe(2);
-  });
-
-  it('pins nothing when both paths 404: the next call tries the one-image path again', async () => {
-    const { seen, impl } = paths(() => 404);
-    await expect(post('https://gone.test', impl)).rejects.toThrow(/404/);
-    await expect(post('https://gone.test', impl)).rejects.toThrow(/404/);
-    expect(seen).toEqual(Array(2).fill(['/api/logs/events', '/api/v1/events']).flat());
-  });
-
-  it('never pins on a 401, 403, 429 or 5xx', async () => {
-    for (const status of [401, 403, 429, 503]) {
-      const { seen, impl } = paths((path) => (path === '/api/logs/events' ? 404 : status));
-      const url = `https://auth-${status}.test`;
-      await expect(post(url, impl)).rejects.toThrow(String(status));
-      await expect(post(url, impl)).rejects.toThrow(String(status));
-      expect(seen.filter((p) => p === '/api/logs/events').length).toBe(
-        status === 429 || status === 503 ? 4 : 2
-      );
-    }
-  });
-
-  it('a 404 on a pinned path tries the other path once and pins it: the move and the move back, each 2xx once', async () => {
-    let [live, taken] = ['/api/v1/events', 0];
-    const { seen, impl } = paths((path) => (path === live ? (taken++, 200) : 404));
-    expect((await post('https://moves.test', impl)).accepted).toBe(1);
-    live = '/api/logs/events';
-    expect((await post('https://moves.test', impl)).accepted).toBe(1);
-    expect((await post('https://moves.test', impl)).accepted).toBe(1);
-    live = '/api/v1/events';
-    expect((await post('https://moves.test', impl)).accepted).toBe(1);
-    expect(seen).toEqual([
-      ...['/api/logs/events', '/api/v1/events'],
-      ...['/api/v1/events', '/api/logs/events', '/api/logs/events'],
-      ...['/api/logs/events', '/api/v1/events'],
-    ]);
-    expect(taken).toBe(4);
-  });
-
-  it('a pinned path and the other path both 404: the error, and no pin is kept', async () => {
-    let live = '/api/v1/events';
-    const { seen, impl } = paths((path) => (path === live ? 200 : 404));
-    await post('https://dies.test', impl);
-    live = '';
-    await expect(post('https://dies.test', impl)).rejects.toThrow(/\/api\/v1\/events answered 404/);
-    await expect(post('https://dies.test', impl)).rejects.toThrow(/404/);
-    expect(seen.slice(2)).toEqual([
-      ...['/api/v1/events', '/api/logs/events'],
-      ...['/api/logs/events', '/api/v1/events'],
-    ]);
-  });
-
-  it('pins a route-owned 4xx: a 422 from the legacy path is remembered', async () => {
-    const { seen, impl } = paths((path) => (path === '/api/logs/events' ? 404 : 422));
-    await expect(post('https://own.test', impl)).rejects.toThrow(/422/);
-    await expect(post('https://own.test', impl)).rejects.toThrow(/422/);
-    expect(seen).toEqual(['/api/logs/events', '/api/v1/events', '/api/v1/events']);
+    expect(calls).toBe(1);
   });
 });

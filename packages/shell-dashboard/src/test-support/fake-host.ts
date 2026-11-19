@@ -46,6 +46,7 @@ export const fakeHost = (
       return json({}, 404);
     },
     events: makeSource,
+    wait: async () => undefined,
     importModule: async (url) => {
       if (!modules.has(url)) throw new Error(`no module ${url}`);
       return { default: modules.get(url) };

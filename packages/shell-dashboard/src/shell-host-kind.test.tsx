@@ -14,15 +14,15 @@ const flush = () => act(async () => new Promise((done) => setTimeout(done, 0)));
 const main = () => document.querySelector('[data-region="main"]')!;
 
 // The probe app on /probe, with the session the host answers (null: /shell/session fails).
-const start = async (session: Session | null) => {
+const start = async (session: Session | null, failFirst = 0) => {
   const host = fakeHost(structuredClone(DOC), session ?? undefined);
   host.modules.set('/app/probe/app-1.js', Probe);
   const fetchImpl = host.deps.fetch;
-  const down = { session: session === null };
+  const down = { session: session === null, times: failFirst };
   const deps = {
     ...host.deps,
     fetch: (async (input, init) =>
-      down.session && String(input) === '/shell/session'
+      String(input) === '/shell/session' && (down.session || down.times-- > 0)
         ? new Response('down', { status: 503 })
         : fetchImpl(input, init)) as typeof fetch,
   };
@@ -57,6 +57,12 @@ describe('the app adapter follows the session host kind', () => {
     expect(main().querySelector('[role="alert"]')?.textContent).toContain(
       'the host session could not be read'
     );
+  });
+
+  it('two failed first reads then a good one: the app mounts, no card', async () => {
+    await start({ user: null, host: { kind: 'cloud' } }, 2);
+    expect(main().querySelector('[data-app="probe"]')).not.toBeNull();
+    expect(main().querySelector('[role="alert"]')).toBeNull();
   });
 
   it('a failed re-read keeps the last good session: the app stays mounted', async () => {

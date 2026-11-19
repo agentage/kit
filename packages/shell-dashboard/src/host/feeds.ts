@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { openFeed } from './feed-source.js';
 import type { AppEvent, Discovery, Session, ShellDeps } from './host.types.js';
+import { readSession } from './session-read.js';
 
 const DISCOVERY_URL = '/.well-known/agentage-host.json';
 const SESSION_URL = '/shell/session';
@@ -50,10 +51,10 @@ export const useHostFeeds = (deps: ShellDeps) => {
       }),
     [deps]
   );
-  // A failed read (auth down is 503) keeps the last good session: never signed out, never local.
+  // Three failed reads (auth down is 503) keep the last good session: never signed out, never local.
   const loadSession = useCallback(
     () =>
-      void getJson<Session>(deps, SESSION_URL).then((s) =>
+      void readSession(() => getJson<Session>(deps, SESSION_URL), deps.wait).then((s) =>
         setSession((last) => s ?? last ?? { user: null, host: null })
       ),
     [deps]

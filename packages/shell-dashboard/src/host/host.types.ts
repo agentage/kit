@@ -57,4 +57,6 @@ export interface ShellDeps {
   fetch: typeof fetch;
   events: (url: string) => EventSourceLike;
   importModule: (url: string) => Promise<{ default?: unknown }>;
+  // The pause between session reads; tests pass one that does not wait.
+  wait?: (ms: number) => Promise<void>;
 }

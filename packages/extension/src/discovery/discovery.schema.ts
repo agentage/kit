@@ -44,12 +44,12 @@ const PartsRecordSchema = z.strictObject({
   store: StoreRecordSchema.optional(),
 });
 
-// A part the kit host runs has no image: the host never knows its own digest.
+// A part with no image: the kit host, or a part image with no record, never knows its digest.
 const HostedPartSchema = z.strictObject({});
 
 const ServedPartsSchema = z.strictObject({
-  pages: PartImageSchema.optional(),
-  ui: PartImageSchema.optional(),
+  pages: z.union([PartImageSchema, HostedPartSchema]).optional(),
+  ui: z.union([PartImageSchema, HostedPartSchema]).optional(),
   api: z.union([PartImageSchema, HostedPartSchema]).optional(),
   mcp: z.union([PartImageSchema, HostedPartSchema]).optional(),
   worker: z.union([PartImageSchema, HostedPartSchema]).optional(),

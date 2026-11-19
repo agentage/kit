@@ -31,13 +31,15 @@ describe('the kit host record', () => {
     expect(ExtensionRecordSchema.safeParse(record).success).toBe(false);
   });
 
-  it('refuses a store alone, a bare part beside an image, and a bare part with the one image', () => {
+  it('refuses a store alone, a bare part beside an image or the one image, an image by tag', () => {
     const doc = discoveryDocument(hostedRecordOf(PKG, BUILD, ['api'], {}), HOST, API);
     expect(valid({ ...doc, parts: { store: { kind: 'postgres' } } })).toBe(false);
     const image = `ghcr.io/agentage/probe-mcp@${DIGEST}`;
     expect(valid({ ...doc, parts: { api: {}, mcp: { image } } })).toBe(false);
     expect(valid({ ...doc, image: `ghcr.io/agentage/probe@${DIGEST}` })).toBe(false);
-    expect(valid({ ...doc, parts: { pages: {}, api: {} } })).toBe(false);
+    expect(
+      valid({ ...doc, parts: { pages: { image: 'ghcr.io/agentage/probe-pages:0.1.0' } } })
+    ).toBe(false);
   });
 
   it('the cloud form refuses a part with no image; it takes a part by its image', () => {

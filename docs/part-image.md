@@ -24,7 +24,8 @@ when it runs the image. The audience (`AGENTAGE_AUDIENCE`) is the host a token i
 The discovery document says what this container serves. `serves` lists its part kinds; a host
 lists every part it runs, and `app` when it serves the app bundle. `app` is then the nav row:
 `{ title, icon?, order?, entry, css }`. The schema is strict, so a reader on an older kit refuses
-the new keys.
+the new keys. With no record mounted, a part lists its image only by digest; with an image by tag
+it lists `{}`, as a host does.
 
 An app host combines these documents and its installation into
 `/.well-known/agentage-host.json`: `host`, `kind`, `shell` and one entry for each installed id.

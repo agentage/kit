@@ -18,10 +18,11 @@ const start = async (session: Session | null) => {
   const host = fakeHost(structuredClone(DOC), session ?? undefined);
   host.modules.set('/app/probe/app-1.js', Probe);
   const fetchImpl = host.deps.fetch;
+  const down = { session: session === null };
   const deps = {
     ...host.deps,
     fetch: (async (input, init) =>
-      session === null && String(input) === '/shell/session'
+      down.session && String(input) === '/shell/session'
         ? new Response('down', { status: 503 })
         : fetchImpl(input, init)) as typeof fetch,
   };
@@ -32,6 +33,7 @@ const start = async (session: Session | null) => {
   await act(async () => root?.render(<ShellApp deps={deps} version="0.1.0" />));
   await flush();
   await flush();
+  return { host, down };
 };
 
 beforeEach(() => {
@@ -55,6 +57,16 @@ describe('the app adapter follows the session host kind', () => {
     expect(main().querySelector('[role="alert"]')?.textContent).toContain(
       'the host session could not be read'
     );
+  });
+
+  it('a failed re-read keeps the last good session: the app stays mounted', async () => {
+    const { host, down } = await start({ user: { id: 'u1' }, host: { kind: 'cloud' } });
+    const app = main().querySelector('[data-app="probe"]');
+    down.session = true;
+    await act(async () => host.emit('session'));
+    await flush();
+    expect(main().querySelector('[data-app="probe"]')).toBe(app);
+    expect(main().querySelector('[role="alert"]')).toBeNull();
   });
 
   it('an unknown kind is a card that names it', async () => {

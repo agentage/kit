@@ -24,13 +24,14 @@ const runAt = (address: string, port = 1): Run => ({
 
 describe('targetOf: the transport of an address', () => {
   it.each([
-    ['http://127.0.0.1:4100', request, '127.0.0.1', 4100],
-    ['http://svc:80', request, 'svc', 80],
-    ['https://svc.example', requestTls, 'svc.example', 443],
-    ['https://svc.example:8443', requestTls, 'svc.example', 8443],
-    ['http://[::1]:4100', request, '::1', 4100],
-  ])('%s', (address, send, host, port) => {
-    expect(targetOf(address)).toEqual({ send, host, port });
+    ['http://127.0.0.1:4100', request, '127.0.0.1', 4100, ''],
+    ['http://svc:80', request, 'svc', 80, 'svc'],
+    ['https://svc.example', requestTls, 'svc.example', 443, 'svc.example'],
+    ['https://svc.example:8443', requestTls, 'svc.example', 8443, 'svc.example'],
+    ['https://10.0.0.5', requestTls, '10.0.0.5', 443, ''],
+    ['http://[::1]:4100', request, '::1', 4100, ''],
+  ])('%s', (address, send, host, port, servername) => {
+    expect(targetOf(address)).toEqual({ send, host, port, servername });
   });
 });
 

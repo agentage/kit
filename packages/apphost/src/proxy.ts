@@ -1,11 +1,11 @@
 import {
   request,
   type ClientRequest,
-  type RequestOptions,
   type IncomingHttpHeaders,
   type IncomingMessage,
 } from 'node:http';
 import { request as requestTls } from 'node:https';
+import { isIP } from 'node:net';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { type NextFunction, type Request, type RequestHandler, type Response } from 'express';
 import { fail } from '@agentage/extension/internal';
@@ -82,14 +82,15 @@ export const targetOf = (address: string) => {
   const port = portOf(address);
   // An IPv6 hostname comes in brackets; the request option takes it bare.
   const host = url.hostname.replace(/^\[(.*)\]$/, '$1');
-  return { send: tls ? requestTls : request, host, port };
+  // TLS names the upstream, never the client's Host header; an IP address sends no SNI.
+  return { send: tls ? requestTls : request, host, port, servername: isIP(host) ? '' : host };
 };
 
 const requestTo = (req: Request, address: string, hostToken?: string) => {
   const { method, originalUrl: path } = req;
-  const { send, host, port } = targetOf(address);
+  const { send, host, port, servername } = targetOf(address);
   const headers = forChild(req, hostToken);
-  const options: RequestOptions = { host, port, method, path, headers, agent: false };
+  const options = { host, port, servername, method, path, headers, agent: false };
   return send(options);
 };
 

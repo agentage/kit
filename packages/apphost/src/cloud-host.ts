@@ -6,7 +6,9 @@ import { type Drain, drainOf } from './cloud-drain.js';
 import { createCloudDiscovery, type DiscoveryOptions } from './cloud-discovery.js';
 import { cloudEnvOf } from './cloud-env.js';
 import { readCloudFiles } from './cloud-files.js';
+import { cloudShell } from './cloud-page.js';
 import { createCloudSession } from './cloud-session.js';
+import { shellPackageDir } from './shell-package.js';
 import { entriesOf, startRuns } from './cloud-run.js';
 import { shellEvents } from './shell-events.js';
 
@@ -42,6 +44,8 @@ export interface CloudHostOptions {
   fetcher?: typeof fetch;
   discovery?: Pick<DiscoveryOptions, 'readMs' | 'everyMs'>;
   drainMs?: number;
+  // The shell package folder (a test names one); unset, @agentage/shell-dashboard.
+  shellDir?: string;
 }
 
 // Env and files checked, the first combine done: a throw here refuses the start.
@@ -50,6 +54,7 @@ const partsOf = async (environment: NodeJS.ProcessEnv, o: CloudHostOptions) => {
   const log = o.log ?? cloudLog(env.build.version);
   if (env.issuer === null) log.warn(signInOff(environment['AGENTAGE_ISSUER']));
   const files = await readCloudFiles(env.installationFile, env.upstreamsFile, env.own);
+  const shell = await cloudShell(files.installation, o.shellDir ?? shellPackageDir());
   const entries = entriesOf(files);
   const events = shellEvents();
   const onChange = () => events.send('extensions', { op: 'update' });
@@ -74,7 +79,18 @@ const partsOf = async (environment: NodeJS.ProcessEnv, o: CloudHostOptions) => {
   // The host id of /shell/session is the installation's (decision 2026-11-19: today's behaviour).
   const session = createCloudSession({ issuer, own, local, host: installation.host, ...fetcher });
   const host = installation.host;
-  return { env, log, events, discovery, session, entries, runOptions, host, fetcher: o.fetcher };
+  return {
+    env,
+    log,
+    events,
+    discovery,
+    session,
+    entries,
+    runOptions,
+    host,
+    shell,
+    fetcher: o.fetcher,
+  };
 };
 
 const stopperOf = (server: Server, stopRuns: () => Promise<void>, stopDiscovery: () => void) => {

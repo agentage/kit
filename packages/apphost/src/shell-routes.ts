@@ -9,31 +9,31 @@ import { type ShellEvents } from './shell-events.js';
 import { cliUserSource, sessionOf } from './session.js';
 import { LOCAL_SIGN_IN, signInPage } from './sign-in-page.js';
 
-// A shell package (the kit's own or shellDir): dist/ is served; name and version go in discovery.
+// A shell package (@agentage/shell-dashboard or shellDir): dist/ is served; name and version go in discovery.
 export interface Shell {
   dir: string;
   package: string;
   version: string;
 }
 
-// `version` overrides the package's: the kit's own shell reports the kit that built it.
-export const readShell = async (dir: string, version?: string): Promise<Shell> => {
+export const readShell = async (dir: string): Promise<Shell> => {
   const pkg = JSON.parse(await readFile(join(dir, 'package.json'), 'utf8')) as Partial<Shell>;
   if (typeof pkg.version !== 'string' || typeof (pkg as { name?: unknown }).name !== 'string')
     throw new Error(`${dir}/package.json has no name or version: not a shell package`);
-  return { dir, package: (pkg as { name: string }).name, version: version ?? pkg.version };
+  return { dir, package: (pkg as { name: string }).name, version: pkg.version };
 };
 
 // First path segments that are daemon routes: an unknown path under them stays a JSON 404.
 const OWN = new Set(['api', 'mcp', 'host', 'shell', 'app', 'health', '.well-known']);
 
+// isApp: the id has an app the page can show (else the page answers 404).
 const page =
-  (shell: Shell, entries: Entries): RequestHandler =>
+  (shell: Shell, isApp: (id: string) => boolean | Promise<boolean>): RequestHandler =>
   async (req, res, next) => {
     const id = req.path.split('/')[1] ?? '';
     const read = req.method === 'GET' || req.method === 'HEAD';
     if (!read || OWN.has(id) || req.accepts(['html', 'json']) !== 'html') return next();
-    const known = id === '' || (await hasApp(entries, id));
+    const known = id === '' || (await isApp(id));
     res.status(known ? 200 : 404).set('Cache-Control', 'no-cache');
     // The daemon names this path: a dot folder above it (~/.agentage) is allowed.
     res.sendFile(
@@ -55,10 +55,18 @@ export const shellRoutes = (app: Express, { shell, entries, events, user }: Shel
   });
   app.get(LOCAL_SIGN_IN, signInPage);
   app.get('/shell/events', events.stream);
-  if (!shell) return;
+  if (shell) shellFiles(app, shell, (id) => hasApp(entries, id));
+};
+
+// /shell/* (the files of dist/) and the page at / and /{id}: the same on the daemon and a cloud host.
+export const shellFiles = (
+  app: Express,
+  shell: Shell,
+  isApp: (id: string) => boolean | Promise<boolean>
+): void => {
   const files = express.static(join(shell.dir, 'dist'), { index: false, dotfiles: 'deny' });
   app.use('/shell', files, notAFile);
-  app.use(page(shell, entries));
+  app.use(page(shell, isApp));
 };
 
 export interface ShellDeps {

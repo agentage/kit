@@ -37,6 +37,7 @@ export const callAt = (
 export interface Rows {
   extensions: { id: string; expose?: Record<string, string>; enabled?: boolean }[];
   upstreams: { id: string; address: string }[];
+  shell?: { package: string; version: string };
 }
 
 // The two mounted files in a temp folder, and the env of a cloud host on port 0.
@@ -45,7 +46,8 @@ export const cloudEnv = async (rows: Rows, extra: Record<string, string> = {}) =
   const extensions = rows.extensions.map((e) => ({ version: '1.0.0', ...e }));
   const installationFile = join(dir, 'installation.json');
   const upstreamsFile = join(dir, 'upstreams.json');
-  await writeFile(installationFile, json({ host: 'site', extensions }));
+  const shell = rows.shell && { shell: rows.shell };
+  await writeFile(installationFile, json({ host: 'site', ...shell, extensions }));
   const listed = rows.upstreams.map((u) => ({ ...u, service: u.id }));
   await writeFile(upstreamsFile, json(listed));
   return {

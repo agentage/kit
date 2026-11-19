@@ -1,8 +1,8 @@
 import { expect, test, type Page } from '@playwright/test';
 import { readFileSync } from 'node:fs';
 
-const kitVersion = JSON.parse(
-  readFileSync(new URL('../../extension/package.json', import.meta.url), 'utf8')
+const shellVersion = JSON.parse(
+  readFileSync(new URL('../package.json', import.meta.url), 'utf8')
 ).version;
 
 const nav = (page: Page) => page.locator('[data-region="nav"]');
@@ -30,7 +30,7 @@ test.describe('desktop', () => {
       await expect(page.locator(`[data-region="${r}"]`)).toHaveCount(1);
     const scheme = await page.evaluate(() => getComputedStyle(document.body).colorScheme);
     expect(scheme).toBe('dark');
-    await expect(page.locator('[data-region="account"]')).toContainText(`kit ${kitVersion}`);
+    await expect(page.locator('[data-region="account"]')).toContainText(`shell ${shellVersion}`);
   });
 
   test('nav splitter: drag to 320 px, collapse, reload: kept, CLS 0', async ({ page }) => {

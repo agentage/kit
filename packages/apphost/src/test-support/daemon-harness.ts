@@ -36,7 +36,15 @@ export const startHarness = async (
 ): Promise<Harness> => {
   const { launch = inProcessLaunch, ...rest } = options;
   const configDir = options.configDir ?? (await tempConfigDir());
-  const opts = { port: 0, version: '0.13.0', startedBy: 'test', ...rest, configDir };
+  // No shell unless a test names one: the workspace package may be unbuilt.
+  const opts = {
+    port: 0,
+    version: '0.13.0',
+    startedBy: 'test',
+    shellDir: null,
+    ...rest,
+    configDir,
+  };
   const daemon = await startDaemon(opts, launch);
   const token = await hostTokenOf(configDir);
   const call = async (method: string, path: string, body?: unknown) => {

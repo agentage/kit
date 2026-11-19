@@ -86,35 +86,46 @@ export const targetOf = (address: string) => {
   return { send: tls ? requestTls : request, host, port, servername: isIP(host) ? '' : host };
 };
 
-const requestTo = (req: Request, address: string, hostToken?: string) => {
-  const { method, originalUrl: path } = req;
-  const { send, host, port, servername } = targetOf(address);
-  const headers = forChild(req, hostToken);
-  const options = { host, port, servername, method, path, headers, agent: false };
-  return send(options);
-};
+export interface Pipe {
+  address: string;
+  path: string;
+  headers: IncomingHttpHeaders;
+  // Unset: no answer timeout (the cloud host, as the stub router; git and the connector stream long).
+  answerMs?: number;
+  answerHeaders(up: IncomingMessage): IncomingHttpHeaders;
+  // An error before the answer headers; late: answerMs passed first.
+  failed(late: boolean): void;
+}
 
-// The child's answer as it streams; an error before its headers is the envelope (504 when late).
-const relay = (upstream: ClientRequest, res: Response, next: NextFunction, ms: number) => {
+// The one forward of both hosts: the request streams to the address, the answer back, no pooled connection.
+export const pipeTo = (req: Request, res: Response, o: Pipe): ClientRequest => {
+  const { send, host, port, servername } = targetOf(o.address);
+  const { method } = req;
+  const { path, headers } = o;
+  const up = send({ host, port, servername, method, path, headers, agent: false });
   let late = false;
-  const timer = setTimeout(() => ((late = true), upstream.destroy()), ms);
-  upstream.on('response', (up: IncomingMessage) => {
+  const timer =
+    o.answerMs === undefined
+      ? undefined
+      : setTimeout(() => ((late = true), up.destroy()), o.answerMs);
+  up.on('response', (answer) => {
     clearTimeout(timer);
-    res.writeHead(up.statusCode ?? 502, endToEnd(up.headers));
-    // A child gone in the middle of its body: the answer is cut, not left open.
-    up.once('close', () => void (up.complete || res.destroy()));
-    up.pipe(res);
+    res.writeHead(answer.statusCode ?? 502, o.answerHeaders(answer));
+    // An upstream gone in the middle of its body: the answer is cut, not left open.
+    answer.once('close', () => void (answer.complete || res.destroy()));
+    answer.pipe(res);
   });
-  upstream.on('error', () => {
-    if (res.headersSent) return void res.destroy();
-    next(
-      late ? noAnswer(ms) : fail('UNAVAILABLE', 'The extension did not answer', { retryAfter: 5 })
-    );
+  up.on('error', () => (res.headersSent ? res.destroy() : o.failed(late)));
+  // A client that went away aborts the request to the upstream too.
+  res.on('close', () => {
+    clearTimeout(timer);
+    if (!res.writableFinished) up.destroy();
   });
-  return () => clearTimeout(timer);
+  req.pipe(up);
+  return up;
 };
 
-// Streams the request to the child as it came (path and query kept), no pooled connection.
+// The request to the child as it came (path and query kept); an error before its headers is the envelope.
 interface Forward {
   to: Taken;
   ms: number;
@@ -128,16 +139,19 @@ const forward = (
   { to, ms, hostToken }: Forward
 ) => {
   const { lane, leave } = to;
-  const upstream = requestTo(req, addressFor(lane, res.locals), hostToken);
-  const stop = relay(upstream, res, next, ms);
-  upstream.on('error', leave);
-  // A client that went away aborts the request to the child too.
-  res.on('close', () => {
-    stop();
-    if (!res.writableFinished) upstream.destroy();
-    leave();
+  const upstream = pipeTo(req, res, {
+    address: addressFor(lane, res.locals),
+    path: req.originalUrl,
+    headers: forChild(req, hostToken),
+    answerMs: ms,
+    answerHeaders: (up) => endToEnd(up.headers),
+    failed: (late) =>
+      next(
+        late ? noAnswer(ms) : fail('UNAVAILABLE', 'The extension did not answer', { retryAfter: 5 })
+      ),
   });
-  req.pipe(upstream);
+  upstream.on('error', leave);
+  res.on('close', leave);
 };
 
 // ANY /api/{id}/* and /mcp/{id} (C1): the same lane, the same refusals (404 unknown, 503 not running).

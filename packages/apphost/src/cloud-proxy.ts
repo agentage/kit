@@ -2,7 +2,7 @@ import { type IncomingHttpHeaders, type IncomingMessage } from 'node:http';
 import { type NextFunction, type Request, type Response } from 'express';
 import { fail } from '@agentage/extension/internal';
 import { withoutCredentials } from './cloud-credentials.js';
-import { endToEnd, targetOf } from './proxy.js';
+import { endToEnd, pipeTo } from './proxy.js';
 
 // e2e reads 502 for an upstream that does not answer on a cloud host (not the daemon's 503).
 export const badGateway = (id: string) =>
@@ -51,18 +51,11 @@ export const forwardTo = (req: Request, res: Response, next: NextFunction, to: C
   const origin = new URL(to.upstream);
   const target = new URL(to.path ?? req.originalUrl, origin);
   if (leaves(target, origin, to.prefix)) return next(pathLeaves());
-  const { send, host, port, servername } = targetOf(to.upstream);
-  const path = `${target.pathname}${target.search}`;
-  const headers = upstreamHeaders(to.headers);
-  const { method } = req;
-  const up = send({ host, port, servername, method, path, headers, agent: false });
-  up.on('response', (answer) => {
-    res.writeHead(answer.statusCode ?? 502, answerHeaders(answer, to.answer));
-    // An upstream gone in the middle of its body: the answer is cut, not left open.
-    answer.once('close', () => void (answer.complete || res.destroy()));
-    answer.pipe(res);
+  pipeTo(req, res, {
+    address: to.upstream,
+    path: `${target.pathname}${target.search}`,
+    headers: upstreamHeaders(to.headers),
+    answerHeaders: (answer) => answerHeaders(answer, to.answer),
+    failed: () => next(badGateway(to.id)),
   });
-  up.on('error', () => (res.headersSent ? res.destroy() : next(badGateway(to.id))));
-  res.on('close', () => void (res.writableFinished || up.destroy()));
-  req.pipe(up);
 };

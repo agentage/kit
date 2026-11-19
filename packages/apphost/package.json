@@ -1,6 +1,6 @@
 {
   "name": "@agentage/apphost",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "The agentage app host program: runs extensions through a runner and serves the combined discovery, the session and the shell",
   "type": "module",
   "license": "MIT",

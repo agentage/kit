@@ -6,6 +6,8 @@ import {
   sessionCookies,
   withoutCredentials,
 } from './cloud-credentials.js';
+import { createCloudSession } from './cloud-session.js';
+import { fakeAuth, ISSUER } from './test-support/cloud-host.js';
 
 const OWN = 'https://platform-host.next.agentage.io';
 const SESSION = 'better-auth.session_token=s1.sig';
@@ -64,5 +66,24 @@ describe('the credential filter of the cloud session (J.4.4 row 2)', () => {
     );
     expect(addressOf({ headers: { 'x-forwarded-for': ' , ' }, socket })).toBe('10.0.0.9');
     expect(addressOf({ headers: {} })).toBe('');
+  });
+
+  it('headersFor itself drops the session cookie before the upstream and keeps a PAT', async () => {
+    const session = createCloudSession({
+      issuer: ISSUER,
+      own: OWN,
+      host: 'platform',
+      fetcher: fakeAuth().fetcher,
+    });
+    const page = { 'sec-fetch-site': 'same-origin', cookie: `_ga=1; ${SESSION}` };
+    expect(await session.headersFor({ headers: page }, 'market')).toEqual({
+      'sec-fetch-site': 'same-origin',
+      cookie: '_ga=1',
+      authorization: 'Bearer aga_market.jwt',
+    });
+    const pat = { cookie: SESSION, authorization: 'Bearer aga_pat' };
+    expect(await session.headersFor({ headers: pat }, 'market')).toEqual({
+      authorization: 'Bearer aga_pat',
+    });
   });
 });

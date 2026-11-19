@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest';
-import { clearsOf } from './cloud-sign-out.js';
+import { type Request, type Response } from 'express';
+import { clearsOf, createCloudSignOut } from './cloud-sign-out.js';
 import {
   CLEARS,
   cloudHost,
@@ -135,5 +136,25 @@ describe('the cloud sign-out (J.4.4 row 2)', () => {
     expect(
       clearsOf('__Host-better-auth.session_token=x', 'https://auth.agentage.io')[0]
     ).not.toMatch(/Domain=/);
+  });
+
+  it('auth that does not answer the sign-out in time is 503, and the cache is dropped', async () => {
+    const forgot: unknown[] = [];
+    const hang: typeof fetch = (_url, init) =>
+      new Promise((_resolve, reject) =>
+        init?.signal?.addEventListener('abort', () => reject(new Error('timeout')))
+      );
+    const forget = (credential: unknown) => void forgot.push(credential);
+    const handler = createCloudSignOut({
+      issuer: ISSUER,
+      own: OWN,
+      forget,
+      fetcher: hang,
+      timeoutMs: 20,
+    });
+    const req = { headers: PAGE } as unknown as Request;
+    const run = Promise.resolve(handler(req, {} as Response, () => undefined));
+    await expect(run).rejects.toMatchObject({ status: 503, code: 'UNAVAILABLE' });
+    expect(forgot).toEqual([{ cookie: SESSION }]);
   });
 });

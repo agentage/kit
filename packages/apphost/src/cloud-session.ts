@@ -2,7 +2,13 @@ import { type IncomingHttpHeaders } from 'node:http';
 import { type RequestHandler } from 'express';
 import { fail } from '@agentage/extension/internal';
 import { createAddressLimit, createExchange, type Exchange } from './auth-exchange.js';
-import { addressOf, type CloudRequest, credentialOf, foreignPage } from './cloud-credentials.js';
+import {
+  addressOf,
+  type CloudRequest,
+  credentialOf,
+  foreignPage,
+  withoutCredentials,
+} from './cloud-credentials.js';
 import { createCloudSignOut } from './cloud-sign-out.js';
 import { type Session, sessionOf, type SignInSource } from './session.js';
 
@@ -21,7 +27,7 @@ export interface CloudSessionOptions {
 export interface CloudSession {
   // GET /shell/session: the four keys of Session, kind cloud.
   answer(req: CloudRequest): Promise<Session>;
-  // The upstream headers of `id`: a PAT stays; a session or a desktop bearer becomes the token.
+  // The upstream headers of `id`: no auth cookie; a PAT stays; a session or a desktop bearer becomes the token.
   headersFor(req: CloudRequest, id: string): Promise<IncomingHttpHeaders>;
   signOut: RequestHandler;
 }
@@ -37,13 +43,14 @@ const headersOf =
   (exchange: Exchange, own: string) =>
   async (req: CloudRequest, id: string): Promise<IncomingHttpHeaders> => {
     const credential = credentialOf(req);
-    if (!credential) return req.headers;
+    if (!credential) return withoutCredentials(req.headers);
     if ('cookie' in credential && foreignPage(req, own))
       throw fail('FORBIDDEN', 'not a page of this host');
     // Admin covers write: auth refuses a non-admin with 403 and write follows.
     const data = await exchange(credential, id, ['admin', 'write'], addressOf(req));
-    const rest = { ...req.headers };
+    const rest = withoutCredentials(req.headers);
     delete rest.authorization;
+    // The exchanged token is an aga_ bearer: a second filter at the proxy keeps it.
     return data ? { ...rest, authorization: `Bearer ${data.token}` } : rest;
   };
 

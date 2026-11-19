@@ -75,10 +75,8 @@ jobs:
           grep -qx 'package/dist/vendor/app/index.js' /tmp/pack/files.txt
           grep -qx 'package/dist/vendor/app/test-host.js' /tmp/pack/files.txt
           grep -qx 'package/dist/vendor/app/theme.css' /tmp/pack/files.txt
-          grep -qx 'package/dist/shell/package.json' /tmp/pack/files.txt
-          grep -qx 'package/dist/shell/dist/index.html' /tmp/pack/files.txt
-          grep -qx 'package/dist/shell/dist/shell.js' /tmp/pack/files.txt
-          grep -qx 'package/dist/shell/dist/vendor/app.js' /tmp/pack/files.txt
+          # J.4.5 row 8: the shell is its own package; the kit carries no copy.
+          if grep -q 'dist/shell' /tmp/pack/files.txt; then echo 'a shell copy is in the kit tarball'; exit 1; fi
           if grep -Eq '/e2e/|\.spec\.' /tmp/pack/files.txt; then echo 'shell e2e files in the tarball'; exit 1; fi
           if grep -q '\.test\.' /tmp/pack/files.txt; then echo 'test files in the tarball'; exit 1; fi
           # J.4.3 row 1: the app host program is its own package.

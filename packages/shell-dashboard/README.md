@@ -6,8 +6,7 @@ prototype (variant B; a copy is `e2e/prototype/index.html`) in React 19, styled 
 
 It is published on npm (`files`: `dist`). The app host program (`@agentage/apphost`) depends on it
 and serves this package on both kinds: the daemon, and a cloud host whose `installation.json` names it.
-The page names this package's version. The root build still copies `dist/` into the kit at `dist/shell`
-(`scripts/inline-shell.mjs`) until no host reads that copy.
+The page names this package's version. The kit carries no copy of it.
 
 ## Bundle output
 

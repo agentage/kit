@@ -20,7 +20,7 @@ docker-deploy, security, backend); this file only adds what the tree does not sa
 - Event line kinds, redaction and limits, events client: `packages/logs/README.md` (proof: `packages/logs/src/`).
 - Widget: `packages/widget/README.md` "Imports", "Bundle output", "The harness page", "Rules the code enforces".
 - App kit `@agentage/extension/app` (hooks, `Region`, `Split`, test host): `packages/app/README.md`.
-- Dashboard shell (private; ships in the kit at `dist/shell`): `packages/shell-dashboard/README.md`.
+- Dashboard shell (`@agentage/shell-dashboard`, served by `@agentage/apphost`): `packages/shell-dashboard/README.md`.
 - Sign in, page token, `mintToken`, `revokeToken`, sign out: `packages/identity/README.md`.
 - CI jobs: `.github/workflows/ci.yml`. Coverage floor: `vitest.config.ts`. Release rules: `README.md` "Release" (proof: `.github/workflows/release.yml`).
 

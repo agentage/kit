@@ -82,16 +82,12 @@ describe('public surface', () => {
     ]);
   });
 
-  it('the host subpath exports what the daemon and the cli call', () => {
+  it('the host subpath: one package on one app and the combine; the daemon is @agentage/apphost', () => {
     expect(Object.keys(host).sort()).toEqual([
-      'DAEMON_PORT',
       'capabilities',
       'combineHost',
-      'createDaemon',
       'hostExtension',
       'localOnly',
-      'updateInstallation',
-      'withFileLock',
     ]);
   });
 

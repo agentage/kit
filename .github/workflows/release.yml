@@ -72,8 +72,8 @@ jobs:
         run: |
           set -euo pipefail
           held=()
-          # Dependencies first: logs before the kit that depends on it.
-          for manifest in packages/logs/package.json $(ls packages/*/package.json | grep -v '^packages/logs/'); do
+          # Dependencies first: logs, then the kit, then the app host and the rest that name the kit.
+          for manifest in packages/logs/package.json packages/extension/package.json $(ls packages/*/package.json | grep -vE '^packages/(logs|extension)/'); do
             name=$(node -p "require('./${manifest}').name")
             version=$(node -p "require('./${manifest}').version")
             if [ "$(node -p "require('./${manifest}').private === true")" = "true" ]; then continue; fi

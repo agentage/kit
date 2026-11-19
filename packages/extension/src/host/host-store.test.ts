@@ -3,8 +3,7 @@ import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { hostedPackage } from '../test-support/hosted-fixture.js';
 import { tempDir } from '../test-support/packages.js';
-import { childEnv } from './daemon/child.js';
-import { LIMITS } from './daemon/limits.js';
+import { childEnv } from './child-env.js';
 import { hostEnvOf } from './host-env.js';
 import { hostExtension } from './host-extension.js';
 import { lockOf } from './host-store.js';
@@ -28,6 +27,8 @@ vi.mock('../store/pglite-store.js', async (original) => ({
 }));
 
 const SECRETS = { 'api-token': 't' };
+// The health limit of the app host program (its LIMITS.healthMs).
+const DAEMON_HEALTH_MS = 60_000;
 afterEach(() => {
   vi.useRealTimers();
   vi.restoreAllMocks();
@@ -54,7 +55,7 @@ describe('a store that opens in 40 s under the default daemon', () => {
   it('gets the daemon healthMs (60 s) as its bound: it starts with the store ready', async () => {
     vi.spyOn(process.stderr, 'write').mockImplementation(() => true);
     const spec = { id: 'hosted', dir: '/x', dataDir: '', settings: {}, secrets: {}, origin: '' };
-    const env = childEnv({ ...spec, storeOpenMs: LIMITS.healthMs }, '/run/secrets');
+    const env = childEnv({ ...spec, storeOpenMs: DAEMON_HEALTH_MS }, '/run/secrets');
     const { storeOpenMs } = hostEnvOf(env);
     expect(storeOpenMs).toBe(60_000);
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout'] });

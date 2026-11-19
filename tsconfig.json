@@ -25,6 +25,7 @@
   "references": [
     { "path": "packages/logs" },
     { "path": "packages/extension" },
+    { "path": "packages/apphost" },
     { "path": "packages/widget" },
     { "path": "packages/identity" },
     { "path": "packages/shell" },

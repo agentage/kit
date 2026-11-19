@@ -1,6 +1,15 @@
+import { fileURLToPath } from 'node:url';
 import { defineConfig } from 'vitest/config';
 
 export default defineConfig({
+  resolve: {
+    // The program's tests run the kit from source, as the kit's own tests do: one copy of each module.
+    alias: {
+      '@agentage/extension/internal': fileURLToPath(
+        new URL('./packages/extension/src/internal/index.ts', import.meta.url)
+      ),
+    },
+  },
   test: {
     // An in-process postgres boots in seconds when the whole suite runs at once (tests and hooks).
     testTimeout: 30_000,

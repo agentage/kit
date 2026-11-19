@@ -14,7 +14,7 @@ import { readManifest } from '../manifest/read-manifest.js';
 import { buildInfoFromEnv, type Env } from '../runtime/build-info.js';
 import { type PartAppBase } from '../server/app.js';
 import { hostClockRate } from '../worker/clock.js';
-import { localOnly } from './daemon/guard.js';
+import { localOnly } from './guard.js';
 import { hostPartsOf, type HostedParts, type Hosting } from './host-parts.js';
 import { openHostStore, STORE_OPEN_MS } from './host-store.js';
 import { hostStoreChecks } from './host-url-store.js';

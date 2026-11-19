@@ -1,8 +1,9 @@
 import { writeFile } from 'node:fs/promises';
 import { request, type IncomingHttpHeaders } from 'node:http';
 import { join } from 'node:path';
-import { json, tempDir } from '../../../extension/src/test-support/packages.js';
+import { json, tempDir, tempPackage } from '../../../extension/src/test-support/packages.js';
 import { type CloudHost, type CloudHostOptions, startCloudHost } from '../cloud-host.js';
+import { SHELL_PACKAGE } from '../shell-package.js';
 import { OWN, OWN_HOST, quietLog } from './cloud-upstream.js';
 
 export * from './cloud-upstream.js';
@@ -76,6 +77,21 @@ export const startCloud = async (
   const host = await startCloudHost(env, { log: quietLog(), ...options, discovery });
   await host.refresh();
   return { ...host, call: (path, o) => callAt(host.port, path, o) };
+};
+
+// A host with a shell key: /shell/events and /shell/sign-out exist only there.
+export const SHELL_KEY = { package: SHELL_PACKAGE, version: '9.1.0' };
+
+export const startWithShell = async (
+  rows: Rows,
+  extra: Record<string, string> = {},
+  options: CloudHostOptions = {}
+): Promise<Started> => {
+  const shellDir = await tempPackage({
+    'package.json': json({ name: SHELL_PACKAGE, version: SHELL_KEY.version }),
+    'dist/index.html': '<!doctype html><title>shell</title>',
+  });
+  return startCloud(await cloudEnv({ ...rows, shell: SHELL_KEY }, extra), { shellDir, ...options });
 };
 
 // An open shell feed (GET /shell/events): every chunk it got so far.

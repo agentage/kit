@@ -25,6 +25,8 @@ export interface CloudSessionOptions {
   // The extension id the shell's read token is asked for.
   host: string;
   fetcher?: typeof fetch;
+  // false: a host with no shell key serves no /shell/sign-out, so its session names none.
+  signOut?: boolean;
 }
 
 export interface CloudSession {
@@ -60,10 +62,11 @@ const headersOf =
 interface Links {
   issuer: string | null;
   signIn: string | null;
+  signOut: boolean;
 }
 
 const answerOf =
-  (exchange: Exchange, host: string, { issuer, signIn }: Links) =>
+  (exchange: Exchange, host: string, { issuer, signIn, signOut }: Links) =>
   async (req: CloudRequest): Promise<Session> => {
     const credential = credentialOf(req);
     const data = credential && (await exchange(credential, host, 'read', addressOf(req)));
@@ -72,7 +75,7 @@ const answerOf =
       user: () => data?.user ?? null,
       signIn,
       // Only a cookie session can sign out here; the desktop signs out on its own.
-      signOut: issuer && credential && 'cookie' in credential ? CLOUD_SIGN_OUT : null,
+      signOut: signOut && issuer && credential && 'cookie' in credential ? CLOUD_SIGN_OUT : null,
     };
     return sessionOf(source);
   };
@@ -90,6 +93,7 @@ export const createCloudSession = (options: CloudSessionOptions): CloudSession =
     forget: exchange.forget,
     ...(options.fetcher && { fetcher: options.fetcher }),
   });
-  const answer = answerOf(exchange, options.host, { issuer, signIn });
+  const links = { issuer, signIn, signOut: options.signOut ?? true };
+  const answer = answerOf(exchange, options.host, links);
   return { answer, headersFor: headersOf(exchange, own), signOut };
 };

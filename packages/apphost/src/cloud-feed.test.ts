@@ -3,9 +3,8 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { docId } from './shell-events.js';
 import {
   closeUpstreams,
-  cloudEnv,
   openFeed,
-  startCloud,
+  startWithShell,
   type Started,
 } from './test-support/cloud-start.js';
 
@@ -17,7 +16,7 @@ afterEach(async () => {
 });
 
 const rows = (version: string) => ({ extensions: [{ id: 'market', version }], upstreams: [] });
-const start = async (version: string) => (host = await startCloud(await cloudEnv(rows(version))));
+const start = async (version: string) => (host = await startWithShell(rows(version)));
 const events = (text: string) => [...text.matchAll(/event: (\w+)\ndata: (.*)\n/g)].map((m) => m[1]);
 
 // The feed text once `until` matches it, then the stream closes.

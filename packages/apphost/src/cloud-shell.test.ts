@@ -3,10 +3,9 @@ import { createCloudSession } from './cloud-session.js';
 import { exchangesOf, fakeAuth, SESSION, USER } from './test-support/cloud-host.js';
 import {
   closeUpstreams,
-  cloudEnv,
   OWN,
   openFeed,
-  startCloud,
+  startWithShell,
   type Started,
 } from './test-support/cloud-start.js';
 
@@ -22,9 +21,13 @@ const NO_ROWS = { extensions: [], upstreams: [] };
 const PAGE = { cookie: SESSION, origin: OWN, 'sec-fetch-site': 'same-origin' };
 
 const start = async (auth = fakeAuth()) => {
-  host = await startCloud(await cloudEnv(NO_ROWS, { AGENTAGE_ISSUER: ISSUER }), {
-    fetcher: auth.fetcher,
-  });
+  host = await startWithShell(
+    NO_ROWS,
+    { AGENTAGE_ISSUER: ISSUER },
+    {
+      fetcher: auth.fetcher,
+    }
+  );
   return { auth, call: host.call };
 };
 

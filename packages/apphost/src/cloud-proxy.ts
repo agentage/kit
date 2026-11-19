@@ -15,13 +15,18 @@ export const badGateway = (id: string) =>
 export const pathLeaves = () =>
   fail('VALIDATION_ERROR', 'path leaves the upstream', { code: 'BAD_REQUEST' });
 
-// What an upstream gets: no hop header, no client x-agentage-* header, no credential but a PAT.
+// The x-agentage-* headers a client may send, each only in its short form (extension-platform reads the cli version).
+const CLIENT_HEADERS = new Map([
+  ['x-agentage-cli-version', /^\d{1,9}\.\d{1,9}\.\d{1,9}(-[0-9A-Za-z.-]{1,32})?$/],
+]);
+
+const passes = ([name, value]: [string, unknown]) =>
+  !name.startsWith('x-agentage-') ||
+  (typeof value === 'string' && CLIENT_HEADERS.get(name)?.test(value) === true);
+
+// What an upstream gets: no hop header, no other client x-agentage-* header, no credential but a PAT.
 export const upstreamHeaders = (headers: IncomingHttpHeaders): IncomingHttpHeaders =>
-  Object.fromEntries(
-    Object.entries(withoutCredentials(endToEnd(headers))).filter(
-      ([name]) => !name.startsWith('x-agentage-')
-    )
-  );
+  Object.fromEntries(Object.entries(withoutCredentials(endToEnd(headers))).filter(passes));
 
 // No upstream sets a cookie on the host origin: it would also reach auth and every sibling host.
 const answerHeaders = (up: IncomingMessage, set: Record<string, string> = {}) => {

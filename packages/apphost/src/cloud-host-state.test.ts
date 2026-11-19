@@ -5,6 +5,7 @@ import {
   docOf,
   openFeed,
   startCloud,
+  startWithShell,
   type Started,
   upstream,
 } from './test-support/cloud-start.js';
@@ -63,7 +64,7 @@ describe('one source of state: the discovery documents of the upstream rows (F-c
       extensions: [{ id: 'echo', expose: PUBLIC }],
       upstreams: [{ id: 'echo', address: up.address }],
     };
-    host = await startCloud(await cloudEnv(rows));
+    host = await startWithShell(rows);
     const feed = await openFeed(host.port);
     up.doc = { id: 'echo' };
     await host.refresh();

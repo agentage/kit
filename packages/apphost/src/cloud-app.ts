@@ -31,11 +31,13 @@ export interface CloudParts {
   draining(): boolean;
 }
 
-// The session answer: no-store, no CORS header (the shell is a page of this origin).
-const shellRoutes = (app: Express, { session, events }: CloudParts) => {
+// The session answer on every host (the host contract reads it): no-store, no CORS header.
+// Sign-out and the feed only with a shell key; else they fall through to the site or a 404.
+const shellRoutes = (app: Express, { session, events, shell }: CloudParts) => {
   app.get('/shell/session', async (req, res) => {
     res.set(NO_STORE).json(await session.answer(req));
   });
+  if (!shell) return;
   app.post(CLOUD_SIGN_OUT, session.signOut);
   // One feed per host: it says what changed for every user, never a session event.
   app.get('/shell/events', (req, res, next) => {

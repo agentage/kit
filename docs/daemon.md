@@ -25,8 +25,8 @@ A running child answers only the parts its routes name. The daemon reads the chi
 does. `/api/{id}` and `/files/{id}` need the `api` route, `/mcp/{id}` and `/connector/{id}` the `mcp`
 route: else 404 `NOT_FOUND` ("<id> does not serve api | mcp"). A document the combine refuses
 (another id, another version, not valid) gives no routes. No document (no answer in 1.5 s, a 5xx)
-is 503 `UNAVAILABLE` with `Retry-After` ("<id> did not answer its discovery: try again"); the next
-request reads it again.
+is 503 `UNAVAILABLE` with `Retry-After` ("<id> did not answer its discovery: try again"). The
+failure is kept 5 s, then the next request reads again; requests that come during a read share it.
 
 While a change is taken and not yet answered (queued too), `/health` lists it in `pending`:
 `[{ op: "install" | "update" | "remove" | "reload", id?, source?, since, timedOut? }]`; the field is left

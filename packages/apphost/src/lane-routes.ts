@@ -10,10 +10,11 @@ export type LanePart = 'api' | 'mcp';
 // On a machine the api and mcp parts are for loopback callers; the app is served from the folder.
 const LOCAL_EXPOSE = { api: 'internal', mcp: 'internal' } as const;
 
-// The routes of one child, from its discovery through combineHost; read once per lane, not cached
-// on a failed read. A document the combine refuses gives no routes.
-export const laneRoutes = async (entry: Entry, lane: Lane): Promise<Set<string> | undefined> => {
-  if (lane.routes) return lane.routes;
+// How long a failed read answers 503 at once, so a broken child does not cost each request a read.
+export const FAILED_READ_MS = 5_000;
+
+// A document the combine refuses gives no routes; no document (or a row it throws on) is none.
+const readRoutes = async (entry: Entry, lane: Lane): Promise<Set<string> | undefined> => {
   const document = await readChildDocument(lane.child.port);
   if (document === undefined) return undefined;
   const row = { id: entry.id, version: entry.version, expose: LOCAL_EXPOSE };
@@ -21,10 +22,26 @@ export const laneRoutes = async (entry: Entry, lane: Lane): Promise<Set<string> 
   const answers = [{ upstream: entry.id, document, expectedId: entry.id }];
   try {
     const { routes } = combineHost({ kind: 'local', installation, answers });
-    lane.routes = new Set(routes.map((r) => r.part));
+    return new Set(routes.map((r) => r.part));
   } catch {
     return undefined;
   }
+};
+
+// The routes of one child, from its discovery through combineHost: one read per lane, shared by
+// the requests that come while it runs; a failed read is kept FAILED_READ_MS, then read again.
+export const laneRoutes = (
+  entry: Entry,
+  lane: Lane,
+  now = Date.now
+): Promise<Set<string> | undefined> => {
+  if (lane.failedUntil !== undefined && now() < lane.failedUntil) return Promise.resolve(undefined);
+  lane.routes ??= readRoutes(entry, lane).then((routes) => {
+    if (routes) return routes;
+    lane.routes = undefined;
+    lane.failedUntil = now() + FAILED_READ_MS;
+    return undefined;
+  });
   return lane.routes;
 };
 

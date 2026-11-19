@@ -1,4 +1,4 @@
-// Why a call to the core gave the empty answer. No Node import: a browser bundle may load it.
+// Why a call to the core gave the empty answer. It imports nothing.
 export type CoreService = 'market' | 'logs';
 
 export type CoreCode =

@@ -71,8 +71,12 @@ const accept = (id: string, data: Record<string, unknown>): Latest => {
 
 // null: the market has no such id (it answered 404).
 export const latestOf = async (call: MarketCall, id: string): Promise<Latest | null> => {
-  const data = dataOf(await marketGet(call, `/${encodeURIComponent(id)}/latest`));
-  return isRecord(data) ? accept(id, data) : null;
+  const body = await marketGet(call, `/${encodeURIComponent(id)}/latest`);
+  if (body === null) return null;
+  const data = dataOf(body);
+  return isRecord(data)
+    ? accept(id, data)
+    : fail('market', 'refused', `${id}: no release in the answer`);
 };
 
 const PAGE = 200;
@@ -95,7 +99,7 @@ const rowsOf = async (call: MarketCall, cursor = '', page = 1): Promise<unknown[
   const body = await marketGet(call, query);
   if (body === null) fail('market', 'failed', `${call.origin} has no market list (404)`);
   const data = dataOf(body);
-  const rows = Array.isArray(data) ? data : [];
+  const rows = Array.isArray(data) ? data : fail('market', 'refused', 'the list has no rows');
   const next = nextOf(body);
   return next && rows.length > 0 ? [...rows, ...(await rowsOf(call, next, page + 1))] : rows;
 };

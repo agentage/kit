@@ -32,17 +32,18 @@ npm install @agentage/extension express zod
   `env`. A missing or empty address is no error: each call answers `down.code` `no_core`.
 - `logs.send` drops a failed send with one warning, until a send goes through again. It needs
   `token`, sent over https or to a loopback host only.
-- The market reads import nothing from Node; `logs.send` uses the Node events client.
+- `./core` is for Node: `logs.send` uses the Node events client. The market reads import nothing, so a
+  browser entry for them is a small split later.
 
-| `down.code`   | When                                                         |
-| ------------- | ------------------------------------------------------------ |
-| `no_core`     | no address, not a URL, or the `url` function threw (`cause`) |
-| `unreachable` | no connection                                                |
-| `timeout`     | no answer before `timeoutMs`                                 |
-| `failed`      | a status that is not 2xx or 404, a redirect, too large       |
-| `not_json`    | a market body that is not JSON                               |
-| `refused`     | a market answer that is not an exact version of that id      |
-| `no_token`    | `logs.send` with no token                                    |
+| `down.code`   | When                                                                     |
+| ------------- | ------------------------------------------------------------------------ |
+| `no_core`     | no address, not a URL, or the `url` function threw (`cause`)             |
+| `unreachable` | no connection                                                            |
+| `timeout`     | no answer before `timeoutMs`                                             |
+| `failed`      | a status that is not 2xx or 404, a redirect, too large                   |
+| `not_json`    | a market body that is not JSON                                           |
+| `refused`     | a market 2xx with no release or rows, or not an exact version of that id |
+| `no_token`    | `logs.send` with no token                                                |
 
 `agentage extension check [dir] --json` prints the conformance report (exit 1 when `conforms` is
 false); `file` and `line` are there only when a problem has them. `warnings` is there only when a

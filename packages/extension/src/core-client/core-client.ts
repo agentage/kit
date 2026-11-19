@@ -125,7 +125,7 @@ const logsOf = (s: State, o: CoreClientOptions) => {
 // Never throws and never waits past timeoutMs: a silent core gives the typed empty answer.
 export const createCoreClient = (o: CoreClientOptions = {}): CoreClient => {
   const s: State = {
-    url: 'url' in o ? o.url : coreUrlOf(o.env ?? {}),
+    url: o.url ?? coreUrlOf(o.env ?? {}),
     fetch: o.fetch ?? ((input, init) => fetch(input, init)),
     timeoutMs: o.timeoutMs ?? DEFAULT_TIMEOUT_MS,
     first: null,

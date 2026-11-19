@@ -129,3 +129,24 @@ describe('core-client market.list', () => {
     expect(answer).toMatchObject({ data: { offered: [], skipped: [] }, down: { code: 'failed' } });
   });
 });
+
+// Only the market's 404 reads as "no such id": a 2xx without the answer is a reason.
+describe('core-client a 2xx that is not the answer', () => {
+  it.each([
+    [
+      'latest',
+      '/api/market/extensions/probe/latest',
+      (u: string) => createCoreClient({ url: u }).market.latest('probe'),
+    ],
+    [
+      'list',
+      '/api/market/extensions?limit=200',
+      (u: string) => createCoreClient({ url: u }).market.list(),
+    ],
+  ] as const)('%s with no data is refused, not empty', async (_name, path, call) => {
+    for (const body of [{}, { data: null }]) {
+      const stub = await serve({ [path]: json(200, body) });
+      expect((await call(stub.url)).down).toMatchObject({ code: 'refused' });
+    }
+  });
+});

@@ -78,7 +78,7 @@ describe('core-client logs.send', () => {
   });
 });
 
-// The market half carries no import: a browser bundle can take it; only logs.send needs the Node events client.
+// ./core is Node-only through the events client; the market half imports nothing, so a market-only entry is a split away.
 describe('core-client imports', () => {
   const dir = resolve(import.meta.dirname);
   it('the entry reaches the logs package and nothing else', () => {

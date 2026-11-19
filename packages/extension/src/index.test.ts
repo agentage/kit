@@ -76,6 +76,7 @@ describe('public surface', () => {
       'HealthSchema',
       'HostDocumentSchema',
       'OkEnvelopeSchema',
+      'combineHost',
       'entryOfDocument',
       'isAgcid',
     ]);

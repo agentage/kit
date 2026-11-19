@@ -6,7 +6,17 @@ export {
   type DiscoveryDocument,
   type ExtensionRecord,
 } from '../discovery/discovery.schema.js';
-export { entryOfDocument } from '../discovery/combine.js';
+export {
+  combineHost,
+  entryOfDocument,
+  type Answer,
+  type CallerState,
+  type Combined,
+  type CombineInput,
+  type HostInstallation,
+  type Refusal,
+  type Route,
+} from '../discovery/combine.js';
 export {
   HostDocumentSchema,
   type HostDocument,

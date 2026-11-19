@@ -1,6 +1,8 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import { read } from '../test-support/combine-setup.js';
+import { DiscoveryDocumentSchema, ExtensionRecordSchema } from './discovery.schema.js';
 import { HostDocumentSchema, type HostDocument } from './host-document.schema.js';
 
 const GOLDEN = join(import.meta.dirname, '..', 'test-support', 'combine', 'combined.golden.json');
@@ -48,5 +50,17 @@ describe('host document schema', () => {
     expect(bad({ tools: [{ name: 'other__echo', scope: 'other:read' }] })).toBe(true);
     expect(bad({ state: 'gone' })).toBe(true);
     expect(bad({ expose: { app: 'internal' } })).toBe(true);
+  });
+
+  it('takes its tool rule from the discovery document; the build record keeps what it takes', async () => {
+    const tools = [{ name: 'other__x', scope: 'public' }];
+    const probe = { ...(await read('probe.json')), tools };
+    expect(DiscoveryDocumentSchema.safeParse(probe).error?.issues[0]?.message).toBe(
+      'every tool is {id}__{name}'
+    );
+    const served = new Set(['host', 'serves', 'app']);
+    const record = Object.fromEntries(Object.entries(probe).filter(([key]) => !served.has(key)));
+    const parts = { api: { image: `ghcr.io/agentage/probe-api@sha256:${'d'.repeat(64)}` } };
+    expect(ExtensionRecordSchema.safeParse({ ...record, parts }).success).toBe(true);
   });
 });

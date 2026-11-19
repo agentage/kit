@@ -59,7 +59,7 @@ describe('api app: kit routes', () => {
     expect(body.data).toMatchObject({ commit: SHA, part: 'api', extension: 'probe' });
   });
 
-  it('serves discovery with images by tag when no record is mounted', async () => {
+  it('serves discovery with no image for a tag when no record is mounted', async () => {
     const image = 'ghcr.io/agentage/probe-api:0.1.0';
     const { get, base } = await start({ ownImage: image });
     const res = await get('/.well-known/agentage-extension.json', {
@@ -68,7 +68,7 @@ describe('api app: kit routes', () => {
     expect(res.headers.get('access-control-allow-origin')).toBe('*');
     const { buildTime } = BUILD;
     const want = { id: 'probe', version: '0.1.0', commit: SHA, buildTime, host: base };
-    expect(await res.json()).toEqual({ ...want, parts: { api: { image } }, serves: ['api'] });
+    expect(await res.json()).toEqual({ ...want, parts: { api: {} }, serves: ['api'] });
   });
 
   it('serves the mounted record by digest, on the configured origin', async () => {

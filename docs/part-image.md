@@ -24,16 +24,20 @@ when it runs the image. The audience (`AGENTAGE_AUDIENCE`) is the host a token i
 The discovery document says what this container serves. `serves` lists its part kinds; a host
 lists every part it runs, and `app` when it serves the app bundle. `app` is then the nav row:
 `{ title, icon?, order?, entry, css }`. The schema is strict, so a reader on an older kit refuses
-the new keys.
+the new keys. With no record mounted, a part lists its image only by digest; with an image by tag
+it lists `{}`, as a host does.
 
 An app host combines these documents and its installation into
 `/.well-known/agentage-host.json`: `host`, `kind`, `shell` and one entry for each installed id.
-`combineHost` (`@agentage/extension/host`) does it with no I/O and also gives the route table. An
+`combineHost` (`@agentage/extension/contracts`, also `/host`) does it with no I/O and also gives the route table. An
 id with no valid answer is `down` and has no route. A part routes only when a container serves it
 and the installation exposes it. An answer for an id that is not installed is refused, and so is a second pages route. The caller can
 set a row to `starting` or `failed`; with its last good document the entry keeps its `app` row and
-has no route. A document with an old `/api/v{N}` openapi is refused. An installation that gives an
-invalid host document (two rows of one id) throws.
+has no route. A document with an old `/api/v{N}` openapi is refused, and so is a tool that is not
+`{id}__{name}` of its own id. An answer can carry `expectedId`, the id its container was listed for;
+an answer for another id is refused as `claims another id`. When some answer is listed for an id, an
+answer with no `expectedId` for that id is refused as `not listed for this id`. A bad answer never throws. Only an
+installation that gives an invalid host document (two rows of one id) throws.
 
 JSON Schemas for the manifest, the build record, the discovery document, the host document,
 `/health` and the envelope are in [`packages/extension/schemas`](../packages/extension/schemas). Regenerate them with

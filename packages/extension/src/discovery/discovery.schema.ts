@@ -44,12 +44,12 @@ const PartsRecordSchema = z.strictObject({
   store: StoreRecordSchema.optional(),
 });
 
-// A part the kit host runs has no image: the host never knows its own digest.
+// A part with no image: the kit host, or a part image with no record, never knows its digest.
 const HostedPartSchema = z.strictObject({});
 
 const ServedPartsSchema = z.strictObject({
-  pages: PartImageSchema.optional(),
-  ui: PartImageSchema.optional(),
+  pages: z.union([PartImageSchema, HostedPartSchema]).optional(),
+  ui: z.union([PartImageSchema, HostedPartSchema]).optional(),
   api: z.union([PartImageSchema, HostedPartSchema]).optional(),
   mcp: z.union([PartImageSchema, HostedPartSchema]).optional(),
   worker: z.union([PartImageSchema, HostedPartSchema]).optional(),
@@ -142,6 +142,12 @@ const OPENAPI_RULE = { message: 'openapi is /api/{id}/openapi.json', path: ['ope
 const openapiIsOwn = ({ id, openapi }: { id: string; openapi?: string }) =>
   !openapi || openapi === `/api/${id}/openapi.json`;
 
+// A served tool is {id}__{name} of this id: the host gives every tool under its extension.
+export const toolsAreOwn = ({ id, tools }: { id: string; tools?: { name: string }[] }) =>
+  (tools ?? []).every((t) => t.name.startsWith(`${id}__`));
+
+export const TOOLS_RULE = { message: 'every tool is {id}__{name}', path: ['tools'] };
+
 // A scoped name lives only in secretParts, so an estate that does not read it mounts nothing.
 const scoped = (name: string) =>
   `secret ${name}: one or more parts, none repeated, and never also in secrets`;
@@ -172,7 +178,8 @@ export const DiscoveryDocumentSchema = z
   .refine(servedForm, HOSTED_RULE)
   .refine(appRowFits, APP_ROW_RULE)
   .refine(imagesNameTheirExtension, IMAGE_RULE)
-  .refine(openapiIsOwn, OPENAPI_RULE);
+  .refine(openapiIsOwn, OPENAPI_RULE)
+  .refine(toolsAreOwn, TOOLS_RULE);
 
 // The form the cloud serves: every part by its image, or the one image; never a part with no image.
 export const CloudDiscoveryDocumentSchema = z
@@ -180,7 +187,8 @@ export const CloudDiscoveryDocumentSchema = z
   .refine(oneImageForm, FORM_RULE)
   .refine(appRowFits, APP_ROW_RULE)
   .refine(imagesNameTheirExtension, IMAGE_RULE)
-  .refine(openapiIsOwn, OPENAPI_RULE);
+  .refine(openapiIsOwn, OPENAPI_RULE)
+  .refine(toolsAreOwn, TOOLS_RULE);
 
 export type ExtensionRecord = z.infer<typeof ExtensionRecordSchema>;
 export type DiscoveryDocument = z.infer<typeof DiscoveryDocumentSchema>;

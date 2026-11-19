@@ -5,7 +5,7 @@ import {
   PackageNameSchema,
   VersionSchema,
 } from '../manifest/primitives.schema.js';
-import { ToolRecordSchema } from './discovery.schema.js';
+import { ToolRecordSchema, TOOLS_RULE, toolsAreOwn } from './discovery.schema.js';
 import { APP_ROW_RULE, appRowFits, AppRowSchema, SERVES_KINDS } from './served.schema.js';
 
 export const HOST_KINDS = ['local', 'cloud'] as const;
@@ -23,7 +23,7 @@ export const ExposeSchema = z.strictObject({
   pages: z.literal('public').optional(),
 });
 
-const ExtensionEntrySchema = z
+export const ExtensionEntrySchema = z
   .strictObject({
     id: ExtensionIdSchema,
     version: VersionSchema,
@@ -43,10 +43,7 @@ const ExtensionEntrySchema = z
     message: 'openapi is /api/{id}/openapi.json',
     path: ['openapi'],
   })
-  .refine(({ id, tools }) => (tools ?? []).every((t) => t.name.startsWith(`${id}__`)), {
-    message: 'every tool is {id}__{name}',
-    path: ['tools'],
-  });
+  .refine(toolsAreOwn, TOOLS_RULE);
 
 // The shell is a library the host serves: named here only, never a row of extensions.
 const ShellSchema = z.strictObject({ package: PackageNameSchema, version: VersionSchema });

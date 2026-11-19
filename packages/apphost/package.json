@@ -19,6 +19,9 @@
   "engines": {
     "node": ">=22"
   },
+  "bin": {
+    "agentage-apphost-cloud": "dist/cloud-main.js"
+  },
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",

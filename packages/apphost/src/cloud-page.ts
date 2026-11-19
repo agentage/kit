@@ -10,6 +10,12 @@ export const cloudShell = async (
 ): Promise<Shell | undefined> => {
   if (!installation.shell) return undefined;
   const { package: name, version } = installation.shell;
+  // The site catch-all would take /, /{id} and /shell/*: no host needs both, so the start is refused.
+  const site = installation.extensions.find((e) => e.expose?.pages === 'public');
+  if (site)
+    throw new Error(
+      `shell: installation.json names ${name} and a public pages part (${site.id}); a host has one or the other`
+    );
   if (!dir) throw new Error(`shell: installation.json names ${name}, the program carries none`);
   const shell = await readShell(dir);
   if (shell.package !== name || shell.version !== version)

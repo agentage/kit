@@ -99,6 +99,22 @@ describe('the shell key decides (J.4.5 rows 1 and 7)', () => {
     await expect(cloudShell(named, undefined)).rejects.toThrow('the program carries none');
   });
 
+  it('a key on a host with a public pages part refuses the start: the site would take / and /shell/*', async () => {
+    const site = {
+      id: 'site',
+      version: '1.0.0',
+      expose: { api: 'public', pages: 'public' },
+    } as const;
+    const both = { host: 'site', extensions: [site], shell: KEY };
+    await expect(cloudShell(both, await shellPackage())).rejects.toThrow(
+      `shell: installation.json names ${SHELL_PACKAGE} and a public pages part (site); a host has one or the other`
+    );
+    const api = { ...site, expose: { api: 'public' } } as const;
+    await expect(
+      cloudShell({ ...both, extensions: [api] }, await shellPackage())
+    ).resolves.toBeDefined();
+  });
+
   it('the default package: the version the key names is the version served', async () => {
     const dir = shellPackageDir() as string;
     const { version } = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')) as Shell;

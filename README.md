@@ -159,11 +159,11 @@ name: first publish needs the owner". The owner gives the name a trusted publish
 then publishes the real version (done this way for `@agentage/apphost` and
 `@agentage/shell-dashboard`, 2026-11-19):
 
-1. Publish a placeholder by hand under its own dist-tag, so `latest` is not the real version yet:
-   a two-file package (`package.json` and `README.md`) at version `0.0.0-bootstrap.0`,
-   `npm publish --access public --tag bootstrap`. The trusted publisher was added on the name with this placeholder;
-   a name with no version was not tried. Do not use `0.0.0-stage`: npm reserves it (403 "You cannot publish using the
-   version").
+1. Publish a placeholder by hand: a two-file package (`package.json` and `README.md`) at version
+   `0.0.0-bootstrap.0`, `npm publish --access public --tag bootstrap`. On a first publish npm also
+   points `latest` at it, until the real version is published. The trusted publisher was added on
+   the name with this placeholder; a name with no version was not tried. Do not use `0.0.0-stage`:
+   npm reserves it (403 "You cannot publish using the version").
 2. Add the trusted publisher with publish allowed:
    `npx npm@12 trust github <name> --repo agentage/platform --file release.yml --allow-publish --yes`.
    Without `--allow-publish` it is stage-only, and each release needs the owner again. A new

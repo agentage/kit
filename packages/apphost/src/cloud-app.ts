@@ -1,6 +1,7 @@
 import express, { type Express } from 'express';
 import { agcidMiddleware, errorHandler, type Log, notFound } from '@agentage/extension/internal';
 import { type CloudDiscovery } from './cloud-discovery.js';
+import { closeWhileDraining } from './cloud-drain.js';
 import { type CloudEnv } from './cloud-env.js';
 import { HEAD, ownHostOnly, requestGuard } from './cloud-guards.js';
 import { cloudHealth } from './cloud-health.js';
@@ -18,6 +19,7 @@ export interface CloudParts {
   session: CloudSession;
   events: ShellEvents;
   log: Log;
+  draining(): boolean;
 }
 
 // The session answer: no-store, no CORS header (the shell is a page of this origin).
@@ -38,8 +40,8 @@ const shellRoutes = (app: Express, { session, events }: CloudParts) => {
 export const cloudApp = (parts: CloudParts): Express => {
   const app = express();
   app.disable('x-powered-by');
-  app.use(agcidMiddleware, requestGuard);
-  app.get('/health', cloudHealth(parts.host, parts.env));
+  app.use(agcidMiddleware, closeWhileDraining(parts.draining), requestGuard);
+  app.get('/health', cloudHealth(parts.host, parts.env, parts.draining));
   app.use(ownHostOnly(parts.env.own, parts.env.local));
   app.get(HOST_DOC, (_req, res) => void res.set(NO_STORE).json(parts.discovery.current().document));
   shellRoutes(app, parts);

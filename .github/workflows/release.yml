@@ -99,6 +99,9 @@ jobs:
               fi
               if npm stage publish -w "${name}" --access public --provenance --ignore-scripts; then
                 held+=("${name}@${version} STAGED for approval on npmjs.com, not published")
+              # Only a real 404 is a new name; a registry outage or a timeout keeps the line below.
+              elif { npm view "${name}" name 2>&1 || true; } | grep -q E404; then
+                held+=("${name}@${version} new package name: first publish needs the owner (README.md, \"First publish of a new package name\")")
               else
                 held+=("${name}@${version} not published and not staged (already staged? approve it on npmjs.com)")
               fi

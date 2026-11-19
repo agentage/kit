@@ -151,6 +151,28 @@ it on npmjs.com, then run the attempt again. A run that failed in `Verify` on a 
 the same case. A real defect is a fix PR with a new version; that PR changes the package, so the
 check passes.
 
+### First publish of a new package name
+
+A name that is not on npm yet has no trusted publisher, and `release.yml` has no token: its publish
+and its stage both fail. When npm answers 404 for the name, the run holds it with "new package
+name: first publish needs the owner". The owner publishes the first version, either by hand from
+the tag commit (`npm publish --access public` in the package folder, after
+`npm ci && npm run build`) or through a one-time `NPM_TOKEN` stage that is deleted after the first
+publish. Then the owner adds the trusted publisher on npmjs.com (repository `agentage/platform`,
+workflow `release.yml`).
+
+Checked against [npm trusted publishers](https://docs.npmjs.com/trusted-publishers):
+
+- Select "allow direct publish" when you add the trusted publisher. A trusted publisher set up
+  after 2026-09-03 is stage-only by default; then each later release needs the owner again.
+- A new trusted publisher expires if it does not publish within 2 days. Then delete it and add a
+  new one.
+
+Not confirmed: that the package must exist on npm before a trusted publisher can be added, and the
+exact npm error text for a new name.
+
+Then run the tag run again: it skips every version already on npm.
+
 ## License
 
 MIT. See [LICENSE](LICENSE).

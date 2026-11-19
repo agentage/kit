@@ -27,7 +27,7 @@ const stateOf = async (h: Started, id: string) => {
 };
 
 describe('one source of state: the discovery documents of the upstream rows (F-c)', () => {
-  it('an upstream whose /health is 500 but whose document is good is running; its /health is never read', async () => {
+  it('an upstream whose /health is 500 but whose document is good is running and routed; its /health is never read', async () => {
     const up = await upstream(docOf('echo'));
     up.health = 500;
     const rows = {
@@ -36,10 +36,11 @@ describe('one source of state: the discovery documents of the upstream rows (F-c
     };
     host = await startCloud(await cloudEnv(rows));
     expect(await stateOf(host, 'echo')).toEqual(['cloud', 'running']);
+    expect((await host.call('/api/echo/hi')).status).toBe(200);
     expect(up.healthReads).toBe(0);
   });
 
-  it('an upstream whose /health is 200 but with no document is starting', async () => {
+  it('an upstream whose /health is 200 but with no document is starting: 503, never routed', async () => {
     const up = await upstream(undefined);
     const rows = {
       extensions: [{ id: 'echo', expose: PUBLIC }],
@@ -47,7 +48,13 @@ describe('one source of state: the discovery documents of the upstream rows (F-c
     };
     host = await startCloud(await cloudEnv(rows));
     expect(await stateOf(host, 'echo')).toEqual(['cloud', 'starting']);
-    expect([up.seen, up.healthReads]).toEqual([[], 0]);
+    const res = await host.call('/api/echo/hi');
+    expect([res.status, res.headers['retry-after'], up.seen, up.healthReads]).toEqual([
+      503,
+      '5',
+      [],
+      0,
+    ]);
   });
 
   it('a document that goes bad after an answer is down; the shell feed is told of each change', async () => {

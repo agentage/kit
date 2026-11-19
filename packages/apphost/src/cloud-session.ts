@@ -9,14 +9,17 @@ import {
   foreignPage,
   withoutCredentials,
 } from './cloud-credentials.js';
+import { issuerOf } from './cloud-env.js';
 import { createCloudSignOut } from './cloud-sign-out.js';
 import { type Session, sessionOf, type SignInSource } from './session.js';
 
 export const CLOUD_SIGN_OUT = '/shell/sign-out';
 
 export interface CloudSessionOptions {
-  // AGENTAGE_ISSUER; a value that is not an http(s) URL means no sign-in on this host.
-  issuer?: string | undefined;
+  // AGENTAGE_ISSUER; a value that is not an https origin means no sign-in on this host.
+  issuer?: string | null | undefined;
+  // The local run (LOCAL_FLAG): the dev issuer over http is taken too.
+  local?: boolean;
   // AGENTAGE_URL: the origin of this host's own pages.
   own: string;
   // The extension id the shell's read token is asked for.
@@ -76,15 +79,17 @@ const answerOf =
 
 // The cloud sign-in source of the session module (J.4.4): one auth exchange per credential and id.
 export const createCloudSession = (options: CloudSessionOptions): CloudSession => {
-  const issuer = options.issuer?.startsWith('http') ? options.issuer : null;
+  const issuer = issuerOf(options.issuer ?? undefined, options.local ?? false);
+  // The Origin header is an origin: a trailing slash in AGENTAGE_URL must not refuse every POST.
+  const own = new URL(options.own).origin;
   const exchange = exchangeOf(issuer, options.fetcher);
-  const signIn = issuer && `${issuer}/sign-in?next=${encodeURIComponent(`${options.own}/`)}`;
+  const signIn = issuer && `${issuer}/sign-in?next=${encodeURIComponent(`${own}/`)}`;
   const signOut = createCloudSignOut({
     issuer,
-    own: options.own,
+    own,
     forget: exchange.forget,
     ...(options.fetcher && { fetcher: options.fetcher }),
   });
   const answer = answerOf(exchange, options.host, { issuer, signIn });
-  return { answer, headersFor: headersOf(exchange, options.own), signOut };
+  return { answer, headersFor: headersOf(exchange, own), signOut };
 };

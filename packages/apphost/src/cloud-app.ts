@@ -2,8 +2,10 @@ import express, { type Express } from 'express';
 import { agcidMiddleware, errorHandler, type Log, notFound } from '@agentage/extension/internal';
 import { type CloudDiscovery } from './cloud-discovery.js';
 import { type CloudEnv } from './cloud-env.js';
-import { ownHostOnly } from './cloud-guards.js';
+import { HEAD, ownHostOnly, requestGuard } from './cloud-guards.js';
 import { cloudHealth } from './cloud-health.js';
+import { partRoutes } from './cloud-parts.js';
+import { CLOUD_SIGN_OUT, type CloudSession } from './cloud-session.js';
 import { type ShellEvents } from './shell-events.js';
 
 const NO_STORE = { 'Cache-Control': 'no-store' };
@@ -13,20 +15,35 @@ export interface CloudParts {
   env: CloudEnv;
   host: string;
   discovery: CloudDiscovery;
+  session: CloudSession;
   events: ShellEvents;
   log: Log;
 }
 
-// The cloud host: /health, then Host allow-listed, the host document and the shell feed.
+// The session answer: no-store, no CORS header (the shell is a page of this origin).
+const shellRoutes = (app: Express, { session, events }: CloudParts) => {
+  app.get('/shell/session', async (req, res) => {
+    res.set(NO_STORE).json(await session.answer(req));
+  });
+  app.post(CLOUD_SIGN_OUT, session.signOut);
+  // One feed per host: it says what changed for every user, never a session event.
+  app.get('/shell/events', (req, res, next) => {
+    // A HEAD has no body to stream: the headers, then the end.
+    if (!res.locals[HEAD]) return void events.stream(req, res, next);
+    res.writeHead(200, { 'content-type': 'text/event-stream', 'cache-control': 'no-store' }).end();
+  });
+};
+
+// The cloud host: /health, then Host allow-listed, the host document, the shell session, the parts.
 export const cloudApp = (parts: CloudParts): Express => {
   const app = express();
   app.disable('x-powered-by');
-  app.use(agcidMiddleware);
+  app.use(agcidMiddleware, requestGuard);
   app.get('/health', cloudHealth(parts.host, parts.env));
   app.use(ownHostOnly(parts.env.own, parts.env.local));
   app.get(HOST_DOC, (_req, res) => void res.set(NO_STORE).json(parts.discovery.current().document));
-  // One feed per host: it says what changed for every user, never a session event.
-  app.get('/shell/events', parts.events.stream);
+  shellRoutes(app, parts);
+  app.use(partRoutes(parts.discovery, parts.session));
   app.use(notFound);
   app.use(errorHandler(parts.log));
   return app;

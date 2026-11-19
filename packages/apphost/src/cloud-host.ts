@@ -5,6 +5,7 @@ import { cloudApp } from './cloud-app.js';
 import { createCloudDiscovery, type DiscoveryOptions } from './cloud-discovery.js';
 import { cloudEnvOf } from './cloud-env.js';
 import { readCloudFiles } from './cloud-files.js';
+import { createCloudSession } from './cloud-session.js';
 import { entriesOf, startRuns } from './cloud-run.js';
 import { shellEvents } from './shell-events.js';
 
@@ -23,6 +24,8 @@ export interface CloudHost {
 
 export interface CloudHostOptions {
   log?: Log;
+  // The fetch of the auth exchange and sign-out (a test passes a fake auth).
+  fetcher?: typeof fetch;
   discovery?: Pick<DiscoveryOptions, 'readMs' | 'everyMs'>;
 }
 
@@ -50,7 +53,11 @@ const partsOf = async (environment: NodeJS.ProcessEnv, o: CloudHostOptions) => {
     log,
     discovery,
   };
-  return { env, log, events, discovery, entries, runOptions, host: installation.host };
+  const { issuer, own, local } = env;
+  const fetcher = o.fetcher && { fetcher: o.fetcher };
+  // The host id of /shell/session is the installation's (decision 2026-11-19: today's behaviour).
+  const session = createCloudSession({ issuer, own, local, host: installation.host, ...fetcher });
+  return { env, log, events, discovery, session, entries, runOptions, host: installation.host };
 };
 
 const stopperOf = (server: Server, stopRuns: () => Promise<void>, stopDiscovery: () => void) => {

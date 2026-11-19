@@ -162,8 +162,10 @@ then publishes the real version (done this way for `@agentage/apphost` and
 1. Publish a placeholder by hand: a two-file package (`package.json` and `README.md`) at version
    `0.0.0-bootstrap.0`, `npm publish --access public --tag bootstrap`. On a first publish npm also
    points `latest` at it, until the real version is published. The trusted publisher was added on
-   the name with this placeholder; a name with no version was not tried. Do not use `0.0.0-stage`:
-   npm reserves it (403 "You cannot publish using the version").
+   the name with this placeholder; a name with no version was not tried. A hand publish of
+   `0.0.0-stage` is refused with 403 ("You cannot publish using the version"), but npm lists a
+   `0.0.0-stage` version on the name anyway (as on four older `@agentage` packages): use
+   `0.0.0-bootstrap.0`.
 2. Add the trusted publisher with publish allowed:
    `npx npm@12 trust github <name> --repo agentage/platform --file release.yml --allow-publish --yes`.
    Without `--allow-publish` it is stage-only, and each release needs the owner again. A new
@@ -171,6 +173,15 @@ then publishes the real version (done this way for `@agentage/apphost` and
 3. Run the tag run again. It skips every version already on npm and publishes the new name.
 4. Wait for the registry: a new version took about 3 minutes to show in `npm view`. Until the real
    version shows, `latest` may still name the placeholder; check `npm view <name> dist-tags`.
+
+Cleanup (optional, any time, the owner): deprecate the placeholder versions and remove the
+`bootstrap` dist-tag of each new name:
+
+```
+npm deprecate <name>@0.0.0-bootstrap.0 "placeholder for the first trusted publish"
+npm deprecate <name>@0.0.0-stage "placeholder for the first trusted publish"
+npm dist-tag rm <name> bootstrap
+```
 
 ## License
 

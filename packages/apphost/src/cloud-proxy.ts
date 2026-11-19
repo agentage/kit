@@ -24,10 +24,10 @@ export const upstreamHeaders = (headers: IncomingHttpHeaders): IncomingHttpHeade
   );
 
 // No upstream sets a cookie on the host origin: it would also reach auth and every sibling host.
-const answerHeaders = (up: IncomingMessage) => {
+const answerHeaders = (up: IncomingMessage, set: Record<string, string> = {}) => {
   const rest = endToEnd(up.headers);
   delete rest['set-cookie'];
-  return rest;
+  return { ...rest, ...set };
 };
 
 export interface CloudForward {
@@ -36,6 +36,10 @@ export interface CloudForward {
   prefix: string;
   upstream: string;
   headers: IncomingHttpHeaders;
+  // The path sent (default: the request's own); `prefix` guards it too.
+  path?: string;
+  // Answer headers set over the upstream's (lower case names).
+  answer?: Record<string, string>;
 }
 
 const leaves = (target: URL, origin: URL, prefix: string) =>
@@ -45,7 +49,7 @@ const leaves = (target: URL, origin: URL, prefix: string) =>
 // Streams req to the upstream origin at its own path; a path off the origin or the route is refused.
 export const forwardTo = (req: Request, res: Response, next: NextFunction, to: CloudForward) => {
   const origin = new URL(to.upstream);
-  const target = new URL(req.originalUrl, origin);
+  const target = new URL(to.path ?? req.originalUrl, origin);
   if (leaves(target, origin, to.prefix)) return next(pathLeaves());
   const { send, host, port, servername } = targetOf(to.upstream);
   const path = `${target.pathname}${target.search}`;
@@ -53,7 +57,7 @@ export const forwardTo = (req: Request, res: Response, next: NextFunction, to: C
   const { method } = req;
   const up = send({ host, port, servername, method, path, headers, agent: false });
   up.on('response', (answer) => {
-    res.writeHead(answer.statusCode ?? 502, answerHeaders(answer));
+    res.writeHead(answer.statusCode ?? 502, answerHeaders(answer, to.answer));
     // An upstream gone in the middle of its body: the answer is cut, not left open.
     answer.once('close', () => void (answer.complete || res.destroy()));
     answer.pipe(res);

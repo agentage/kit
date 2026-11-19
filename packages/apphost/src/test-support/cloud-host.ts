@@ -44,8 +44,11 @@ const signOutAnswer = (status: number) => {
 export const fakeAuth = (exchange: (access: string) => number = () => 201): FakeAuth => {
   const auth: FakeAuth = { exchange, signOut: 200, down: false, calls: [], fetcher: fetch };
   auth.fetcher = async (input, init) => {
+    const target = new URL(input instanceof Request ? input.url : input);
+    // The host reads its containers (127.0.0.1) with the same fetcher: those go out as sent.
+    if (target.hostname === '127.0.0.1') return fetch(input, init);
     if (auth.down) throw new TypeError('fetch failed');
-    const url = new URL(input instanceof Request ? input.url : input).pathname;
+    const url = target.pathname;
     const body = typeof init?.body === 'string' ? init.body : '';
     auth.calls.push({ url, headers: new Headers(init?.headers), body });
     if (url === '/api/auth/sign-out') return signOutAnswer(auth.signOut);

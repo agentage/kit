@@ -66,7 +66,8 @@ const partsOf = async (environment: NodeJS.ProcessEnv, o: CloudHostOptions) => {
   const fetcher = o.fetcher && { fetcher: o.fetcher };
   // The host id of /shell/session is the installation's (decision 2026-11-19: today's behaviour).
   const session = createCloudSession({ issuer, own, local, host: installation.host, ...fetcher });
-  return { env, log, events, discovery, session, entries, runOptions, host: installation.host };
+  const host = installation.host;
+  return { env, log, events, discovery, session, entries, runOptions, host, fetcher: o.fetcher };
 };
 
 const stopperOf = (server: Server, stopRuns: () => Promise<void>, stopDiscovery: () => void) => {

@@ -109,6 +109,11 @@ jobs:
               continue
             fi
             echo "published ${name}@${version}" >> "$GITHUB_STEP_SUMMARY"
+            # The registry answers a new version some time after the publish; the next package's dependency check reads it.
+            for try in $(seq 30); do
+              npm view "${name}@${version}" version >/dev/null 2>&1 && break
+              [ "$try" -lt 30 ] && sleep 10 || echo "::warning::${name}@${version} is not visible on npm after 5 minutes"
+            done
             # The extension kit keeps the pushed v<version> tag; every other package gets <name>@<version>.
             dir=$(dirname "${manifest}")
             if [ "${name}" = "@agentage/extension" ]; then

@@ -1,4 +1,4 @@
-import { declaredScopes, partAuth } from '../auth/part-auth.js';
+import { declaredScopes, partAuth, platformOf } from '../auth/part-auth.js';
 import { scopeOf } from '../auth/token-check.js';
 import { SECRETS_DIR } from '../context/secrets.js';
 import { parseObject } from '../context/settings.js';
@@ -35,6 +35,7 @@ export const hostEnvOf = (env: Env) => {
     settings: env['AGENTAGE_SETTINGS'] ? parseObject(env['AGENTAGE_SETTINGS']) : {},
     secretsDir: env['AGENTAGE_SECRETS_DIR'] || SECRETS_DIR,
     origin: env['AGENTAGE_ORIGIN'] || `http://127.0.0.1${port ? `:${port}` : ''}`,
+    platform: platformOf(env),
     drainMs: msOf(env['AGENTAGE_DRAIN_MS'], GRACE_MS),
     storeOpenMs: msOf(env['AGENTAGE_STORE_OPEN_MS'], STORE_OPEN_MS),
     // G1, G2: the estate's postgres or clickhouse; unset keeps PGlite in dataDir.

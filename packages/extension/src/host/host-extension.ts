@@ -3,6 +3,7 @@ import { stat } from 'node:fs/promises';
 import { join } from 'node:path';
 import { setTimeout as sleep } from 'node:timers/promises';
 import { type Express } from 'express';
+import { type PlatformInfo } from '../context/context.js';
 import { type BuildInfo } from '../discovery/discovery.js';
 import { healthBody } from '../health/health.js';
 import { type HealthBody } from '../health/health.schema.js';
@@ -28,6 +29,8 @@ export interface HostOptions {
   onExit?: () => void;
   // ctx.extension.origin; http://127.0.0.1 when left out.
   origin?: string;
+  // ctx.platform (issuer, audience, telemetry), as a part image reads it; empty when left out.
+  platform?: PlatformInfo;
   // The daemon's guard: a Host of 127.0.0.1 or localhost at the port, a local Origin, no cross-site fetch.
   localOnly?: boolean;
   // Other local ports the guard lets a caller name: the daemon's, for the requests it forwards.

@@ -60,6 +60,7 @@ describe('hostEnvOf', () => {
       settings: {},
       secretsDir: '/run/secrets',
       origin: 'http://127.0.0.1:8080',
+      platform: { issuer: '', audience: '' },
       drainMs: 10_000,
       storeOpenMs: 120_000,
     });
@@ -96,6 +97,17 @@ describe('serveHost', () => {
     expect((await rawRequest(all.port, { host: 'evil.example' }, '/api/hosted/echo')).status).toBe(
       200
     );
+  });
+
+  it('gives ctx.platform the issuer, audience and telemetry of its env, as a part image does', async () => {
+    const telemetry = { AGENTAGE_TELEMETRY_URL: 'https://logs.next.agentage.io' };
+    const { url } = await start({ ...TOKEN_ENV, ...telemetry });
+    const body = (await (await fetch(`${url}/api/hosted/platform`)).json()) as { data: object };
+    expect(body.data).toEqual({
+      issuer: 'https://127.0.0.1:9',
+      audience: '*.agentage.io',
+      telemetry: 'https://logs.next.agentage.io',
+    });
   });
 
   it('reports the image COMMIT_SHA and BUILD_TIME on /health', async () => {

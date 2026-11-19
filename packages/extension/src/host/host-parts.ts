@@ -49,6 +49,7 @@ const contextOf = async (h: Hosting, part: HostPartKind, checks: Record<string, 
     part,
     origin: h.opts.origin ?? 'http://127.0.0.1',
     commit: h.build.commit,
+    platform: h.opts.platform,
     log:
       part === 'api'
         ? h.log

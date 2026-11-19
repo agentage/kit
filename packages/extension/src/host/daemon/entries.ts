@@ -15,6 +15,8 @@ export const summary = ({ id, version, state, error, lane }: Entry) => ({
 
 export const listed = (entry: Entry) => ({
   ...summary(entry),
+  // The word of the cli list contract for a row installed by version, not the market id.
+  // eslint-disable-next-line no-restricted-syntax
   source: entry.install.source ?? 'market',
   enabled: entry.install.enabled !== false,
 });

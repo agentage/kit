@@ -53,8 +53,6 @@ const router = (rule: string, priority: number, service: string) => ({
 const partRouters = (routed: RoutedPart[], of: PathOf) => {
   const routers: Record<string, ReturnType<typeof router>> = {};
   for (const part of routed) routers[part] = router(ruleOf(part, of), PRIORITY[part] ?? 100, part);
-  // The old api prefix, as runPart serves it, until phase 4.
-  if (routed.includes('api')) routers['api-v1'] = router('PathPrefix(`/api/v1/`)', 100, 'api');
   // ctx.files (git smart-HTTP) is on the api part.
   if (routed.includes('api'))
     routers['files'] = router(`PathPrefix(\`/files/${of.id}/\`)`, 100, 'api');

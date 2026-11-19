@@ -5,14 +5,14 @@ import { type AddressInfo } from 'node:net';
 import { describe, expect, it } from 'vitest';
 import { serverPartRecipe } from './recipe.js';
 
-// Runs the recipe's own HEALTHCHECK command against a server answering `status`.
+// Runs the recipe's own HEALTHCHECK command with PORT set to a server answering `status`.
 const healthcheckExit = async (healthcheck: string, status: number): Promise<unknown> => {
   const server = createServer((_req, res) => void res.writeHead(status).end());
   await once(server.listen(0, '127.0.0.1'), 'listening');
   const { port } = server.address() as AddressInfo;
   const [, ...args] = JSON.parse(healthcheck.slice(healthcheck.indexOf('CMD ') + 4)) as string[];
-  const local = args.map((arg) => arg.replace('127.0.0.1:3000', `127.0.0.1:${port}`));
-  const [code] = await once(spawn(process.execPath, local), 'exit');
+  const env = { ...process.env, PORT: String(port) };
+  const [code] = await once(spawn(process.execPath, args, { env }), 'exit');
   server.close();
   return code;
 };
@@ -48,7 +48,7 @@ describe('server part recipe', () => {
     const lastUser = lines.filter((line) => line.startsWith('USER ')).pop();
     expect(lastUser).toBe('USER node');
     const healthcheck = lines.find((line) => line.startsWith('HEALTHCHECK')) ?? '';
-    expect(healthcheck).toContain('http://127.0.0.1:3000/health');
+    expect(healthcheck).toContain("fetch('http://127.0.0.1:'+(process.env.PORT||3000)+'/health')");
     expect(healthcheck).not.toContain('localhost');
     expect(lines).toContain(
       'CMD ["node", "node_modules/@agentage/extension/dist/runtime/main.js", "api"]'

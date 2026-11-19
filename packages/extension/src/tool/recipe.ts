@@ -3,9 +3,9 @@ import { DATA_VOLUME_LINES, GIT_INSTALL, STORE_DIR } from './container-recipe.js
 
 const PART_PORT = 3000;
 
-// 503 passes: a restart cannot fix a dependency outage, so only a dead or 404 part is unhealthy.
+// 503 passes (a restart cannot fix an outage); PORT: a host that sets it (the estate: 8080) is probed there.
 const HEALTH_PROBE =
-  `fetch('http://127.0.0.1:${PART_PORT}/health')` +
+  `fetch('http://127.0.0.1:'+(process.env.PORT||${PART_PORT})+'/health')` +
   '.then((r) => process.exit(r.status === 200 || r.status === 503 ? 0 : 1), () => process.exit(1))';
 
 const BASE = [

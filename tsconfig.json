@@ -28,7 +28,6 @@
     { "path": "packages/apphost" },
     { "path": "packages/widget" },
     { "path": "packages/identity" },
-    { "path": "packages/shell" },
     { "path": "packages/app" }
   ]
 }

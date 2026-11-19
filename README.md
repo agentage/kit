@@ -46,8 +46,6 @@ npm run verify
   It is private: the kit ships it inside its own tarball. Import it from `@agentage/extension/logs`.
 - [`@agentage/widget`](packages/widget): the `ui` part. React widgets as custom elements, the host
   bridge (`useHost`), `Button` and `Card`, and the bundler with its harness page.
-- [`@agentage/shell`](packages/shell): the shell kit. `readInstallation` reads what a target runs.
-  `mountWidgets` places each extension's widgets by the layout of a route.
 - [`@agentage/identity`](packages/identity): the identity client for browser pages. Sign in at
   auth, get a one-hour token for the parts, `mintToken`, `revokeToken`, sign out.
 - [`packages/app`](packages/app): the app kit, `useAppShell`, `useAppHost`, `Region`, `Split`.

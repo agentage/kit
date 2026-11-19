@@ -19,7 +19,6 @@ docker-deploy, security, backend); this file only adds what the tree does not sa
 - Check report JSON, secrets: `packages/extension/README.md`.
 - Event line kinds, redaction and limits, events client: `packages/logs/README.md` (proof: `packages/logs/src/`).
 - Widget: `packages/widget/README.md` "Imports", "Bundle output", "The harness page", "Rules the code enforces".
-- Shell calls, mount errors, installation document: `packages/shell/README.md` "The calls", "The installation document".
 - App kit `@agentage/extension/app` (hooks, `Region`, `Split`, test host): `packages/app/README.md`.
 - Dashboard shell (private; ships in the kit at `dist/shell`): `packages/shell-dashboard/README.md`.
 - Sign in, page token, `mintToken`, `revokeToken`, sign out: `packages/identity/README.md`.
@@ -113,13 +112,10 @@ Read the file named here before you read `src/` (`src/` = `packages/extension/sr
   the kit and the cli load it, so no express. The kit feeds the request context
   (`agcid/current.ts`, `log/who.ts`).
 
-## Layout (`packages/identity`, `packages/shell`)
+## Layout (`packages/identity`)
 
 - identity: `auth.schema.ts` (schemas, types), `auth.client.ts` (auth's REST, typed errors), `identity.ts` (`createIdentity`, the token
   cache), `index.ts`, `test-support/fake-auth.ts` (a fake auth built from `fixtures/auth-*.json`)
-- shell: `installation.schema.ts` (installation, overlay, discovery slice), `http.ts` (`send`,
-  `getJson`, `trimSlash`, `ShellError`), `read-installation.ts` (root calls, etag), `mount-widgets.ts`, `index.ts`, `discovery-drift.test.ts` (the
-  kit's published patterns), `fixtures/installation.json` (the README document)
 
 ## Gotchas
 

@@ -139,15 +139,6 @@ jobs:
           grep -qx 'package/dist/index.js' /tmp/pack/identity-files.txt
           if grep -Eq '\.test\.' /tmp/pack/identity-files.txt; then echo 'test files in the identity tarball'; exit 1; fi
 
-      - name: Pack smoke - shell (dist in, tests out)
-        run: |
-          set -euo pipefail
-          npm pack -w @agentage/shell --pack-destination /tmp/pack
-          tar -tzf /tmp/pack/agentage-shell-[0-9]*.tgz > /tmp/pack/shell-files.txt
-          grep -qx 'package/dist/index.js' /tmp/pack/shell-files.txt
-          grep -qx 'package/dist/mount-widgets.js' /tmp/pack/shell-files.txt
-          if grep -Eq '\.test\.|test-support' /tmp/pack/shell-files.txt; then echo 'test files in the shell tarball'; exit 1; fi
-
   smokes:
     name: Image smokes
     runs-on: ubuntu-latest
@@ -359,7 +350,7 @@ jobs:
           npm pack --workspaces --prefix platform --pack-destination "$PWD/probe"
           cd probe
           # No npm ci first: a probe that already pins the candidate version cannot fetch it from npm.
-          # Any other workspace package the probe names (identity, shell) comes from this tree too, never npm.
+          # Any other workspace package the probe names (identity) comes from this tree too, never npm.
           tarballs=(./agentage-extension-*.tgz ./agentage-widget-*.tgz)
           for tgz in ./agentage-*.tgz; do
             name="@agentage/$(basename "$tgz" | sed -E 's/^agentage-(.*)-[0-9]+\.[0-9]+\.[0-9]+\.tgz$/\1/')"

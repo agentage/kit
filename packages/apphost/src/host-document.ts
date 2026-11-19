@@ -61,6 +61,10 @@ const statesOf = (all: Entry[]): Record<string, CallerState> => {
   return states;
 };
 
+// On a machine the api and mcp parts are for loopback callers; the app is served from the folder.
+// The host document and the lane routes read this one value.
+export const LOCAL_EXPOSE = { api: 'internal', mcp: 'internal' } as const;
+
 // The combine input of the daemon: its entries as installation rows, each child its own answer.
 const inputOf = async (all: Entry[], lastGood: LastGood, shell?: Shell): Promise<CombineInput> => {
   const answers = (await Promise.all(all.map((e) => answersOf(e, lastGood)))).flat();
@@ -68,6 +72,7 @@ const inputOf = async (all: Entry[], lastGood: LastGood, shell?: Shell): Promise
     id: e.id,
     version: e.version,
     enabled: e.state !== 'disabled',
+    expose: LOCAL_EXPOSE,
   }));
   const named = shell && { shell: { package: shell.package, version: shell.version } };
   return {

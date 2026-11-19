@@ -122,7 +122,7 @@ describe('the shell page (S1.2.1 rows 1, 5, 6, 8)', () => {
           commit: '0'.repeat(40),
           state: 'running',
           parts: ['api', 'app'],
-          expose: {},
+          expose: { api: 'internal', mcp: 'internal' },
           app: {
             title: 'Hosted',
             icon: 'radar',

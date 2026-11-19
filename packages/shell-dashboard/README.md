@@ -4,8 +4,9 @@ The dashboard shell: one static folder that a host serves at `/`. It is the fram
 prototype (variant B; a copy is `e2e/prototype/index.html`) in React 19, styled by Tailwind v4 with the
 `@agentage/design-system` token files (no `base.css`) and the prototype CSS as a `components` layer.
 
-This workspace is private: it is not on npm. The root build copies `dist/` into the kit at
-`dist/shell` (`scripts/inline-shell.mjs`), and the daemon serves the kit's own copy.
+It is published on npm (`files`: `dist`), so an app host can serve the version that its
+`installation.json` names (J.4.5). Until the app host program does that, the root build also copies
+`dist/` into the kit at `dist/shell` (`scripts/inline-shell.mjs`), and the daemon serves the kit's copy.
 
 ## Bundle output
 

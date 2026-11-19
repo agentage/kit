@@ -1,12 +1,33 @@
 {
   "name": "@agentage/shell-dashboard",
   "version": "0.2.0",
-  "private": true,
-  "description": "The agentage dashboard shell source (React 19, Tailwind v4, design-system tokens); it ships built inside the kit at dist/shell, served by the daemon at /",
+  "description": "The agentage dashboard shell: a built page (dist/index.html and its files) that an app host serves at /. Not an extension: no manifest, no create(ctx), no container",
   "type": "module",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/agentage/platform.git",
+    "directory": "packages/shell-dashboard"
+  },
+  "homepage": "https://agentage.io",
+  "bugs": {
+    "url": "https://github.com/agentage/platform/issues"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
   "engines": {
     "node": ">=22"
   },
+  "exports": {
+    "./package.json": "./package.json",
+    "./dist/*": "./dist/*"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
   "scripts": {
     "build": "node scripts/build.mjs",
     "verify": "npm run verify --prefix ../..",

@@ -15,6 +15,8 @@ export interface Run extends Child {
 // One way to run an extension: a child process here; a running upstream on a cloud host (J.4.4).
 export interface Runner {
   readonly kind: 'child' | 'upstream';
+  // A child runs from a package folder; an upstream has none (no manifest, no secrets to check).
+  readonly readsPackage: boolean;
   start(spec: LaunchSpec): Promise<Run>;
 }
 
@@ -42,5 +44,6 @@ export const runOf = (child: Child): Run => {
 // The child runner: install, seal and fork are the launch (child.ts); restarts stay in the supervisor.
 export const childRunner = (launch: Launch = forkLaunch()): Runner => ({
   kind: 'child',
+  readsPackage: true,
   start: async (spec) => runOf(await launch(spec)),
 });

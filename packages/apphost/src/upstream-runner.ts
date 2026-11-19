@@ -83,6 +83,7 @@ export const upstreamRunner = (options: UpstreamOptions): Runner => {
   const opts = { intervalMs: 5_000, timeoutMs: 2_000, fetch: globalThis.fetch, ...options };
   return {
     kind: 'upstream',
+    readsPackage: false,
     start: async (spec: Pick<LaunchSpec, 'id'>) => watch(rowsOf(opts.upstreams, spec.id), opts),
   };
 };

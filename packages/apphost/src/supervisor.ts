@@ -88,10 +88,17 @@ const dirOf = async (deps: SupervisorDeps, entry: Entry, install: InstallEntry, 
 };
 
 // A new child for to, healthy, then the route; fresh: a start the owner asked for (restarts reset).
-const launchFor = async (deps: SupervisorDeps, entry: Entry, to: Next, fresh: boolean) => {
+// The folder and version to run: read and checked when the runner runs a package, else as listed.
+const packageOf = async (deps: SupervisorDeps, entry: Entry, to: Next) => {
+  if (!deps.runner.readsPackage) return { dir: '', version: to.install.version ?? entry.version };
   const dir = await dirOf(deps, entry, to.install, to.dir);
   const pkg = await readManifest(dir);
   assertSecrets(pkg, to.values.secrets);
+  return { dir, version: pkg.version };
+};
+
+const launchFor = async (deps: SupervisorDeps, entry: Entry, to: Next, fresh: boolean) => {
+  const { dir, version } = await packageOf(deps, entry, to);
   const spec = { id: entry.id, dir, dataDir: dataDirOf(deps.configDir, entry.id), ...to.values };
   const child = await deps.runner
     .start({ ...spec, origin: deps.origin(), storeOpenMs: deps.healthMs, userSub: deps.user.sub })
@@ -103,7 +110,7 @@ const launchFor = async (deps: SupervisorDeps, entry: Entry, to: Next, fresh: bo
     throw err;
   });
   const lane = laneOf(child);
-  Object.assign(entry, { dir, version: pkg.version, lane, state: 'running', error: undefined });
+  Object.assign(entry, { dir, version, lane, state: 'running', error: undefined });
   if (fresh) resetRestarts(entry);
   // Watched only once it is the route: an exit that came before this line is seen, not lost.
   const words = (how: Exit) => redact(reasonOf(how), to.values.secrets);

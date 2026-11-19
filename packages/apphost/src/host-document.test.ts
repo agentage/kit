@@ -42,8 +42,10 @@ const slow = async (): Promise<number> => {
 
 const at = (port: number) => `http://127.0.0.1:${port}`;
 
-const entryOf = (id: string, state: State, port?: number): Entry => {
-  const child = port === undefined ? undefined : { port, address: () => at(port) };
+const entryOf = (id: string, state: State, ...ports: number[]): Entry => {
+  const [port] = ports;
+  const addresses = () => ports.map(at);
+  const child = port === undefined ? undefined : { port, address: () => at(port), addresses };
   const lane = child && ({ child } as unknown as Lane);
   return { id, install: { id }, state, version: '1.0.0', lane };
 };
@@ -117,6 +119,16 @@ describe('hostDocumentOf: the host document from the discovery of each child (J.
     const other = await child(200, JSON.stringify(docOf('b')));
     const entries = entriesOf(entryOf('a', 'running', bad), entryOf('c', 'running', other));
     expect((await hostDocumentOf(entries, new Map())).extensions).toEqual([]);
+  });
+
+  it('every row of an id: the pages row is in the document as it is in the routes', async () => {
+    const api = await child(200, JSON.stringify(docOf('a')));
+    const pages = await child(
+      200,
+      JSON.stringify({ ...docOf('a'), parts: { pages: {} }, serves: ['pages'] })
+    );
+    const doc = await hostDocumentOf(entriesOf(entryOf('a', 'running', api, pages)), new Map());
+    expect(doc.extensions).toMatchObject([{ id: 'a', parts: ['pages', 'api'] }]);
   });
 
   it('a row with no version yet and a disabled row are not listed', async () => {

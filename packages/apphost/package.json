@@ -1,6 +1,6 @@
 {
   "name": "@agentage/apphost",
-  "version": "0.2.3",
+  "version": "0.3.0",
   "description": "The agentage app host program: runs extensions through a runner and serves the combined discovery, the session and the shell",
   "type": "module",
   "license": "MIT",
@@ -46,10 +46,10 @@
     "zod": "^4.2.0"
   },
   "peerDependencies": {
-    "@agentage/extension": "~0.20.4"
+    "@agentage/extension": "~0.21.0"
   },
   "devDependencies": {
-    "@agentage/extension": "~0.20.4"
+    "@agentage/extension": "~0.21.0"
   },
   "keywords": [
     "agentage",

@@ -27,11 +27,18 @@ const EDGE = {
   'x-frame-options': 'DENY',
   'referrer-policy': 'strict-origin-when-cross-origin',
 };
+const OWN = {
+  'cross-origin-opener-policy': 'same-origin',
+  'cross-origin-resource-policy': 'same-origin',
+  'origin-agent-cluster': '?1',
+};
 const HSTS = { 'strict-transport-security': 'max-age=31536000' };
 const picked = (h: IncomingHttpHeaders) => ({
   ...Object.fromEntries(Object.keys({ ...EDGE, ...HSTS }).map((k) => [k, h[k]])),
   csp: h['content-security-policy'],
 });
+const ownOf = (h: IncomingHttpHeaders) =>
+  Object.fromEntries(Object.keys(OWN).map((k) => [k, h[k]]));
 const UP = { 'x-frame-options': 'SAMEORIGIN', 'content-security-policy': "default-src 'none'" };
 
 const started = async () => {
@@ -52,6 +59,7 @@ describe('helmet on the cloud app: the edge values, no CSP of its own', () => {
     host = await started();
     const res = await host.call(path, { headers });
     expect(picked(res.headers)).toEqual({ ...EDGE, ...HSTS, csp: undefined });
+    expect(ownOf(res.headers)).toEqual(OWN);
   });
 
   it('a proxied answer keeps the upstream values, one value per name', async () => {

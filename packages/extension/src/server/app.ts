@@ -5,6 +5,7 @@ import { type WellKnownEntry, type WellKnownRender } from '../api/well-known.js'
 import { agcidMiddleware } from '../agcid/scope.js';
 import { mountFiles } from '../api/files.js';
 import { type FilesEntry } from '../api/files-registry.js';
+import { CALLER_PATH } from '../auth/caller.schema.js';
 import { methodsOf, routeAccess, sameShape } from '../auth/route-access.js';
 import { setCaller, setCleared, type TokenCheck } from '../auth/token-check.js';
 import { type BuildInfo, type ServedRecord } from '../discovery/discovery.js';
@@ -14,6 +15,7 @@ import { createHealthHandler, type HealthCheck } from '../health/health.js';
 import { type Log } from '../log/log.js';
 import { type ExtensionPackage } from '../manifest/manifest.schema.js';
 import { type ImagePartKind } from '../manifest/primitives.schema.js';
+import { callerHandler } from './caller-route.js';
 import { discoveryHandler } from './discovery-handler.js';
 import { errorHandler, notFound } from './errors.js';
 import { requestLine } from './request-line.js';
@@ -176,6 +178,8 @@ export const mountApiRoutes = (app: Express, options: ApiAppOptions): void => {
     app.get(`/.well-known/${name}`, wellKnownHandler(render));
   const { openapi } = options;
   if (openapi) app.get(`${prefix}/openapi.json`, openapiHandler(openapi));
+  // Only where tokens are checked: a host with no check has no caller to name.
+  if (options.tokenCheck) app.get(`${prefix}${CALLER_PATH}`, callerHandler(id, options.tokenCheck));
   const json = express.json({ limit: BODY_LIMIT });
   app.use(prefix, routeGuard(options), json, options.router);
 };

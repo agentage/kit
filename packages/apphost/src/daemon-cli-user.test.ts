@@ -73,16 +73,32 @@ const started = async (text?: string) => {
     return (JSON.parse(line.slice(5)) as { result: { structuredContent: { sub: unknown } } }).result
       .structuredContent.sub;
   };
-  return { refs, search, api, tool, configDir };
+  // The kit's caller route, passed through as any /api/{id}/* path.
+  const caller = async () => {
+    const res = await fetch(at('/api/who/caller'));
+    return [
+      res.status,
+      res.headers.get('cache-control'),
+      res.status === 200 ? await res.json() : null,
+    ];
+  };
+  return { refs, search, api, tool, caller, configDir };
 };
 
 describe('the daemon passes the signed-in cli user to its children', () => {
   it('right after agentage setup (auth.json as signIn writes it): every request acts as that user', async () => {
-    const { refs, search, api, tool } = await started(signedInAuth(auth.issuer, 'opaque-alice'));
+    const { refs, search, api, tool, caller } = await started(
+      signedInAuth(auth.issuer, 'opaque-alice')
+    );
     expect([await api(), await tool()]).toEqual(['u_alice', 'u_alice']);
     expect(await refs('u_alice')).toEqual([200, 'u_alice']);
     expect((await refs('local'))[0]).toBe(403);
     expect(await search()).toBe('u_alice');
+    expect(await caller()).toEqual([
+      200,
+      'no-store',
+      { success: true, data: { sub: 'u_alice', scopes: ['who:read', 'who:write'] } },
+    ]);
   });
 
   it('signed out (no auth.json, or one that names no user): no caller, as before', async () => {
@@ -91,8 +107,10 @@ describe('the daemon passes the signed-in cli user to its children', () => {
       tokens: { accessToken: 'opaque-alice' },
     });
     for (const text of [undefined, noIssuer]) {
-      const { refs, search, api, tool } = await started(text);
+      const { refs, search, api, tool, caller } = await started(text);
       expect([await api(), await tool()]).toEqual([null, null]);
+      // No check, no kit route: the path falls to the extension's own router.
+      expect(await caller()).toEqual([200, null, { success: true, data: null }]);
       expect(await refs('local')).toEqual([200, null]);
       expect(await search()).toBe('nobody');
       await h?.daemon.stop();

@@ -39,7 +39,7 @@ export interface CloudHost extends Drain {
 
 export interface CloudHostOptions {
   log?: Log;
-  // The fetch of the auth exchange and sign-out (a test passes a fake auth).
+  // The fetch of the auth calls: session read, exchange, sign-out (a test passes a fake auth).
   fetcher?: typeof fetch;
   discovery?: Pick<DiscoveryOptions, 'readMs' | 'everyMs'>;
   drainMs?: number;

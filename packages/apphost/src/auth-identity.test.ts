@@ -69,6 +69,8 @@ describe('createIdentityRead: the cache of the session read', () => {
     expect(key).not.toContain(TOKEN);
     const rotated = { cookie: `${COOKIE.cookie}; better-auth.session_data=d2` };
     expect(keyOf(rotated, 'session')).toBe(key);
+    expect(keyOf(BEARER, 'session')).toMatch(/^[0-9a-f]{64}:session$/);
+    expect(keyOf(BEARER, 'session')).not.toContain('oauth-opaque');
   });
 
   it('keeps a signed-in user 270 s at most, and 30 s less than the session end', async () => {

@@ -1,4 +1,5 @@
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+import { MAX_REASON } from './cloud-discovery.js';
 import { cloudLog } from './cloud-host.js';
 import {
   closeUpstreams,
@@ -25,12 +26,18 @@ type Line = { kind?: string; msg?: string; fields?: Record<string, unknown> } & 
 const startWith = async (doc: unknown) => {
   const up = await upstream(doc);
   const texts: string[] = [];
-  const log = cloudLog('0.0.0', (text) => texts.push(text));
+  const kit = cloudLog('0.0.0', (text) => texts.push(text));
+  // Every call of the request line, before the logs package drops a /health row.
+  const routes: string[] = [];
+  const log = {
+    ...kit,
+    http: (row: Parameters<typeof kit.http>[0]) => (routes.push(row.route), kit.http(row)),
+  };
   const rows = { extensions: [{ id: 'echo', expose: { api: 'public' } }], upstreams: [] };
   const env = await cloudEnv({ ...rows, upstreams: [{ id: 'echo', address: up.address }] });
   host = await startCloud(env, { log });
   const lines = () => texts.map((t) => JSON.parse(t) as Line);
-  return { up, host, lines, texts };
+  return { up, host, lines, texts, routes };
 };
 
 describe('a refused upstream document is one log line (the stub router did the same)', () => {
@@ -40,6 +47,21 @@ describe('a refused upstream document is one log line (the stub router did the s
     const refused = lines().filter((l) => l.msg === 'document refused');
     expect(refused).toHaveLength(1);
     expect(String(refused[0]?.fields?.['line'])).toMatch(`${up.address} echo: invalid`);
+  });
+
+  it('a document of thousands of junk keys: the first issue only, at most MAX_REASON characters', async () => {
+    const junk = Object.fromEntries(
+      Array.from({ length: 3000 }, (_, i) => [`junk_key_${i}`, 'x'.repeat(40)])
+    );
+    const doc = { ...docOf('echo'), serves: undefined };
+    const { up, lines } = await startWith({ ...doc, ...junk });
+    const [line] = lines()
+      .filter((l) => l.msg === 'document refused')
+      .map((l) => String(l.fields?.['line']));
+    const reason = String(line).slice(`${up.address} echo: `.length);
+    expect(line).toMatch(`${up.address} echo: invalid: `);
+    expect(reason.length).toBeLessThanOrEqual(MAX_REASON);
+    expect(reason).not.toContain('; ');
   });
 
   it('a document of another id names the row it was read for', async () => {
@@ -55,11 +77,17 @@ describe('the kit request line on the cloud app', () => {
   const SECRET = { cookie: 'better-auth.session_token=s1.sig', authorization: 'Bearer aga_x.jwt' };
 
   it('one line per request: method, route template, status, ms; never a cookie or Authorization', async () => {
-    const { host, lines, texts } = await startWith(docOf('echo'));
+    const { host, lines, texts, routes } = await startWith(docOf('echo'));
     await host.call('/.well-known/agentage-host.json', { headers: SECRET });
     await host.call('/api/echo/x?id=42', { headers: SECRET });
     await host.call('/health');
-    const http = lines().filter((l) => l.kind === 'http');
+    // A call after /health: its line comes after the finish of /health, so none was missed.
+    await host.call('/.well-known/agentage-host.json');
+    await vi.waitFor(() => expect(routes.length).toBeGreaterThanOrEqual(3));
+    expect(routes).not.toContain('/health');
+    const http = lines()
+      .filter((l) => l.kind === 'http')
+      .slice(0, 2);
     const keys = ['http.request.method', 'http.route', 'http.response.status_code'];
     const rows = http.map((l) => keys.map((k) => l.fields?.[k]));
     expect(rows).toEqual([

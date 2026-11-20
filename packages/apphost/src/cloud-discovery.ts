@@ -81,11 +81,18 @@ const combineOf = (o: DiscoveryOptions, seen: Seen) =>
     ...(o.program && { program: o.program }),
   });
 
+// The first issue only, cut: an invalid document can repeat thousands of its own keys in a reason.
+export const MAX_REASON = 512;
+const causeOf = (reason: string) => {
+  const first = reason.split('; ')[0] ?? reason;
+  return first.length > MAX_REASON ? `${first.slice(0, MAX_REASON - 3)}...` : first;
+};
+
 // Each refusal names its upstream and its row id, also for a document with no readable id.
 const sayRefused = (o: DiscoveryOptions, seen: Seen, next: Combined) => {
   const rowOf = new Map(seen.answers.map((a) => [a.upstream, a.expectedId]));
   const lines = next.refused.map(
-    (r) => `${r.upstream} ${rowOf.get(r.upstream) ?? r.id}: ${r.reason}`
+    (r) => `${r.upstream} ${rowOf.get(r.upstream) ?? r.id}: ${causeOf(r.reason)}`
   );
   const said = lines.sort().join('\n');
   if (said !== seen.said) for (const line of lines) o.log.warn('document refused', { line });

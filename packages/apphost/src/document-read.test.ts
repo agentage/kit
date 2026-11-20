@@ -14,16 +14,15 @@ const entriesAt = (id: string, address: string): Entries => {
   return new Map([[id, { id, install: { id }, state: 'running', version: '1.0.0', lane }]]);
 };
 
-const stateAfterRead = async (address: string) => {
+const discoveryAt = (address: string, readMs?: number) => {
   const installation = { host: 'site', extensions: [{ id: 'fixture', version: '1.0.0' }] };
   const entries = entriesAt('fixture', address);
-  const d = createCloudDiscovery({
-    installation,
-    entries,
-    own: OWN,
-    log: quietLog(),
-    onChange: vi.fn(),
-  });
+  const log = quietLog();
+  return createCloudDiscovery({ installation, entries, own: OWN, log, onChange: vi.fn(), readMs });
+};
+
+const stateAfterRead = async (address: string) => {
+  const d = discoveryAt(address);
   await d.refresh();
   return d.current().document.extensions[0]?.state;
 };
@@ -59,6 +58,7 @@ describe('a document over the size limit', () => {
   });
 });
 
+// A 204 or 304 has no body by the protocol: the client never reads one, whatever the server sends.
 describe.each([204, 304])('a container that answers %i to the document read', (status) => {
   it('gives no document and never throws; the row stays starting', async () => {
     const up = await upstream(undefined);
@@ -68,9 +68,61 @@ describe.each([204, 304])('a container that answers %i to the document read', (s
   });
 });
 
-describe('a document of the limit size or under', () => {
+describe.each([203, 302, 404, 500])(
+  'a container that answers %i with a valid document',
+  (status) => {
+    it('gives a document only for a 2xx: the status decides, not the body', async () => {
+      const up = await upstream(undefined);
+      const body = JSON.stringify(docOf('fixture'));
+      up.custom = (_req, res) => (
+        res.writeHead(status, { 'content-type': 'application/json' }).end(body),
+        true
+      );
+      const read = await readDocument(up.address, 1_000);
+      expect(read === undefined).toBe(status >= 300);
+      expect(await stateAfterRead(up.address)).toBe(status < 300 ? 'running' : 'starting');
+    });
+  }
+);
+
+// A document of exactly n bytes: the fixture document with a pad.
+const docOfSize = (n: number) => {
+  const base = JSON.stringify({ ...docOf('fixture'), pad: '' }).length;
+  return JSON.stringify({ ...docOf('fixture'), pad: 'x'.repeat(n - base) });
+};
+
+describe('the size limit, at its edge', () => {
+  it.each([
+    [MAX_DOC_BYTES, true],
+    [MAX_DOC_BYTES + 1, false],
+  ])('a document of %i bytes is read: %s', async (size, taken) => {
+    const up = await upstream(undefined);
+    const body = docOfSize(size);
+    expect(Buffer.byteLength(body)).toBe(size);
+    up.custom = (_req, res) => (res.writeHead(200).end(body), true);
+    const read = await readDocument(up.address, 1_000);
+    expect(read === undefined).toBe(!taken);
+  });
+});
+
+describe('a small document', () => {
   it('is read', async () => {
     const up = await upstream(docOf('fixture'));
     expect(await readDocument(up.address, 1_000)).toMatchObject({ id: 'fixture' });
+  });
+});
+
+describe('an upstream that never answers', () => {
+  it('ready() is true after the read timeout of the first pass; the row stays starting', async () => {
+    const up = await upstream(undefined);
+    up.custom = () => true;
+    const d = discoveryAt(up.address, 100);
+    const started = Date.now();
+    void d.start();
+    expect(d.ready()).toBe(false);
+    await vi.waitFor(() => expect(d.ready()).toBe(true));
+    d.stop();
+    expect(Date.now() - started).toBeGreaterThanOrEqual(90);
+    expect(d.current().document.extensions[0]?.state).toBe('starting');
   });
 });

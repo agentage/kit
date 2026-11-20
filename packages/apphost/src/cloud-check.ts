@@ -73,8 +73,9 @@ const combineRefusals = (installation: CloudInstallation, shell?: Shell) => {
     return [];
   } catch (err) {
     const issues = (err as { issues?: { path: PropertyKey[]; message: string }[] }).issues ?? [];
-    const why = issues.map((i) => `${i.path.map(String).join('.')}: ${i.message}`).join('; ');
-    return [`installation.json: the host document refuses it: ${why || (err as Error).message}`];
+    const say = (why: string) => `installation.json: the host document refuses it: ${why}`;
+    if (!issues.length) return [say((err as Error).message)];
+    return issues.map((i) => say(`${i.path.map(String).join('.')}: ${i.message}`));
   }
 };
 

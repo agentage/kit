@@ -1,3 +1,6 @@
+import { CommitSchema, type Program } from '@agentage/extension/internal';
+import { PROGRAM_VERSION } from './program-version.js';
+
 // What the cloud entry reads of its environment; a bad value refuses the start, never a guess.
 export interface CloudEnv {
   // new URL(AGENTAGE_URL).origin: the origin of this host's own pages.
@@ -62,11 +65,23 @@ export const portOf = (value = '3000'): number => {
   return port;
 };
 
-const buildOf = (env: NodeJS.ProcessEnv) => ({
-  version: env['VERSION'] ?? '0.0.0',
-  commit: env['COMMIT_SHA'] ?? 'unknown',
-  buildTime: env['BUILD_TIME'] ?? 'unknown',
-});
+// VERSION and COMMIT_SHA name this program's release: a VERSION of another program refuses.
+const buildOf = (env: NodeJS.ProcessEnv) => {
+  const version = env['VERSION'] ?? PROGRAM_VERSION;
+  if (version !== PROGRAM_VERSION)
+    throw new Error(`VERSION ${version}: not the version of this program, ${PROGRAM_VERSION}`);
+  return {
+    version,
+    commit: env['COMMIT_SHA'] ?? 'unknown',
+    buildTime: env['BUILD_TIME'] ?? 'unknown',
+  };
+};
+
+// The program line of the host document: only with a full commit sha (an image build has one).
+export const programOf = ({ build }: Pick<CloudEnv, 'build'>): Program | undefined =>
+  CommitSchema.safeParse(build.commit).success
+    ? { version: build.version, commit: build.commit }
+    : undefined;
 
 // The start checks of the cloud entry (J.4.4): AGENTAGE_URL and AGENTAGE_CORE_URL are https origins.
 export const cloudEnvOf = (env: NodeJS.ProcessEnv): CloudEnv => {

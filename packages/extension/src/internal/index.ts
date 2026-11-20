@@ -8,9 +8,15 @@ export {
   type CallerState,
   combineHost,
   type CombineInput,
+  type HostInstallation,
 } from '../discovery/combine.js';
 export { DiscoveryDocumentSchema } from '../discovery/discovery.schema.js';
-export { HostDocumentSchema, type HostEntry } from '../discovery/host-document.schema.js';
+export {
+  ExposeSchema,
+  HostDocumentSchema,
+  type HostEntry,
+  type Program,
+} from '../discovery/host-document.schema.js';
 export { SERVES_KINDS } from '../discovery/served.schema.js';
 export { fail, ok } from '../envelope/envelope.js';
 export { parse } from '../envelope/parse.js';
@@ -26,7 +32,9 @@ export { createLog, type Log } from '../log/log.js';
 export { type ExtensionPackage } from '../manifest/manifest.schema.js';
 export { hasStore, hostParts, mountedIn, secretNames } from '../manifest/parts.js';
 export {
+  CommitSchema,
   ExtensionIdSchema,
+  PackageNameSchema,
   SecretNameSchema,
   VersionSchema,
 } from '../manifest/primitives.schema.js';

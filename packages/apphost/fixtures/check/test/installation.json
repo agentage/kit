@@ -1,0 +1,14 @@
+{
+  "host": "test",
+  "program": { "version": "0.2.2" },
+  "core": "https://core.next.agentage.io",
+  "extensions": [
+    {
+      "id": "probe",
+      "version": "0.9.2",
+      "store": "postgres",
+      "expose": { "api": "public", "mcp": "public" }
+    },
+    { "id": "fixture", "version": "0.2.20", "track": "latest", "expose": { "api": "public" } }
+  ]
+}

@@ -1,7 +1,15 @@
-import { type Answer, type CallerState, combineHost, type Log } from '@agentage/extension/internal';
-import { type CloudInstallation } from './cloud-files.js';
+import {
+  type Answer,
+  type CallerState,
+  combineHost,
+  type Log,
+  type Program,
+} from '@agentage/extension/internal';
+import { hostInstallationOf } from './cloud-check.js';
+import { type CloudRows } from './cloud-installation.js';
 import { readDocument } from './document-read.js';
 import { type Entries } from './entries.js';
+import { type Shell } from './shell-routes.js';
 import { type StateOf } from './upstream-runner.js';
 
 export const READ_MS = 3_000;
@@ -23,7 +31,10 @@ export interface CloudDiscovery {
 }
 
 export interface DiscoveryOptions {
-  installation: CloudInstallation;
+  installation: CloudRows;
+  // The shell the program serves and the program itself: the document reports both as served.
+  shell?: Shell;
+  program?: Program | undefined;
   // The supervisor's entries: each run gives the addresses of its rows (upstream runner).
   entries: Entries;
   own: string;
@@ -53,7 +64,7 @@ const rowsOf = (entries: Entries) =>
 
 // No answer since start: starting; an answer before but no valid one now: down (combineHost).
 // Only the documents decide: no supervisor or runner state is told to the combine.
-const statesOf = (installation: CloudInstallation, named: Set<string>) => {
+const statesOf = (installation: CloudRows, named: Set<string>) => {
   const states: Record<string, CallerState> = {};
   for (const row of installation.extensions) if (!named.has(row.id)) states[row.id] = 'starting';
   return states;
@@ -62,9 +73,10 @@ const statesOf = (installation: CloudInstallation, named: Set<string>) => {
 const combineOf = (o: DiscoveryOptions, seen: Seen) =>
   combineHost({
     kind: 'cloud',
-    installation: o.installation,
+    installation: hostInstallationOf(o.installation, o.shell),
     answers: seen.answers,
     states: statesOf(o.installation, seen.named),
+    ...(o.program && { program: o.program }),
   });
 
 // One read of every row; a row with no answer now is down until a read gets its document again.

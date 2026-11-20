@@ -1,0 +1,32 @@
+{
+  "host": "core",
+  "program": { "version": "0.2.2" },
+  "extensions": [
+    {
+      "id": "market",
+      "version": "0.3.2",
+      "store": "postgres",
+      "track": "latest",
+      "expose": { "api": "public", "mcp": "public" }
+    },
+    {
+      "id": "logs",
+      "version": "0.7.2",
+      "store": "clickhouse",
+      "expose": { "api": "public", "mcp": "public" }
+    },
+    {
+      "id": "cloud",
+      "version": "0.8.1",
+      "store": "postgres",
+      "settings": {
+        "market": "https://core.next.agentage.io",
+        "repo": "agentage/estate",
+        "appId": "1",
+        "apphosts": "agentage/apphosts",
+        "watch": "on"
+      },
+      "expose": { "api": "public", "mcp": "public" }
+    }
+  ]
+}

@@ -3,6 +3,7 @@ import { request, type IncomingHttpHeaders } from 'node:http';
 import { join } from 'node:path';
 import { json, tempDir, tempPackage } from '../../../extension/src/test-support/packages.js';
 import { type CloudHost, type CloudHostOptions, startCloudHost } from '../cloud-host.js';
+import { PROGRAM_VERSION } from '../program-version.js';
 import { SHELL_PACKAGE } from '../shell-package.js';
 import { OWN, OWN_HOST, quietLog } from './cloud-upstream.js';
 
@@ -38,7 +39,7 @@ export const callAt = (
 export interface Rows {
   extensions: { id: string; expose?: Record<string, string>; enabled?: boolean }[];
   upstreams: { id: string; address: string }[];
-  shell?: { package: string; version: string };
+  shell?: { package: string };
 }
 
 // The two mounted files in a temp folder, and the env of a cloud host on port 0.
@@ -48,7 +49,8 @@ export const cloudEnv = async (rows: Rows, extra: Record<string, string> = {}) =
   const installationFile = join(dir, 'installation.json');
   const upstreamsFile = join(dir, 'upstreams.json');
   const shell = rows.shell && { shell: rows.shell };
-  await writeFile(installationFile, json({ host: 'site', ...shell, extensions }));
+  const program = { version: PROGRAM_VERSION };
+  await writeFile(installationFile, json({ host: 'site', program, ...shell, extensions }));
   const listed = rows.upstreams.map((u) => ({ ...u, service: u.id }));
   await writeFile(upstreamsFile, json(listed));
   return {
@@ -80,7 +82,8 @@ export const startCloud = async (
 };
 
 // A host with a shell key: /shell/events and /shell/sign-out exist only there.
-export const SHELL_KEY = { package: SHELL_PACKAGE, version: '9.1.0' };
+export const SHELL_KEY = { package: SHELL_PACKAGE };
+export const SHELL_VERSION = '9.1.0';
 
 export const startWithShell = async (
   rows: Rows,
@@ -88,7 +91,7 @@ export const startWithShell = async (
   options: CloudHostOptions = {}
 ): Promise<Started> => {
   const shellDir = await tempPackage({
-    'package.json': json({ name: SHELL_PACKAGE, version: SHELL_KEY.version }),
+    'package.json': json({ name: SHELL_PACKAGE, version: SHELL_VERSION }),
     'dist/index.html': '<!doctype html><title>shell</title>',
   });
   return startCloud(await cloudEnv({ ...rows, shell: SHELL_KEY }, extra), { shellDir, ...options });

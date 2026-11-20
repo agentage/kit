@@ -5,6 +5,7 @@ import {
   type HostDocument,
   type HostEntry,
   type HostKind,
+  type Program,
 } from './host-document.schema.js';
 import { routeTable, type Route, type Served } from './route-table.js';
 import { SERVES_KINDS } from './served.schema.js';
@@ -46,10 +47,13 @@ const entryOf = (row: Row, served: Served[], told?: CallerState): HostEntry => {
   return { ...docs.reduceRight((later, doc) => ({ ...later, ...doc })), parts, expose, state };
 };
 
-const documentOf = (installation: HostInstallation, kind: HostKind, entries: HostEntry[]) => {
+const documentOf = (input: CombineInput, entries: HostEntry[]) => {
+  const { installation, kind, program } = input;
   const { shell } = installation;
   const named = shell && { shell: { package: shell.package, version: shell.version } };
-  return HostDocumentSchema.parse({ host: installation.host, kind, ...named, extensions: entries });
+  const own = program && { program: { version: program.version, commit: program.commit } };
+  const { host } = installation;
+  return HostDocumentSchema.parse({ host, kind, ...own, ...named, extensions: entries });
 };
 
 const pagesRefusal = (route: Route, site?: Route): Refusal => ({
@@ -64,19 +68,21 @@ export interface CombineInput {
   answers: Answer[];
   // By id; unset, a row is running when a container answered for it, else down.
   states?: Record<string, CallerState>;
+  // The program that serves the document (cloud); the document then reports it.
+  program?: Program;
 }
 
 // No I/O: the installation and each container's answer in; the host document and routes out.
 // Throws only on an installation the host schema refuses (two rows of one id); a bad answer is refused.
-export const combineHost = ({ kind, installation, answers, states }: CombineInput): Combined => {
+export const combineHost = (input: CombineInput): Combined => {
+  const { installation, answers, states } = input;
   const { byId, refused } = sortAnswers(installation.extensions, answers);
   const rows = installation.extensions.map((row) => {
     const served = byId.get(row.id) ?? [];
     return { entry: entryOf(row, served, states?.[row.id]), served };
   });
   const document = documentOf(
-    installation,
-    kind,
+    input,
     rows.map((r) => r.entry)
   );
   const { routes, dropped } = routeTable(rows);

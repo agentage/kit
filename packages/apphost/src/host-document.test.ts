@@ -89,6 +89,8 @@ describe('hostDocumentOf: the host document from the discovery of each child (J.
     const port = await child(200, JSON.stringify(docOf('a')));
     const doc = await hostDocumentOf(entriesOf(entryOf('a', 'running', port)), new Map());
     expect([doc.kind, doc.extensions[0]?.state]).toEqual(['local', 'running']);
+    // The daemon reports no program line: a cloud host does.
+    expect(doc).not.toHaveProperty('program');
     expect(doc.extensions[0]).toMatchObject({ id: 'a', commit: 'a'.repeat(40), parts: ['api'] });
   });
 

@@ -12,6 +12,18 @@ describe('combineHost', () => {
     expect(HostDocumentSchema.parse(out.document)).toEqual(out.document);
   });
 
+  it('the program line goes to the document as given; with none the document has none', async () => {
+    const { installation } = await setup();
+    const program = { version: '0.2.3', commit: 'c'.repeat(40) };
+    const out = combineHost({ kind: 'cloud', installation, answers: [], program });
+    expect(out.document.program).toEqual(program);
+    expect(Object.keys(out.document)).toEqual(['host', 'kind', 'program', 'shell', 'extensions']);
+    const none = combineHost({ kind: 'local', installation, answers: [] });
+    expect(none.document).not.toHaveProperty('program');
+    const bad = { ...program, commit: 'abcdef1' };
+    expect(() => combineHost({ kind: 'cloud', installation, answers: [], program: bad })).toThrow();
+  });
+
   it('no answer = down: no commit, no parts, no route', async () => {
     const { fixture, installation } = await setup();
     const out = combineHost({ kind: 'cloud', installation, answers: [at('fixture', fixture)] });

@@ -55,7 +55,7 @@ export const cloudApp = (parts: CloudParts): Express => {
   app.get('/health', cloudHealth(parts.host, parts.env, parts.draining, parts.discovery.ready));
   app.use(ownHostOnly(parts.env.own, parts.env.local));
   app.get(HOST_DOC, (_req, res) => void res.set(NO_STORE).json(parts.discovery.current().document));
-  // The program's own version and commit: the host document schema has no such field.
+  // The program's own version and commit, also in the host document when the commit is known.
   const { version, commit } = parts.env.build;
   app.get(ROUTER_DOC, (_req, res) => void res.set(NO_STORE).json({ version, commit }));
   app.use(recordRoutes(parts.discovery, parts.env.own, { fetcher: parts.fetcher }));

@@ -14,7 +14,7 @@ export default defineConfig({
     // An in-process postgres boots in seconds when the whole suite runs at once (tests and hooks).
     testTimeout: 30_000,
     hookTimeout: 30_000,
-    include: ['packages/*/src/**/*.test.{ts,tsx}'],
+    include: ['packages/*/src/**/*.test.{ts,tsx}', 'packages/apphost/scripts/*.test.mjs'],
     globalSetup: ['packages/extension/src/test-support/pglite-template.ts'],
     setupFiles: [
       'packages/extension/src/test-support/cleanup.ts',

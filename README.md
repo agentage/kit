@@ -130,6 +130,13 @@ A `v<version>` tag on master, or a manual dispatch, runs `.github/workflows/rele
 must be the version of one package. The workflow runs `verify`, then publishes every package
 version not yet on npm, using OIDC trusted publishing with provenance. It skips private packages.
 
+The same run builds the app host program image from `packages/apphost/Dockerfile`. It pushes
+`ghcr.io/agentage/platform/apphost:<version>` and a tag of the commit. Then it uploads the record
+`agentage-apphost.json` to the release `@agentage/apphost@<version>`. This job needs only
+`verify`, so a held npm publish does not stop it. It does nothing when the record is already on
+the release. A re-run records the image that it pushed before. It refuses a version tag with
+another digest. The decision and the record are in `packages/apphost/scripts/image-release.mjs`.
+
 Before that, CI builds [extension-probe](https://github.com/agentage/extension-probe) on the
 packed packages, runs `up`, and checks every part image and the served discovery document. A kit
 change is proven in containers before it ships.

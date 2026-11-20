@@ -215,6 +215,18 @@ jobs:
           npx playwright install chromium
           npm run test:e2e
 
+      - name: Image smoke - the kit caller route through the gateway (200 own scopes, 401, 403)
+        working-directory: /tmp/probe
+        run: |
+          set -euo pipefail
+          at=http://localhost:4280/api/probe/caller
+          read=$(node node_modules/@agentage/extension/dist/tool/cli.js token --scope probe:read | tail -1)
+          other=$(node node_modules/@agentage/extension/dist/tool/cli.js token --scope memory:admin | tail -1)
+          curl -sf -H "Authorization: Bearer $read" "$at" | jq -e '.success and (.data | keys == ["scopes","sub"]) and .data.scopes == ["probe:read"]'
+          test "$(curl -s -o /dev/null -w '%{http_code}' "$at")" = 401
+          test "$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $other" "$at")" = 403
+          echo "PASS caller route"
+
       # The one container (C7): the image builds from this kit, starts healthy and serves the api.
       - name: One container smoke - build --container, run it, the api answers
         working-directory: /tmp/probe

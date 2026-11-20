@@ -1,8 +1,12 @@
+import express from 'express';
 import { afterEach, describe, expect, it } from 'vitest';
 import { CallerAnswerSchema } from '../auth/caller.schema.js';
 import { type Caller } from '../auth/token-check.js';
 import { createRouteRegistry } from '../api/routes.js';
+import { recordedLog, serveApp } from '../test-support/http.js';
 import { startTestServer, type TestServer } from '../testing/test-server.js';
+import { callerHandler } from './caller-route.js';
+import { errorHandler } from './errors.js';
 
 let server: TestServer | undefined;
 afterEach(async () => {
@@ -60,6 +64,18 @@ describe('GET /api/{id}/caller: the caller of a token-checked api', () => {
     const answer = await read(as('memory:admin', 'probe:read'));
     expect([answer.status, answer.cache]).toEqual([403, 'no-store']);
     expect(answer.body).toMatchObject({ success: false, error: { code: 'FORBIDDEN' } });
+  });
+
+  it('a check that names no caller at read: 401, never an empty answer', async () => {
+    const app = express().get(
+      '/c',
+      callerHandler('test', async () => null)
+    );
+    app.use(errorHandler(recordedLog().log));
+    const served = await serveApp(app);
+    const res = await fetch(`${served.url}/c`);
+    served.close();
+    expect([res.status, res.headers.get('cache-control')]).toEqual([401, 'no-store']);
   });
 
   it('no route where the api checks no token', async () => {

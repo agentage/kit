@@ -7,6 +7,7 @@ when it runs the image. The audience (`AGENTAGE_AUDIENCE`) is the host a token i
 | --------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
 | Entry                                                     | `node node_modules/@agentage/extension/dist/runtime/main.js <part>`; port `3000` (`PORT` overrides)                                  |
 | `/api/{id}/*`, `/api/v1/*`                                | the api part's routes; the `/api/v1` prefix stays during the move                                                                    |
+| `GET /api/{id}/caller`                                    | the caller's own `sub` and scopes, where tokens are checked ([below](#host-one-extension))                                           |
 | `/health`                                                 | loopback only (the container `HEALTHCHECK`, an operator on the node); `404` from any other address                                   |
 | `/.well-known/agentage-extension.json`                    | the record at `/run/agentage/agentage-extension.json` (`AGENTAGE_RECORD_FILE`), the host, `serves` and `app` ([below](#discovery))   |
 | `AGENTAGE_ORIGIN`                                         | the deployment's origin; pages and ui take it from the request without it                                                            |

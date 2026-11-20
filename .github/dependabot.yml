@@ -33,3 +33,18 @@ updates:
       all-actions:
         patterns:
           - '*'
+
+  - package-ecosystem: 'docker'
+    directory: '/packages/apphost'
+    schedule:
+      interval: 'weekly'
+      day: 'friday'
+      time: '16:07'
+      timezone: 'Etc/UTC'
+    assignees:
+      - 'vreshch'
+    open-pull-requests-limit: 5
+    groups:
+      all-docker:
+        patterns:
+          - '*'

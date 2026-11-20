@@ -1,7 +1,7 @@
 // node packages/apphost/scripts/image-smoke.mjs IMAGE: the app host image starts healthy as user node,
 // has no local flag, and drains inside the 10 s stop grace of the stack. Needs Docker.
 import { execFileSync, spawnSync } from 'node:child_process';
-import { chmodSync, mkdtempSync, writeFileSync } from 'node:fs';
+import { chmodSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -15,7 +15,10 @@ if (!image) throw new Error('usage: image-smoke.mjs IMAGE');
 const docker = (...args) => execFileSync('docker', args, { encoding: 'utf8' }).trim();
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const dir = mkdtempSync(join(tmpdir(), 'apphost-smoke-'));
-writeFileSync(join(dir, 'installation.json'), JSON.stringify({ host: 'smoke', extensions: [] }));
+// The cloud form names the program on one line; the strict start refuses a file with none.
+const { version } = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+const installation = { host: 'smoke', program: { version }, extensions: [] };
+writeFileSync(join(dir, 'installation.json'), JSON.stringify(installation));
 writeFileSync(join(dir, 'upstreams.json'), '[]');
 // The image user (node, uid 1000) is not the runner user: the files must be readable by all.
 chmodSync(dir, 0o755);

@@ -25,7 +25,7 @@ describe('drain on SIGTERM', () => {
     expect([res.status, res.headers.connection, res.headers['retry-after']]).toEqual([
       503,
       'close',
-      '5',
+      '1',
     ]);
     await draining;
     await expect(callAt(port, '/health')).rejects.toThrow();

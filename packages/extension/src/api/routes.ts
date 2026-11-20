@@ -1,4 +1,5 @@
 import { type z } from 'zod';
+import { CALLER_PATH } from '../auth/caller.schema.js';
 import { badScope, type Access, type Caller } from '../auth/token-check.js';
 import { type PartContext } from '../context/context.js';
 import { type Reply } from '../envelope/envelope.js';
@@ -129,6 +130,8 @@ const problemOf = (routes: RouteEntry[], { method, path, spec }: RouteEntry) => 
   if (!ROUTE_METHODS.includes(method))
     return `method ${String(method)}: one of get, post, put, patch, delete`;
   if (!PATH.test(path)) return 'path: /segments and {param} segments under /api/{id}';
+  if (path.toLowerCase() === CALLER_PATH)
+    return 'is the kit route of the caller: pick another path';
   if (routes.some((r) => r.method === method && r.path === path)) return 'is registered twice';
   if (!spec.summary) return 'needs a summary: it documents the route';
   if (spec.bare && spec.produces) return 'bare answers JSON, produces a download: pick one';

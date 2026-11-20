@@ -1,4 +1,5 @@
 export { AGCID_HEADER, isAgcid } from '../agcid/header.js';
+export { CallerAnswerSchema, callerPath, type CallerAnswer } from '../auth/caller.schema.js';
 export {
   CloudDiscoveryDocumentSchema,
   DiscoveryDocumentSchema,

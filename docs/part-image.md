@@ -90,6 +90,12 @@ with a `jti` gets 503 `UNAVAILABLE` (with `Retry-After`) until the first read, a
 `admin` gets 503 `UNAVAILABLE`, and a read still uses the stale list. A token without the scope
 gets 403 first. `/health` says `degraded` while the list is stale.
 
+With a token check, the api part also serves the kit route `GET /api/{id}/caller` (`ctx.route`
+refuses the path). It needs `{id}:read`, and `write` or `admin` pass too. It answers
+`{ success: true, data: { sub, scopes } }` with `Cache-Control: no-store`. `scopes` holds only the
+`{id}:{verb}` scopes the token names. No token is 401, a token without the scope is 403. It is not
+in `openapi.json` or the discovery document, like `/health`. A part with no token check has no such route.
+
 On loopback there is no token check. SIGTERM drains the open requests, waits for a job run still
 going (3 s at most), closes the store and exits 0. `ctx.exit()` does the same. The host brings `@electric-sql/pglite`; the package does not
 need it.

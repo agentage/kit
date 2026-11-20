@@ -33,6 +33,7 @@ export function create(ctx: McpContext) {
 ctx.route('get', '/export', { summary: 'Export', produces: 'application/zip' }, () =>
   download(zipStream, { filename: 'memories.zip' })
 );
+// /caller is the kit's route (the caller's sub and own scopes, docs/part-image.md): ctx.route refuses it
 // bare: true answers the body with no envelope (errors keep it); with etag a GET answers 304
 ctx.route('get', '/sync', { summary: 'Sync', bare: true, etag: true, output }, () =>
   reply(body, { etag: '"v1"' })

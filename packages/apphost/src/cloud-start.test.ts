@@ -27,6 +27,7 @@ afterEach(async () => {
 
 const SRC = dirname(fileURLToPath(import.meta.url));
 const NO_ROWS = { extensions: [], upstreams: [] };
+const PROGRAM = `"program":{"version":"${PROGRAM_VERSION}"}`;
 
 // Every host a server of this process was asked to listen on.
 const listenHosts = () => {
@@ -144,11 +145,15 @@ describe('start checks of the cloud entry', () => {
   it.each([
     ['AGENTAGE_UPSTREAMS_FILE', '{"id":"echo"}', 'expected array'],
     ['AGENTAGE_INSTALLATION_FILE', 'not json', 'is not valid JSON'],
-    ['AGENTAGE_INSTALLATION_FILE', '{"host":"platform","extensions":[{"id":"echo"}]}', 'version'],
     [
       'AGENTAGE_INSTALLATION_FILE',
-      '{"host":"p","extensions":[{"id":"e","version":"1.0.0","expose":{"app":"internal"}}]}',
-      'expose',
+      `{"host":"platform",${PROGRAM},"extensions":[{"id":"echo"}]}`,
+      'extensions[0].version: is required',
+    ],
+    [
+      'AGENTAGE_INSTALLATION_FILE',
+      `{"host":"p",${PROGRAM},"extensions":[{"id":"e","version":"1.0.0","expose":{"app":"internal"}}]}`,
+      'extensions[0].expose.app',
     ],
   ])('a bad %s refuses the start, the file named', async (name, text, words) => {
     const e = await cloudEnv(NO_ROWS);

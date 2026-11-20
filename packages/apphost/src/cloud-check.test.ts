@@ -1,5 +1,5 @@
 import { readFileSync } from 'node:fs';
-import { cp, writeFile } from 'node:fs/promises';
+import { cp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { Server } from 'node:net';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -66,6 +66,30 @@ describe('--check DIR on the host files of apphosts master, in the new form', ()
 });
 
 describe('each refusal of --check is one line', () => {
+  it('no folder named; a folder with no installation.json or no upstreams.json', async () => {
+    expect(await check(undefined as unknown as string)).toEqual({
+      code: 1,
+      lines: ['--check: name the folder of a host: --check DIR'],
+    });
+    const empty = await tempDir('agentage-check-');
+    expect(await check(empty)).toEqual({
+      code: 1,
+      lines: ['installation.json: absent', 'upstreams.json: absent'],
+    });
+    const dir = await hostWith((doc) => doc);
+    await rm(join(dir, 'upstreams.json'));
+    expect(await check(dir)).toEqual({ code: 1, lines: ['upstreams.json: absent'] });
+  });
+
+  it('a folder it cannot read is one line, never a throw', async () => {
+    const dir = await hostWith((doc) => doc);
+    await rm(join(dir, 'installation.json'));
+    await mkdir(join(dir, 'installation.json'));
+    const { code, lines } = await check(dir);
+    expect([code, lines.length]).toEqual([1, 1]);
+    expect(lines[0]).toContain('installation.json');
+  });
+
   it.each([
     [
       'source',

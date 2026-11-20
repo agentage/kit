@@ -5,7 +5,8 @@ The agentage extension kit. Each server and cli part (pages, api, mcp, worker, c
 correlation id, the response envelope, the store pool, the scheduler and argument parsing.
 `@agentage/extension/tool` is the tool behind `agentage extension check | build | up --docker | down | token`.
 `@agentage/extension/host` is the host and the daemon, `@agentage/extension/contracts` the wire
-schemas.
+schemas. The host document has the optional key `program { version, commit }` since 0.20.4: a cloud
+app host fills it with its program; the daemon leaves it out.
 `@agentage/extension/logs` is the event line (`EventSchema`, `parseLine`, `createLogger`,
 `createEventsClient`, `KINDS`, `LEVELS`, `USER_TYPES`), built into the kit's own tarball.
 `@agentage/extension/core` is the one client of the core's services (see "The core client").

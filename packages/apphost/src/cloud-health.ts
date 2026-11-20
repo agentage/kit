@@ -10,12 +10,14 @@ export const ROUTER_PART = 'router';
 export const cloudHealth = (
   host: string,
   { build }: Pick<CloudEnv, 'build'>,
-  draining: () => boolean
+  draining: () => boolean,
+  ready: () => boolean
 ): RequestHandler => {
   const instance = randomBytes(4).toString('hex');
   const started = Date.now();
   return (_req, res) => {
-    if (draining()) throw fail('UNAVAILABLE', 'draining before stop', { retryAfter: 5 });
+    if (draining()) throw fail('UNAVAILABLE', 'draining before stop', { retryAfter: 1 });
+    if (!ready()) throw fail('UNAVAILABLE', 'first discovery pass not done', { retryAfter: 1 });
     const uptimeSeconds = Math.floor((Date.now() - started) / 1000);
     const checkedAt = new Date().toISOString();
     const data = { status: 'ok', extension: host, part: ROUTER_PART, ...build, instance };

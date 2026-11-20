@@ -16,6 +16,8 @@ export interface CloudDiscovery {
   // The addresses of an id whose valid document the combine took, in row order (the records).
   servedBy(id: string): string[];
   refresh(): Promise<void>;
+  // True once the first pass after start() ended, whatever it found; reads no entry state.
+  ready(): boolean;
   start(): Promise<void>;
   stop(): void;
 }
@@ -105,9 +107,11 @@ export const createCloudDiscovery = (o: DiscoveryOptions): CloudDiscovery => {
   };
   const refresh = singleFlight(readOf(o, seen), o.log);
   let timer: NodeJS.Timeout | undefined;
+  let isReady = false;
   const start = () => {
     timer ??= setInterval(() => void refresh(), o.everyMs ?? EVERY_MS).unref();
-    return refresh();
+    return refresh().finally(() => (isReady = true));
   };
-  return { current, stateOf, servedBy, refresh, start, stop: () => clearInterval(timer) };
+  const ready = () => isReady;
+  return { current, stateOf, servedBy, refresh, ready, start, stop: () => clearInterval(timer) };
 };

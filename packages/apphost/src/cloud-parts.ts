@@ -29,9 +29,21 @@ const headersOf = async (
   return exchange ? session.headersFor(req, route.id) : req.headers;
 };
 
-// The request line names the route template, never the path the caller sent.
-const templateOf = (part: string, under: string) =>
-  under.startsWith(`/${part}/`) ? `/${part}/{id}/*` : `${under.replace(/\/$/, '')}/*`;
+// The request line names the matched row's id (from the installation), never the path sent.
+const templateOf = ({ part, id }: Route, under: string) =>
+  under.startsWith(`/${part}/`) ? `/${part}/${id}/*` : `${under.replace(/\/$/, '')}/*`;
+
+// An installed id with no public route now: its row names it before the 503 (a caller id never).
+const notRouted = (
+  res: Parameters<RequestHandler>[1],
+  combined: Combined,
+  id: string,
+  part: RoutedPart
+) => {
+  if (combined.document.extensions.some((e) => e.id === id))
+    res.locals['route'] = `/${part}/${id}/*`;
+  unavailableIf(combined, id, part);
+};
 
 // Only a public route of a running entry is served, then the site of a pages host; else 404.
 export const partRoutes =
@@ -39,10 +51,10 @@ export const partRoutes =
   async (req, res, next) => {
     const combined = discovery.current();
     const hit = routeOf(combined.routes, req.path);
-    if (hit && !('route' in hit)) unavailableIf(combined, hit.id, hit.part);
+    if (hit && !('route' in hit)) notRouted(res, combined, hit.id, hit.part);
     if (!hit || !('route' in hit)) return next();
     const { route, under } = hit;
-    res.locals['route'] = templateOf(route.part, under);
+    res.locals['route'] = templateOf(route, under);
     if (route.part === 'app' && req.method !== 'GET') return next();
     const headers = await headersOf(session, req, route);
     forwardTo(req, res, next, { id: route.id, prefix: under, upstream: route.upstream, headers });

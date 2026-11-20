@@ -69,4 +69,5 @@ export const upstream = async (doc: unknown): Promise<Upstream> => {
   return up;
 };
 
-export const quietLog = (): Log => createLog({ extension: 'host', part: 'api' }, () => undefined);
+export const quietLog = (): Log =>
+  createLog({ extension: 'host', part: 'router' }, () => undefined);

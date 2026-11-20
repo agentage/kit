@@ -28,6 +28,8 @@ The bin `agentage-apphost-cloud` runs a cloud app host. It reads `installation.j
 - `source` and `enabled` are for a machine only. A row needs a `version`.
 - The ids `router` and `host`, an id that ends in `-pages` and a shell package as a row are refused. Only one row serves pages.
 
+The router writes one request line per call as extension `host`, part `router`. Its route names the id of the matched row (`/api/{id}/*` with the real id, also on a 503 of a starting row); a path of no row is `(unmatched)`. It sends its `agcid` upstream, so the upstream rows carry the same id. Env: `AGENTAGE_URL` is required; `AGENTAGE_CORE_URL` is optional and not read (a value that is set must still be an https origin).
+
 `agentage-apphost-cloud --check DIR` runs the checks of the start on `DIR/installation.json` and `DIR/upstreams.json`. It also refuses a `host` that is not the folder name. It needs no env and never listens. It prints one line for each refusal and exits 0 or 1. The files in `fixtures/check/` show the form.
 
 License: MIT

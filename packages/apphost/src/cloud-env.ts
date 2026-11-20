@@ -5,7 +5,6 @@ import { PROGRAM_VERSION } from './program-version.js';
 export interface CloudEnv {
   // new URL(AGENTAGE_URL).origin: the origin of this host's own pages.
   own: string;
-  core: string;
   issuer: string | null;
   // LOCAL_FLAG=1: the local run of an app host (apphosts scripts/local.mjs); never in a stack.
   local: boolean;
@@ -83,12 +82,17 @@ export const programOf = ({ build }: Pick<CloudEnv, 'build'>): Program | undefin
     ? { version: build.version, commit: build.commit }
     : undefined;
 
-// The start checks of the cloud entry (J.4.4): AGENTAGE_URL and AGENTAGE_CORE_URL are https origins.
+// The program reads no core URL; a set value is still checked, as the estate sets it on every host.
+const checkCore = (env: NodeJS.ProcessEnv, local: boolean): void => {
+  if (env['AGENTAGE_CORE_URL'] !== undefined) originOf(env, 'AGENTAGE_CORE_URL', local);
+};
+
+// The start checks of the cloud entry (J.4.4): AGENTAGE_URL is an https origin.
 export const cloudEnvOf = (env: NodeJS.ProcessEnv): CloudEnv => {
   const local = env[LOCAL_FLAG] === '1';
+  checkCore(env, local);
   return {
     own: ownOf(env, local),
-    core: originOf(env, 'AGENTAGE_CORE_URL', local),
     issuer: issuerOf(env['AGENTAGE_ISSUER'], local),
     local,
     port: portOf(env['PORT']),

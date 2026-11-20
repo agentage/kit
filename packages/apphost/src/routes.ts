@@ -21,6 +21,7 @@ import { waitAtMost } from './queue.js';
 import { servesPart } from './lane-routes.js';
 import { proxyTo } from './proxy.js';
 import { reloadExtension } from './reload.js';
+import { hostHeaders } from './security-headers.js';
 import { shellEvents, type ShellEvents } from './shell-events.js';
 import { shellRoutes } from './shell-routes.js';
 import { stopsNow } from './stopping.js';
@@ -117,7 +118,7 @@ export const daemonApp = (
   const app = express();
   const proxy = proxyTo(entries, deps, hostToken);
   app.disable('x-powered-by');
-  app.use(agcidMiddleware, localOnly(port));
+  app.use(agcidMiddleware, hostHeaders(false), localOnly(port));
   const api = servesPart(entries, 'api');
   const mcp = servesPart(entries, 'mcp');
   app.use('/api/:id', ownAppOnly, api, proxy);

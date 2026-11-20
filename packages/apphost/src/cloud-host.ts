@@ -79,13 +79,11 @@ const partsOf = async (environment: NodeJS.ProcessEnv, o: CloudHostOptions) => {
   };
   const { issuer, own, local } = env;
   const fetcher = o.fetcher && { fetcher: o.fetcher };
-  // The host id of /shell/session is the installation's (decision 2026-11-19: today's behaviour).
   const signOut = shell !== undefined;
   const session = createCloudSession({
     issuer,
     own,
     local,
-    host: installation.host,
     signOut,
     ...fetcher,
   });

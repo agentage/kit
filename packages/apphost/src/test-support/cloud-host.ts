@@ -19,10 +19,13 @@ export interface AuthCall {
   body: string;
 }
 
-// A fake auth: the exchange answers `exchange(access)`, the sign-out `signOut` with two clears.
+// A fake auth: the exchange answers `exchange(access, id)`, the sign-out `signOut` with two clears.
 export interface FakeAuth {
-  exchange: (access: string) => number;
+  exchange: (access: string, extension: string) => number;
   signOut: number;
+  // Both identity reads: the status, and the user of a 200 (null: 200 with a null body).
+  identity: number;
+  user: typeof USER | null;
   // true: auth is unreachable (the fetch rejects).
   down: boolean;
   calls: AuthCall[];
@@ -41,8 +44,38 @@ const signOutAnswer = (status: number) => {
   return new Response('{"success":true}', { status, headers });
 };
 
-export const fakeAuth = (exchange: (access: string) => number = () => 201): FakeAuth => {
-  const auth: FakeAuth = { exchange, signOut: 200, down: false, calls: [], fetcher: fetch };
+export const COOKIE_READ = '/api/auth/get-session';
+export const BEARER_READ = '/api/auth/mcp/get-session';
+
+const identityOf = (auth: FakeAuth, url: string) => {
+  const ends = new Date(Date.now() + 86_400_000).toISOString();
+  const { user } = auth;
+  // The two shapes of Better Auth: the cookie session, the OAuth access token row.
+  const cookie = user && { user: { ...user, name: 'E2E' }, session: { expiresAt: ends } };
+  const bearer = user && { userId: user.id, clientId: 'cli', accessTokenExpiresAt: ends };
+  const body = url === COOKIE_READ ? cookie : bearer;
+  return Response.json(body, { status: auth.identity });
+};
+
+const answerOf = (auth: FakeAuth, url: string, body: string) => {
+  if (url === '/api/auth/sign-out') return signOutAnswer(auth.signOut);
+  if (url === COOKIE_READ || url === BEARER_READ) return identityOf(auth, url);
+  const { access, extension } = JSON.parse(body) as { access: string; extension: string };
+  return Response.json(tokenOf(body), { status: auth.exchange(access, extension) });
+};
+
+export const fakeAuth = (
+  exchange: (access: string, extension: string) => number = () => 201
+): FakeAuth => {
+  const auth: FakeAuth = {
+    exchange,
+    signOut: 200,
+    identity: 200,
+    user: USER,
+    down: false,
+    calls: [],
+    fetcher: fetch,
+  };
   auth.fetcher = async (input, init) => {
     const target = new URL(input instanceof Request ? input.url : input);
     // The host reads its containers (127.0.0.1) with the same fetcher: those go out as sent.
@@ -51,15 +84,16 @@ export const fakeAuth = (exchange: (access: string) => number = () => 201): Fake
     const url = target.pathname;
     const body = typeof init?.body === 'string' ? init.body : '';
     auth.calls.push({ url, headers: new Headers(init?.headers), body });
-    if (url === '/api/auth/sign-out') return signOutAnswer(auth.signOut);
-    const { access } = JSON.parse(body) as { access: string };
-    return Response.json(tokenOf(body), { status: auth.exchange(access) });
+    return answerOf(auth, url, body);
   };
   return auth;
 };
 
 export const exchangesOf = (auth: FakeAuth) =>
   auth.calls.filter((call) => call.url === '/account/extension-token');
+
+export const identityReadsOf = (auth: FakeAuth) =>
+  auth.calls.filter((call) => call.url === COOKIE_READ || call.url === BEARER_READ);
 
 export interface CloudHost {
   server: TestServer;
@@ -68,12 +102,8 @@ export interface CloudHost {
 }
 
 // The routes a cloud host gives the session: /shell/session, /shell/sign-out, api and mcp recorders.
-export const cloudHost = async (
-  auth: FakeAuth,
-  host: string,
-  issuer: string | undefined = ISSUER
-) => {
-  const session = createCloudSession({ issuer, own: OWN, host, fetcher: auth.fetcher });
+export const cloudHost = async (auth: FakeAuth, issuer: string | undefined = ISSUER) => {
+  const session = createCloudSession({ issuer, own: OWN, fetcher: auth.fetcher });
   const upstream: IncomingHttpHeaders[] = [];
   const app = express();
   app.get('/shell/session', async (req, res) => {

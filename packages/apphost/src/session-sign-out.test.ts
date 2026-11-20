@@ -7,6 +7,7 @@ import {
   exchangesOf,
   type FakeAuth,
   fakeAuth,
+  identityReadsOf,
   ISSUER,
   OWN,
   SESSION,
@@ -21,7 +22,7 @@ afterEach(async () => {
 });
 
 const start = async (auth: FakeAuth) => {
-  const host = await cloudHost(auth, 'platform');
+  const host = await cloudHost(auth);
   close = host.close;
   const session = (headers: Record<string, string> = PAGE) =>
     host.server
@@ -45,10 +46,11 @@ describe('the cloud sign-out (J.4.4 row 2)', () => {
     expect(upstream[0]?.authorization).toBe('Bearer aga_market.jwt');
     expect((await signOut()).status).toBe(200);
     auth.exchange = () => 401;
+    auth.user = null;
     expect((await session()).user).toBeNull();
     await api();
     expect(upstream[1]?.authorization).toBeUndefined();
-    expect(exchangesOf(auth)).toHaveLength(4);
+    expect([exchangesOf(auth).length, identityReadsOf(auth).length]).toEqual([2, 2]);
   });
 
   it('the sign-out at auth carries the auth Origin and only the session cookies; both clears reach the browser', async () => {
@@ -105,7 +107,7 @@ describe('the cloud sign-out (J.4.4 row 2)', () => {
       .find((c) => c.startsWith('better-auth.session_token='));
     expect(clear).toMatch(/Max-Age=0/);
     await session();
-    expect(exchangesOf(auth)).toHaveLength(2);
+    expect(identityReadsOf(auth)).toHaveLength(2);
   });
 
   it('auth down at sign-out: 503, and the cache is dropped all the same', async () => {
@@ -117,7 +119,7 @@ describe('the cloud sign-out (J.4.4 row 2)', () => {
     expect(res.status).toBe(503);
     expect(((await res.json()) as { error: { code: string } }).error.code).toBe('UNAVAILABLE');
     await session();
-    expect(exchangesOf(auth)).toHaveLength(2);
+    expect(identityReadsOf(auth)).toHaveLength(2);
   });
 
   it('auth unreachable or 429 at sign-out is 503', async () => {

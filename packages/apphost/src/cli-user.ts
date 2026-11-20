@@ -1,5 +1,6 @@
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
+import { askIdentity } from './auth-identity.js';
 
 type Json = Record<string, unknown>;
 
@@ -30,12 +31,9 @@ const tokenSub = (auth: Json, issuer: string): string | undefined => {
 // The session as the cli checks it (get-session with its bearer); any failure is no user.
 const sessionSub = async (issuer: string, bearer: unknown): Promise<string | undefined> => {
   if (typeof bearer !== 'string' || !bearer) return undefined;
-  const url = `${issuer}/api/auth/mcp/get-session`;
-  const headers = { authorization: `Bearer ${bearer}` };
-  const signal = AbortSignal.timeout(SESSION_MS);
-  const res = await fetch(url, { headers, signal, redirect: 'error' }).catch(() => undefined);
-  if (!res?.ok) return void (await res?.body?.cancel());
-  return subOf(objectOf(await res.json().catch(() => null))['userId']);
+  const options = { issuer, fetcher: fetch, timeoutMs: SESSION_MS };
+  const seen = await askIdentity(options, { authorization: `Bearer ${bearer}` }).catch(() => null);
+  return subOf(seen?.user.id);
 };
 
 const isOrigin = (value: unknown): value is string =>

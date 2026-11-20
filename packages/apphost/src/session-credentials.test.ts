@@ -72,7 +72,6 @@ describe('the credential filter of the cloud session (J.4.4 row 2)', () => {
     const session = createCloudSession({
       issuer: ISSUER,
       own: OWN,
-      host: 'platform',
       fetcher: fakeAuth().fetcher,
     });
     const page = { 'sec-fetch-site': 'same-origin', cookie: `_ga=1; ${SESSION}` };

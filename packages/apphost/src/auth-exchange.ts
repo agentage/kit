@@ -42,7 +42,7 @@ const secretOf = (credential: Credential): string => {
   return tokens.size === 1 ? [...tokens][0]! : credential.cookie;
 };
 
-const keyOf = (credential: Credential, id: string) =>
+export const keyOf = (credential: Credential, id: string) =>
   `${createHash('sha256').update(secretOf(credential)).digest('hex')}:${id}`;
 
 const untilOf = (data: Outcome, now: number) => {

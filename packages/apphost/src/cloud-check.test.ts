@@ -160,6 +160,16 @@ describe('each refusal of --check is one line', () => {
     );
   });
 
+  it('two issues of the combine are two lines', async () => {
+    const two = (doc: Record<string, unknown>) =>
+      withRow({ id: 'mcp' })(withRow({ id: 'api' })(doc));
+    const { lines } = await check(await hostWith(two));
+    expect(lines.map((l) => l.replace(/: lowercase.*$/, ''))).toEqual([
+      'installation.json: the host document refuses it: extensions.2.id',
+      'installation.json: the host document refuses it: extensions.3.id',
+    ]);
+  });
+
   it('a file that is not JSON, and an upstream list the runner refuses', async () => {
     const dir = await hostWith((doc) => doc);
     await writeFile(join(dir, 'installation.json'), '{');

@@ -48,6 +48,8 @@ interface Seen {
   answers: Answer[];
   named: Set<string>;
   combined?: Combined;
+  // The refusal lines last logged: a line is logged when the set changes, not on every read.
+  said: string;
 }
 
 // As a browser asks through the edge (own name, https): the document then names the public host.
@@ -79,6 +81,17 @@ const combineOf = (o: DiscoveryOptions, seen: Seen) =>
     ...(o.program && { program: o.program }),
   });
 
+// Each refusal names its upstream and its row id, also for a document with no readable id.
+const sayRefused = (o: DiscoveryOptions, seen: Seen, next: Combined) => {
+  const rowOf = new Map(seen.answers.map((a) => [a.upstream, a.expectedId]));
+  const lines = next.refused.map(
+    (r) => `${r.upstream} ${rowOf.get(r.upstream) ?? r.id}: ${r.reason}`
+  );
+  const said = lines.sort().join('\n');
+  if (said !== seen.said) for (const line of lines) o.log.warn('document refused', { line });
+  seen.said = said;
+};
+
 // One read of every row; a row with no answer now is down until a read gets its document again.
 const readOf = (o: DiscoveryOptions, seen: Seen) => async () => {
   const [rows, ms, headers] = [rowsOf(o.entries), o.readMs ?? READ_MS, headersOf(o.own)];
@@ -87,6 +100,7 @@ const readOf = (o: DiscoveryOptions, seen: Seen) => async () => {
   // Any answer, even a refused one, means the container is up: a refused row is down.
   rows.forEach((row, i) => docs[i] !== undefined && seen.named.add(row.expectedId));
   const next = combineOf(o, seen);
+  sayRefused(o, seen, next);
   const changed = JSON.stringify(next.document) !== JSON.stringify(seen.combined?.document);
   seen.combined = next;
   if (changed) o.onChange();
@@ -104,7 +118,7 @@ const singleFlight = (read: () => Promise<void>, log: Log) => {
 // THE ONE SOURCE OF STATE of a cloud host: combineHost of each upstream row's discovery document.
 // The host document, the routes and the runs' state() read it; no upstream /health is ever read.
 export const createCloudDiscovery = (o: DiscoveryOptions): CloudDiscovery => {
-  const seen: Seen = { answers: [], named: new Set() };
+  const seen: Seen = { answers: [], named: new Set(), said: '' };
   // A throw here (an installation the host schema refuses) refuses the start.
   seen.combined = combineOf(o, seen);
   const current = () => seen.combined as Combined;

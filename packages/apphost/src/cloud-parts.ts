@@ -29,6 +29,10 @@ const headersOf = async (
   return exchange ? session.headersFor(req, route.id) : req.headers;
 };
 
+// The request line names the route template, never the path the caller sent.
+const templateOf = (part: string, under: string) =>
+  under.startsWith(`/${part}/`) ? `/${part}/{id}/*` : `${under.replace(/\/$/, '')}/*`;
+
 // Only a public route of a running entry is served, then the site of a pages host; else 404.
 export const partRoutes =
   (discovery: CloudDiscovery, session: CloudSession): RequestHandler =>
@@ -38,6 +42,7 @@ export const partRoutes =
     if (hit && !('route' in hit)) unavailableIf(combined, hit.id, hit.part);
     if (!hit || !('route' in hit)) return next();
     const { route, under } = hit;
+    res.locals['route'] = templateOf(route.part, under);
     if (route.part === 'app' && req.method !== 'GET') return next();
     const headers = await headersOf(session, req, route);
     forwardTo(req, res, next, { id: route.id, prefix: under, upstream: route.upstream, headers });

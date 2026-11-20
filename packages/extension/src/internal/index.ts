@@ -41,6 +41,7 @@ export {
 export { readManifest } from '../manifest/read-manifest.js';
 export { BODY_LIMIT } from '../server/app.js';
 export { errorHandler, notFound } from '../server/errors.js';
+export { requestLine } from '../server/request-line.js';
 export { closeNow, listen } from '../server/serve.js';
 export { startOn, startTestServer, type TestServer } from '../testing/test-server.js';
 export { KIT_VERSION } from '../tool/kit-version.js';

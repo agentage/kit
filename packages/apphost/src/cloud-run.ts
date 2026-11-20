@@ -49,12 +49,11 @@ const depsOf = (o: CloudRunOptions, life: AbortController): SupervisorDeps => ({
   user: {},
 });
 
-// Each enabled entry started through the supervisor; stop retires every run.
+// Each entry started through the supervisor; stop retires every run.
 export const startRuns = async (o: CloudRunOptions, entries: Entries) => {
   const life = new AbortController();
   const deps = depsOf(o, life);
-  for (const entry of entries.values())
-    if (entry.state !== 'disabled') await startEntry(deps, entry);
+  for (const entry of entries.values()) await startEntry(deps, entry);
   return async () => {
     life.abort();
     await Promise.all([...entries.values()].map((entry) => halt(entry, deps.drainMs)));

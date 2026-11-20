@@ -37,7 +37,7 @@ export const callAt = (
   });
 
 export interface Rows {
-  extensions: { id: string; expose?: Record<string, string>; enabled?: boolean }[];
+  extensions: { id: string; expose?: Record<string, string> }[];
   upstreams: { id: string; address: string }[];
   shell?: { package: string };
 }

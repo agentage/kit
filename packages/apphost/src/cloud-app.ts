@@ -1,5 +1,6 @@
 import express, { type Express } from 'express';
 import { agcidMiddleware, errorHandler, type Log, notFound } from '@agentage/extension/internal';
+import { requestLine } from '@agentage/extension/internal';
 import { authMirror } from './cloud-auth-mirror.js';
 import { type CloudDiscovery } from './cloud-discovery.js';
 import { closeWhileDraining } from './cloud-drain.js';
@@ -53,6 +54,8 @@ export const cloudApp = (parts: CloudParts): Express => {
   app.disable('x-powered-by');
   app.use(agcidMiddleware, closeWhileDraining(parts.draining), requestGuard);
   app.get('/health', cloudHealth(parts.host, parts.env, parts.draining, parts.discovery.ready));
+  // After /health, as in the kit: the probe reads it every few seconds. No ctx.exit on a host.
+  app.use(requestLine(parts.log, () => undefined));
   app.use(ownHostOnly(parts.env.own, parts.env.local));
   app.get(HOST_DOC, (_req, res) => void res.set(NO_STORE).json(parts.discovery.current().document));
   // The program's own version and commit, also in the host document when the commit is known.

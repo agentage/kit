@@ -10,6 +10,7 @@ import { cloudHealth } from './cloud-health.js';
 import { cloudPageRule } from './cloud-page.js';
 import { partRoutes } from './cloud-parts.js';
 import { recordRoutes } from './cloud-records.js';
+import { hostHeaders } from './security-headers.js';
 import { streamRoutes } from './cloud-streams.js';
 import { CLOUD_SIGN_OUT, type CloudSession } from './cloud-session.js';
 import { HOST_DOC, ROUTER_DOC } from './route-of.js';
@@ -52,7 +53,13 @@ const shellRoutes = (app: Express, { session, events, shell }: CloudParts) => {
 export const cloudApp = (parts: CloudParts): Express => {
   const app = express();
   app.disable('x-powered-by');
-  app.use(agcidMiddleware, closeWhileDraining(parts.draining), requestGuard);
+  const https = parts.env.own.startsWith('https:');
+  app.use(
+    agcidMiddleware,
+    hostHeaders({ https }),
+    closeWhileDraining(parts.draining),
+    requestGuard
+  );
   app.get('/health', cloudHealth(parts.host, parts.env, parts.draining, parts.discovery.ready));
   // After /health, as in the kit: the probe reads it every few seconds. No ctx.exit on a host.
   app.use(requestLine(parts.log, () => undefined));

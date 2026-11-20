@@ -91,7 +91,7 @@ describe('a refused upstream document is one log line (the stub router did the s
 describe('the kit request line on the cloud app', () => {
   const SECRET = { cookie: 'better-auth.session_token=s1.sig', authorization: 'Bearer aga_x.jwt' };
 
-  it('one line per request: method, route template, status, ms; never a cookie or Authorization', async () => {
+  it('one line per request: method, route of the row id, status, ms; never a cookie or Authorization', async () => {
     const { host, lines, texts, routes } = await startWith(docOf('echo'));
     await host.call('/.well-known/agentage-host.json', { headers: SECRET });
     await host.call('/api/echo/x?id=42', { headers: SECRET });
@@ -107,7 +107,7 @@ describe('the kit request line on the cloud app', () => {
     const rows = http.map((l) => keys.map((k) => l.fields?.[k]));
     expect(rows).toEqual([
       ['GET', '/.well-known/agentage-host.json', 200],
-      ['GET', '/api/{id}/*', 200],
+      ['GET', '/api/echo/*', 200],
     ]);
     expect(http.every((l) => typeof l.fields?.['agentage.duration_ms'] === 'number')).toBe(true);
     for (const value of [...Object.values(SECRET), 's1.sig', 'aga_x', 'id=42'])

@@ -2,6 +2,7 @@ import { type Server } from 'node:http';
 import { type AddressInfo } from 'node:net';
 import { closeNow, createLog, type Log, listen } from '@agentage/extension/internal';
 import { cloudApp } from './cloud-app.js';
+import { ROUTER_PART } from './cloud-health.js';
 import { type Drain, drainOf } from './cloud-drain.js';
 import { createCloudDiscovery, type DiscoveryOptions } from './cloud-discovery.js';
 import { cloudEnvOf, programOf } from './cloud-env.js';
@@ -22,7 +23,10 @@ export const cloudLog = (
   version: string,
   write: (line: string) => unknown = (line) => process.stderr.write(line)
 ): Log =>
-  createLog({ extension: 'host', part: 'api', version }, (line) => void write(redactUrls(line)));
+  createLog(
+    { extension: 'host', part: ROUTER_PART, version },
+    (line) => void write(redactUrls(line))
+  );
 
 // Sign-in off still starts the host; the line says why (the value is never logged).
 export const signInOff = (issuer: string | undefined): string =>

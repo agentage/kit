@@ -1,5 +1,6 @@
 import { type IncomingHttpHeaders, type IncomingMessage } from 'node:http';
 import { type NextFunction, type Request, type Response } from 'express';
+import { AGCID_HEADER } from '@agentage/extension/contracts';
 import { fail } from '@agentage/extension/internal';
 import { withoutCredentials } from './cloud-credentials.js';
 import { endToEnd, pipeTo } from './proxy.js';
@@ -47,6 +48,12 @@ export interface CloudForward {
   answer?: Record<string, string>;
 }
 
+// The router's agcid (kept or minted) goes upstream, so the upstream row joins the router row.
+const withAgcid = (headers: IncomingHttpHeaders, res: Response): IncomingHttpHeaders => {
+  const agcid: unknown = res.locals['agcid'];
+  return typeof agcid === 'string' ? { ...headers, [AGCID_HEADER]: agcid } : headers;
+};
+
 const leaves = (target: URL, origin: URL, prefix: string) =>
   target.origin !== origin.origin ||
   (target.pathname !== prefix && !target.pathname.startsWith(prefix.replace(/\/?$/, '/')));
@@ -59,7 +66,7 @@ export const forwardTo = (req: Request, res: Response, next: NextFunction, to: C
   pipeTo(req, res, {
     address: to.upstream,
     path: `${target.pathname}${target.search}`,
-    headers: upstreamHeaders(to.headers),
+    headers: withAgcid(upstreamHeaders(to.headers), res),
     answerHeaders: (answer) => answerHeaders(answer, to.answer),
     failed: () => next(badGateway(to.id)),
   });

@@ -160,6 +160,15 @@ jobs:
       - name: Build
         run: npm run build
 
+      # The image release.yml pushes, from this tree: healthy, user node, no local flag, drain inside 10 s.
+      - name: Image smoke - the app host program image
+        run: |
+          set -euo pipefail
+          version=$(node -p "require('./packages/apphost/package.json').version")
+          docker build -f packages/apphost/Dockerfile -t apphost:ci \
+            --build-arg COMMIT_SHA="$GITHUB_SHA" --build-arg VERSION="$version" .
+          node packages/apphost/scripts/image-smoke.mjs apphost:ci
+
       - name: Image smoke - extension-probe on this kit, every part through up
         env:
           PROBE_REF: ${{ vars.PROBE_REF }}

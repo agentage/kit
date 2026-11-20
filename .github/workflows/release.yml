@@ -13,16 +13,12 @@ concurrency:
 
 permissions:
   contents: read
-  id-token: write
 
 jobs:
-  publish:
-    name: Publish
+  verify:
+    name: Verify
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-    permissions:
-      contents: write
-      id-token: write
+    timeout-minutes: 20
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
@@ -64,6 +60,35 @@ jobs:
 
       - name: Verify
         run: npm run verify
+
+  publish:
+    name: Publish
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+      id-token: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: 'npm'
+
+      - name: Install
+        run: npm ci --ignore-scripts
+
+      # The Verify job proved this commit; publish runs with --ignore-scripts, so dist is built here.
+      - name: Build
+        run: npm run build
 
       - name: Upgrade npm
         run: npm install -g npm@latest && npm --version # OIDC needs npm >= 11.5.1
@@ -125,7 +150,8 @@ jobs:
             fi
             if [ -n "$prev" ]; then range="${prev}..HEAD"; else range="-30"; fi
             notes=$(git log --oneline "$range" -- "$dir")
-            gh release view "$tag" >/dev/null 2>&1 || gh release create "$tag" --target "$GITHUB_SHA" --title "${name}@${version}" --notes "${notes:-No changes under ${dir}}"
+            # The apphost-image job can create the same release first: "already exists" is fine.
+            gh release view "$tag" >/dev/null 2>&1 || gh release create "$tag" --target "$GITHUB_SHA" --title "${name}@${version}" --notes "${notes:-No changes under ${dir}}" || gh release view "$tag" >/dev/null
           done
           # A green run means everything shipped; anything held turns it red with the reason.
           for line in "${held[@]}"; do
@@ -153,3 +179,93 @@ jobs:
           else
             echo "::warning::e2e nightly-local.yml did not accept kit=${version} (no kit input yet, or the token cannot dispatch)"
           fi
+
+  # The program image and its record (agentage-apphost.json) on release @agentage/apphost@<v>.
+  # It needs Verify only: an npm publish that is held must not stop the image.
+  apphost-image:
+    name: App host image
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      packages: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      IMAGE: ghcr.io/agentage/platform/apphost
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/setup-buildx-action@v4
+
+      # Skip: the record is on the release, or the version was released at another commit.
+      # Build: no image tag. Record: the tags <v> and <commit> name one digest. Refuse: another digest.
+      - name: Decide (build, record, skip or refuse)
+        id: decide
+        run: |
+          set -euo pipefail
+          node packages/apphost/scripts/image-release.mjs decide | tee -a "$GITHUB_OUTPUT"
+          grep '^reason=' "$GITHUB_OUTPUT" | tail -1 | sed 's/^reason=/apphost image: /' >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Build time (the commit time)
+        id: time
+        if: steps.decide.outputs.action == 'build'
+        run: echo "value=$(git show -s --format=%cI HEAD)" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/build-push-action@v7
+        id: build
+        if: steps.decide.outputs.action == 'build'
+        with:
+          context: .
+          file: packages/apphost/Dockerfile
+          push: true
+          # The commit tag lets a re-run find this push and record it, never build again.
+          tags: |
+            ${{ env.IMAGE }}:${{ steps.decide.outputs.version }}
+            ${{ env.IMAGE }}:${{ github.sha }}
+          build-args: |
+            COMMIT_SHA=${{ github.sha }}
+            BUILD_TIME=${{ steps.time.outputs.value }}
+            VERSION=${{ steps.decide.outputs.version }}
+
+      - name: Write the record (the version tag must name the digest)
+        if: steps.decide.outputs.action == 'build' || steps.decide.outputs.action == 'record'
+        env:
+          DIGEST: ${{ steps.build.outputs.digest || steps.decide.outputs.digest }}
+          VERSION: ${{ steps.decide.outputs.version }}
+        run: |
+          set -euo pipefail
+          pushed=$(docker buildx imagetools inspect "${IMAGE}:${VERSION}" --format '{{json .Manifest}}' | jq -r .digest)
+          [ "$pushed" = "$DIGEST" ] || { echo "::error::${IMAGE}:${VERSION} is ${pushed}, not ${DIGEST}"; exit 1; }
+          node packages/apphost/scripts/image-release.mjs record "$DIGEST" > agentage-apphost.json
+          cat agentage-apphost.json
+
+      - name: Create the release when absent, upload the record last
+        if: steps.decide.outputs.action == 'build' || steps.decide.outputs.action == 'record'
+        env:
+          VERSION: ${{ steps.decide.outputs.version }}
+        run: |
+          set -euo pipefail
+          tag="@agentage/apphost@${VERSION}"
+          prev=$(git tag --list '@agentage/apphost@*' --sort=-v:refname | grep -vx "$tag" | head -1 || true)
+          if [ -n "$prev" ]; then range="${prev}..HEAD"; else range="-30"; fi
+          notes=$(git log --oneline "$range" -- packages/apphost)
+          # The publish job can create the same release first: "already exists" is fine.
+          gh release view "$tag" >/dev/null 2>&1 || gh release create "$tag" --target "$GITHUB_SHA" --title "$tag" --notes "${notes:-No changes under packages/apphost}" || gh release view "$tag" >/dev/null
+          gh release upload "$tag" agentage-apphost.json
+          echo "record on ${tag}: $(jq -r .image agentage-apphost.json)" >> "$GITHUB_STEP_SUMMARY"

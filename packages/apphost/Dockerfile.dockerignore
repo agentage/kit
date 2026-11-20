@@ -1,0 +1,14 @@
+# The context is the repo root: only the source goes in, never a local build or install.
+.git
+.github
+**/node_modules
+**/dist
+**/coverage
+**/*.tsbuildinfo
+**/test-results
+**/playwright-report
+packages/shell-dashboard/dist-e2e
+packages/shell-dashboard/.vendor
+packages/shell-dashboard/shots
+packages/widget/src/ds/styles.generated.ts
+packages/widget/src/test-support/fixture/dist

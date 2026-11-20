@@ -5,6 +5,7 @@ import {
   exchangesOf,
   type FakeAuth,
   fakeAuth,
+  identityReadsOf,
   ISSUER,
   OWN,
   SESSION,
@@ -22,7 +23,7 @@ afterEach(async () => {
 });
 
 const start = async (auth: FakeAuth, issuer?: string) => {
-  const host = await cloudHost(auth, 'platform', ...(issuer === undefined ? [] : [issuer]));
+  const host = await cloudHost(auth, ...(issuer === undefined ? [] : [issuer]));
   close = host.close;
   const session = async (headers: Record<string, string> = {}) => {
     const res = await host.server.fetch('/shell/session', { headers });
@@ -37,7 +38,7 @@ const accesses = (auth: FakeAuth) =>
   exchangesOf(auth).map((c) => (JSON.parse(c.body) as { access: string }).access);
 
 describe('the cloud session answer (J.4.4 row 2, four keys of J.4.3 row 5)', () => {
-  it('signed in: /shell/session names the user from one cached exchange, server-side, no token', async () => {
+  it('signed in: /shell/session names the user from one cached identity read, server-side, no token', async () => {
     const auth = fakeAuth();
     const { session } = await start(auth);
     const cookie = `_ga=1; ${SESSION}`;
@@ -45,20 +46,21 @@ describe('the cloud session answer (J.4.4 row 2, four keys of J.4.3 row 5)', () 
     expect(await session({ cookie })).toEqual([200, want]);
     const [, body] = await session({ cookie });
     expect(Object.keys(body).sort()).toEqual(KEYS);
-    expect(exchangesOf(auth)).toHaveLength(1);
-    const [first] = exchangesOf(auth);
-    expect(JSON.parse(first!.body)).toEqual({ extension: 'platform', access: 'read' });
-    expect(first!.headers.get('cookie')).toBe(SESSION);
-    expect(first!.headers.get('origin')).toBeNull();
+    expect(exchangesOf(auth)).toHaveLength(0);
+    const reads = identityReadsOf(auth);
+    expect(reads.map((c) => c.url)).toEqual(['/api/auth/get-session']);
+    expect(reads[0]!.headers.get('cookie')).toBe(SESSION);
+    expect(reads[0]!.headers.get('origin')).toBeNull();
   });
 
-  it('signed out: user null and the sign-in link back to this host', async () => {
-    const auth = fakeAuth(() => 401);
+  it('signed out (auth 200 with null): user null and the sign-in link back to this host', async () => {
+    const auth = fakeAuth();
+    auth.user = null;
     const { session } = await start(auth);
     const want = { host: { kind: 'cloud' }, signIn: SIGN_IN, signOut: null, user: null };
     expect(await session()).toEqual([200, want]);
     expect(await session({ cookie: SESSION })).toEqual([200, want]);
-    expect(exchangesOf(auth)).toHaveLength(1);
+    expect(identityReadsOf(auth)).toHaveLength(1);
   });
 
   it('no issuer: signed out with no link at all, auth never asked', async () => {
@@ -69,11 +71,14 @@ describe('the cloud session answer (J.4.4 row 2, four keys of J.4.3 row 5)', () 
     expect(auth.calls).toHaveLength(0);
   });
 
-  it('auth down is 503, never signed out', async () => {
-    const { session } = await start(fakeAuth(() => 503));
-    const [status, body] = await session({ cookie: SESSION });
-    expect(status).toBe(503);
-    expect((body as unknown as { error: { code: string } }).error.code).toBe('UNAVAILABLE');
+  it.each([503, 429, 502])('auth %i is 503, never signed out', async (status) => {
+    const auth = fakeAuth();
+    auth.identity = status;
+    const [code, body] = await (await start(auth)).session({ cookie: SESSION });
+    expect([code, (body as unknown as { error: { code: string } }).error.code]).toEqual([
+      503,
+      'UNAVAILABLE',
+    ]);
   });
 
   it('signOut is offered only to a signed-in cookie session', async () => {
@@ -81,14 +86,15 @@ describe('the cloud session answer (J.4.4 row 2, four keys of J.4.3 row 5)', () 
     const { session } = await start(auth);
     expect((await session({ cookie: SESSION, ...PAGE }))[1].signOut).toBe('/shell/sign-out');
     const bearer = await session({ authorization: 'Bearer oauth-opaque' });
-    expect(bearer[1]).toMatchObject({ user: USER, signOut: null });
+    expect(bearer[1]).toMatchObject({ user: { id: USER.id }, signOut: null });
     expect((await session())[1].signOut).toBeNull();
-    auth.exchange = () => 401;
+    auth.user = null;
     expect((await session({ cookie: 'better-auth.session_token=other' }))[1].signOut).toBeNull();
   });
 
   it('random cookies from one address stop at the router; cached ones and other addresses go on', async () => {
-    const auth = fakeAuth(() => 401);
+    const auth = fakeAuth();
+    auth.user = null;
     const { server } = await start(auth);
     const from = (ip: string, n: number) =>
       server
@@ -104,7 +110,7 @@ describe('the cloud session answer (J.4.4 row 2, four keys of J.4.3 row 5)', () 
     expect([codes.slice(0, 30).every((c) => c === 200), codes[30]]).toEqual([true, 429]);
     expect(await from('9.9.9.9', 0)).toBe(200);
     expect(await from('8.8.8.8', 99)).toBe(200);
-    expect(exchangesOf(auth)).toHaveLength(31);
+    expect(identityReadsOf(auth)).toHaveLength(31);
   });
 });
 

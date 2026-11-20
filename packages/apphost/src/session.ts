@@ -17,7 +17,7 @@ export interface Session {
   user: SessionUser | null;
 }
 
-// Where the signed-in user comes from: the cli user on a machine, the auth exchange on a cloud host.
+// Where the signed-in user comes from: the cli user on a machine, the auth session read on a cloud host.
 export interface SignInSource {
   kind: HostKind;
   user(): SessionUser | null;

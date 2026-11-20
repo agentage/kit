@@ -39,7 +39,7 @@ export interface CloudHost extends Drain {
 
 export interface CloudHostOptions {
   log?: Log;
-  // The fetch of the auth exchange and sign-out (a test passes a fake auth).
+  // The fetch of the auth calls: session read, exchange, sign-out (a test passes a fake auth).
   fetcher?: typeof fetch;
   discovery?: Pick<DiscoveryOptions, 'readMs' | 'everyMs'>;
   drainMs?: number;
@@ -79,13 +79,11 @@ const partsOf = async (environment: NodeJS.ProcessEnv, o: CloudHostOptions) => {
   };
   const { issuer, own, local } = env;
   const fetcher = o.fetcher && { fetcher: o.fetcher };
-  // The host id of /shell/session is the installation's (decision 2026-11-19: today's behaviour).
   const signOut = shell !== undefined;
   const session = createCloudSession({
     issuer,
     own,
     local,
-    host: installation.host,
     signOut,
     ...fetcher,
   });

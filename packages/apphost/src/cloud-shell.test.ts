@@ -1,6 +1,12 @@
 import { afterEach, describe, expect, it } from 'vitest';
 import { createCloudSession } from './cloud-session.js';
-import { exchangesOf, fakeAuth, SESSION, USER } from './test-support/cloud-host.js';
+import {
+  exchangesOf,
+  fakeAuth,
+  identityReadsOf,
+  SESSION,
+  USER,
+} from './test-support/cloud-host.js';
 import {
   closeUpstreams,
   OWN,
@@ -32,7 +38,7 @@ const start = async (auth = fakeAuth()) => {
 };
 
 describe('the cloud session routes (L7 wired)', () => {
-  it('GET /shell/session: answer(req), no-store, no CORS header; read for the installation host id', async () => {
+  it('GET /shell/session: answer(req), no-store, no CORS header; an identity read, no exchange', async () => {
     const { auth, call } = await start();
     const res = await call('/shell/session', { headers: PAGE });
     expect(JSON.parse(res.body)).toEqual({
@@ -43,18 +49,16 @@ describe('the cloud session routes (L7 wired)', () => {
     });
     expect(res.headers['cache-control']).toBe('no-store');
     expect(Object.keys(res.headers).filter((h) => h.startsWith('access-control-'))).toEqual([]);
-    expect(JSON.parse(exchangesOf(auth)[0]!.body)).toEqual({
-      extension: 'site',
-      access: 'read',
-    });
+    expect(exchangesOf(auth)).toEqual([]);
+    expect(identityReadsOf(auth).map((c) => c.url)).toEqual(['/api/auth/get-session']);
   });
 
-  it('a host id auth does not know (400) answers signed out, as today', async () => {
+  it('a host id auth does not know as an extension (400 at the exchange) still signs in', async () => {
     const { call } = await start(fakeAuth(() => 400));
     const body = JSON.parse((await call('/shell/session', { headers: PAGE })).body) as {
       user: unknown;
     };
-    expect(body.user).toBeNull();
+    expect(body.user).toEqual(USER);
   });
 
   it('POST /shell/sign-out ends the auth session and sends its clears', async () => {
@@ -94,7 +98,6 @@ describe('the fixes of the review of #164', () => {
     const session = createCloudSession({
       issuer: ISSUER,
       own: `${OWN}/`,
-      host: 'h',
       fetcher: auth.fetcher,
     });
     const headers = await session.headersFor({ headers: PAGE }, 'echo');
@@ -105,20 +108,20 @@ describe('the fixes of the review of #164', () => {
     'issuer %s is no https origin: no sign-in, auth never asked',
     async (issuer) => {
       const auth = fakeAuth();
-      const session = createCloudSession({ issuer, own: OWN, host: 'h', fetcher: auth.fetcher });
+      const session = createCloudSession({ issuer, own: OWN, fetcher: auth.fetcher });
       expect(await session.answer({ headers: PAGE })).toMatchObject({ signIn: null, user: null });
       expect(auth.calls).toEqual([]);
     }
   );
 
   it('the dev issuer over http signs in only in a local run', async () => {
-    const auth = fakeAuth(() => 401);
+    const auth = fakeAuth();
+    auth.user = null;
     const issuer = 'http://issuer:3000';
     const local = createCloudSession({
       issuer,
       local: true,
       own: OWN,
-      host: 'h',
       fetcher: auth.fetcher,
     });
     const answer = await local.answer({ headers: PAGE });

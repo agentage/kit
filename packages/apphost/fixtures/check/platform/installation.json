@@ -1,6 +1,6 @@
 {
   "host": "platform",
-  "program": { "version": "0.2.2" },
+  "program": { "version": "0.2.3" },
   "shell": { "package": "@agentage/shell-dashboard" },
   "extensions": [
     {

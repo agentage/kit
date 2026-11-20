@@ -29,15 +29,21 @@ const startWith = async (doc: unknown) => {
   const kit = cloudLog('0.0.0', (text) => texts.push(text));
   // Every call of the request line, before the logs package drops a /health row.
   const routes: string[] = [];
+  // The refusal fields before the logs package cuts a string at 200 characters.
+  const warns: Record<string, unknown>[] = [];
   const log = {
     ...kit,
+    warn: (msg: string, fields?: Record<string, unknown>) => (
+      msg === 'document refused' && fields && warns.push(fields),
+      kit.warn(msg, fields)
+    ),
     http: (row: Parameters<typeof kit.http>[0]) => (routes.push(row.route), kit.http(row)),
   };
   const rows = { extensions: [{ id: 'echo', expose: { api: 'public' } }], upstreams: [] };
   const env = await cloudEnv({ ...rows, upstreams: [{ id: 'echo', address: up.address }] });
   host = await startCloud(env, { log });
   const lines = () => texts.map((t) => JSON.parse(t) as Line);
-  return { up, host, lines, texts, routes };
+  return { up, host, lines, texts, routes, warns };
 };
 
 describe('a refused upstream document is one log line (the stub router did the same)', () => {
@@ -62,6 +68,15 @@ describe('a refused upstream document is one log line (the stub router did the s
     expect(line).toMatch(`${up.address} echo: invalid: `);
     expect(reason.length).toBeLessThanOrEqual(MAX_REASON);
     expect(reason).not.toContain('; ');
+  });
+
+  it('one refusal issue longer than MAX_REASON is cut to MAX_REASON and ends in "..."', async () => {
+    // Unknown keys are one issue that lists every name.
+    const junk = Object.fromEntries(Array.from({ length: 60 }, (_, i) => [`junk_key_${i}`, 'x']));
+    const { up, warns } = await startWith({ ...docOf('echo'), ...junk });
+    const reason = String(warns[0]?.['line']).slice(`${up.address} echo: `.length);
+    expect(reason).toHaveLength(MAX_REASON);
+    expect(reason.endsWith('...')).toBe(true);
   });
 
   it('a document of another id names the row it was read for', async () => {

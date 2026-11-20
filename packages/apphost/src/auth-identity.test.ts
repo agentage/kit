@@ -93,6 +93,20 @@ describe('createIdentityRead: the cache of the session read', () => {
     expect(seen).toHaveLength(4);
   });
 
+  it('keeps a signed-out answer 30 s and not longer', async () => {
+    let now = 0;
+    const seen: RequestInit[] = [];
+    const out = answering(200, null, seen);
+    const read = createIdentityRead({ issuer: ISSUER, fetcher: out, now: () => now });
+    expect(await read(COOKIE)).toBeNull();
+    now = 29_000;
+    await read(COOKIE);
+    expect(seen).toHaveLength(1);
+    now = 31_000;
+    await read(COOKIE);
+    expect(seen).toHaveLength(2);
+  });
+
   it('parallel calls share one read; a failed read leaves no entry; forget drops the user', async () => {
     let calls = 0;
     const fetcher = (async () => {

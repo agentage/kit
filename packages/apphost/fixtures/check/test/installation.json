@@ -1,6 +1,6 @@
 {
   "host": "test",
-  "program": { "version": "0.2.2" },
+  "program": { "version": "0.2.3" },
   "core": "https://core.next.agentage.io",
   "extensions": [
     {

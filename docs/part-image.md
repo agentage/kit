@@ -27,7 +27,7 @@ the new keys. With no record mounted, a part lists its image only by digest; wit
 it lists `{}`, as a host does.
 
 An app host combines these documents and its installation into
-`/.well-known/agentage-host.json`: `host`, `kind`, `shell` and one entry for each installed id.
+`/.well-known/agentage-host.json`: `host`, `kind`, `program` (on a cloud host: the version and commit of the program), `shell` and one entry for each installed id.
 `combineHost` (`@agentage/extension/contracts`, also `/host`) does it with no I/O and also gives the route table. An
 id with no valid answer is `down` and has no route. A part routes only when a container serves it
 and the installation exposes it. An answer for an id that is not installed is refused, and so is a second pages route. The caller can

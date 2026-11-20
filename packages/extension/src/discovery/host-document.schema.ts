@@ -48,6 +48,9 @@ export const ExtensionEntrySchema = z
 // The shell is a library the host serves: named here only, never a row of extensions.
 const ShellSchema = z.strictObject({ package: PackageNameSchema, version: VersionSchema });
 
+// The app host program that serves this document (a cloud host); the daemon leaves it out.
+export const ProgramSchema = z.strictObject({ version: VersionSchema, commit: CommitSchema });
+
 const uniqueIds = ({ extensions }: { extensions: { id: string }[] }) =>
   new Set(extensions.map((e) => e.id)).size === extensions.length;
 
@@ -59,6 +62,7 @@ export const HostDocumentSchema = z
       .max(63)
       .regex(/^[a-z][a-z0-9-]*$/),
     kind: z.enum(HOST_KINDS),
+    program: ProgramSchema.optional(),
     shell: ShellSchema.optional(),
     extensions: z.array(ExtensionEntrySchema),
   })
@@ -68,3 +72,4 @@ export type HostDocument = z.infer<typeof HostDocumentSchema>;
 export type HostEntry = HostDocument['extensions'][number];
 export type HostKind = (typeof HOST_KINDS)[number];
 export type Expose = z.infer<typeof ExposeSchema>;
+export type Program = z.infer<typeof ProgramSchema>;

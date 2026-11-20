@@ -2,7 +2,8 @@ import { readFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { afterEach, describe, expect, it } from 'vitest';
 import { json, tempPackage } from '../../extension/src/test-support/packages.js';
-import { cloudShell } from './cloud-page.js';
+import { servedShell } from './cloud-page.js';
+import { PROGRAM_VERSION } from './program-version.js';
 import { SHELL_PACKAGE, shellPackageDir } from './shell-package.js';
 import { type Shell } from './shell-routes.js';
 import {
@@ -23,8 +24,10 @@ afterEach(async () => {
 });
 
 const HTML = { accept: 'text/html' };
-const KEY = { package: SHELL_PACKAGE, version: '9.1.0' };
-const shellPackage = (version = KEY.version) =>
+const KEY = { package: SHELL_PACKAGE };
+const SERVED = { package: SHELL_PACKAGE, version: '9.1.0' };
+const program = { version: PROGRAM_VERSION };
+const shellPackage = (version = SERVED.version) =>
   tempPackage({
     'package.json': json({ name: SHELL_PACKAGE, version }),
     'dist/index.html': '<!doctype html><title>shell</title>',
@@ -56,7 +59,7 @@ describe('a cloud host with a shell key serves the shell package (J.4.5 row 1)',
     expect((await call('/echo/home', { headers: HTML })).status).toBe(200);
     expect((await call('/shell/vendor/react.js')).status).toBe(200);
     const doc = JSON.parse((await call('/.well-known/agentage-host.json')).body);
-    expect(doc.shell).toEqual(KEY);
+    expect(doc.shell).toEqual(SERVED);
   });
 
   it.each([
@@ -86,17 +89,21 @@ describe('the shell key decides (J.4.5 rows 1 and 7)', () => {
     expect((await call('/shell/vendor/react.js')).status).toBe(404);
   });
 
-  it('a key that names another version than the program carries refuses the start', async () => {
-    await expect(start(KEY, await shellPackage('9.0.0'))).rejects.toThrow(
-      `names ${SHELL_PACKAGE}@9.1.0, the program carries ${SHELL_PACKAGE}@9.0.0`
-    );
+  it('the key names no version: the host document reports the version the program carries', async () => {
+    const call = await start(KEY, await shellPackage('9.0.0'));
+    const doc = JSON.parse((await call('/.well-known/agentage-host.json')).body);
+    expect(doc.shell).toEqual({ package: SHELL_PACKAGE, version: '9.0.0' });
   });
 
-  it('a key that names another package refuses the start; a key with no package installed too', async () => {
-    const other = { host: 'site', extensions: [], shell: { ...KEY, package: '@agentage/other' } };
-    await expect(cloudShell(other, await shellPackage())).rejects.toThrow('the program carries');
-    const named = { host: 'site', extensions: [], shell: KEY };
-    await expect(cloudShell(named, undefined)).rejects.toThrow('the program carries none');
+  it('a key that names another package is refused; a key with no package installed too', async () => {
+    const other = { host: 'site', program, extensions: [], shell: { package: '@agentage/other' } };
+    expect((await servedShell(other, await shellPackage())).refusals).toEqual([
+      `shell: installation.json names @agentage/other, the program carries ${SHELL_PACKAGE}`,
+    ]);
+    const named = { host: 'site', program, extensions: [], shell: KEY };
+    expect((await servedShell(named, undefined)).refusals).toEqual([
+      `shell: installation.json names ${SHELL_PACKAGE}, the program carries none`,
+    ]);
   });
 
   it('a key on a host with a public pages part refuses the start: the site would take / and /shell/*', async () => {
@@ -105,20 +112,21 @@ describe('the shell key decides (J.4.5 rows 1 and 7)', () => {
       version: '1.0.0',
       expose: { api: 'public', pages: 'public' },
     } as const;
-    const both = { host: 'site', extensions: [site], shell: KEY };
-    await expect(cloudShell(both, await shellPackage())).rejects.toThrow(
-      `shell: installation.json names ${SHELL_PACKAGE} and a public pages part (site); a host has one or the other`
-    );
+    const both = { host: 'site', program, extensions: [site], shell: KEY };
+    expect((await servedShell(both, await shellPackage())).refusals).toEqual([
+      `shell: installation.json names ${SHELL_PACKAGE} and a public pages part (site); a host has one or the other`,
+    ]);
     const api = { ...site, expose: { api: 'public' } } as const;
-    await expect(
-      cloudShell({ ...both, extensions: [api] }, await shellPackage())
-    ).resolves.toBeDefined();
+    const served = await servedShell({ ...both, extensions: [api] }, await shellPackage());
+    expect(served.shell).toBeDefined();
   });
 
-  it('the default package: the version the key names is the version served', async () => {
+  it('the default package: the version served is the exact dependency of the program', async () => {
     const dir = shellPackageDir() as string;
     const { version } = JSON.parse(readFileSync(join(dir, 'package.json'), 'utf8')) as Shell;
-    const named = { host: 'site', extensions: [], shell: { package: SHELL_PACKAGE, version } };
-    expect((await cloudShell(named, dir))?.version).toBe(version);
+    const pkg = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8'));
+    const named = { host: 'site', program, extensions: [], shell: KEY };
+    expect((await servedShell(named, dir)).shell?.version).toBe(version);
+    expect(pkg.dependencies[SHELL_PACKAGE]).toBe(version);
   });
 });

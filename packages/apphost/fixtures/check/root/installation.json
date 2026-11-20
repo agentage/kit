@@ -1,0 +1,20 @@
+{
+  "host": "root",
+  "program": { "version": "0.2.2" },
+  "core": "https://core.next.agentage.io",
+  "extensions": [
+    {
+      "id": "root",
+      "version": "0.1.9",
+      "store": "postgres",
+      "expose": { "api": "public", "pages": "public" },
+      "settings": {
+        "platform": "https://platform.next.agentage.io",
+        "market": "https://core.next.agentage.io",
+        "cloud": "https://core.next.agentage.io",
+        "mcpRegistryAuth": "v=MCPv1; k=ed25519; p=AAAA",
+        "mailFrom": "Example <no-reply@example.org>"
+      }
+    }
+  ]
+}

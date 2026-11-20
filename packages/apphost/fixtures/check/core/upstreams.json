@@ -1,0 +1,17 @@
+[
+  {
+    "id": "cloud",
+    "service": "cloud",
+    "address": "http://cloud:8080"
+  },
+  {
+    "id": "logs",
+    "service": "logs",
+    "address": "http://logs:8080"
+  },
+  {
+    "id": "market",
+    "service": "market",
+    "address": "http://market:8080"
+  }
+]

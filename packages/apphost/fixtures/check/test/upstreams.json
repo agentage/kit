@@ -1,0 +1,12 @@
+[
+  {
+    "id": "fixture",
+    "service": "fixture",
+    "address": "http://fixture:8080"
+  },
+  {
+    "id": "probe",
+    "service": "probe",
+    "address": "http://probe:8080"
+  }
+]

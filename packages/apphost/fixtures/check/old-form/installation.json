@@ -1,0 +1,14 @@
+{
+  "host": "old-form",
+  "shell": { "package": "@agentage/shell-dashboard", "version": "0.3.1" },
+  "extensions": [
+    {
+      "id": "platform",
+      "version": "0.2.2",
+      "store": "postgres",
+      "track": "latest",
+      "expose": { "api": "public" }
+    },
+    { "id": "fixture", "version": "0.2.19", "expose": { "api": "public", "app": "public" } }
+  ]
+}

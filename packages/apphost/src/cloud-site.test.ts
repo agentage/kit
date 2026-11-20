@@ -1,4 +1,5 @@
 import { afterEach, describe, expect, it } from 'vitest';
+import { PROGRAM_VERSION } from './program-version.js';
 import { exchangesOf, fakeAuth, SESSION } from './test-support/cloud-host.js';
 import {
   closeUpstreams,
@@ -17,7 +18,7 @@ afterEach(async () => {
 });
 
 const ISSUER = { AGENTAGE_ISSUER: 'https://auth.next.agentage.io' };
-const BUILD = { VERSION: '0.21.0', COMMIT_SHA: 'c'.repeat(40) };
+const BUILD = { VERSION: PROGRAM_VERSION, COMMIT_SHA: 'c'.repeat(40) };
 
 // A pages host: one id, an api container and a pages container (two upstream rows of one id).
 const start = async () => {

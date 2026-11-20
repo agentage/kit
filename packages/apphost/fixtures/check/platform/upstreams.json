@@ -1,0 +1,12 @@
+[
+  {
+    "id": "fixture",
+    "service": "fixture",
+    "address": "http://fixture:8080"
+  },
+  {
+    "id": "platform",
+    "service": "platform",
+    "address": "http://platform:8080"
+  }
+]

@@ -1,0 +1,15 @@
+{
+  "host": "platform",
+  "program": { "version": "0.2.2" },
+  "shell": { "package": "@agentage/shell-dashboard" },
+  "extensions": [
+    {
+      "id": "platform",
+      "version": "0.2.2",
+      "store": "postgres",
+      "track": "latest",
+      "expose": { "api": "public" }
+    },
+    { "id": "fixture", "version": "0.2.19", "expose": { "api": "public", "app": "public" } }
+  ]
+}

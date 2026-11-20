@@ -63,4 +63,14 @@ describe('host document schema', () => {
     const parts = { api: { image: `ghcr.io/agentage/probe-api@sha256:${'d'.repeat(64)}` } };
     expect(ExtensionRecordSchema.safeParse({ ...record, parts }).success).toBe(true);
   });
+
+  it('takes an optional program line (version and full commit); refuses any other shape', async () => {
+    const doc = await golden();
+    const program = { version: '0.2.3', commit: 'c'.repeat(40) };
+    expect(HostDocumentSchema.parse({ ...doc, program }).program).toEqual(program);
+    expect(refused({ ...doc, program: { ...program, commit: 'abcdef1' } })).toBe(true);
+    expect(refused({ ...doc, program: { ...program, version: 'latest' } })).toBe(true);
+    expect(refused({ ...doc, program: { version: '0.2.3' } })).toBe(true);
+    expect(refused({ ...doc, program: { ...program, image: 'x' } })).toBe(true);
+  });
 });

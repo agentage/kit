@@ -1,0 +1,12 @@
+[
+  {
+    "id": "root",
+    "service": "root",
+    "address": "http://root:8080"
+  },
+  {
+    "id": "root",
+    "service": "root-pages",
+    "address": "http://root-pages:8080"
+  }
+]

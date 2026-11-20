@@ -2,6 +2,7 @@ import { dirname } from 'node:path';
 import { type Log } from '@agentage/extension/internal';
 import { type CloudDiscovery } from './cloud-discovery.js';
 import { type CloudFiles } from './cloud-files.js';
+import { type CloudRows } from './cloud-installation.js';
 import { type Entries } from './entries.js';
 import { halt } from './gate.js';
 import { LIMITS } from './limits.js';
@@ -12,17 +13,21 @@ import { startEntry, type SupervisorDeps } from './supervisor.js';
 import { upstreamRunner } from './upstream-runner.js';
 
 // The rows of installation.json as supervisor entries: entry.state is the run (connected or not),
-// never whether the extension serves; that is the discovery state.
-export const entriesOf = ({ installation }: CloudFiles): Entries =>
+// never whether the extension serves; that is the discovery state. No row is disabled in the cloud.
+export const entriesOf = ({
+  installation,
+}: {
+  installation: Pick<CloudRows, 'extensions'>;
+}): Entries =>
   new Map(
-    installation.extensions.map((row) => {
-      const state = row.enabled === false ? ('disabled' as const) : ('starting' as const);
-      return [row.id, { id: row.id, install: row, state, version: row.version }];
-    })
+    installation.extensions.map((row) => [
+      row.id,
+      { id: row.id, install: row, state: 'starting' as const, version: row.version },
+    ])
   );
 
 export interface CloudRunOptions {
-  files: CloudFiles;
+  files: Pick<CloudFiles, 'upstreams'>;
   installationFile: string;
   own: string;
   log: Log;

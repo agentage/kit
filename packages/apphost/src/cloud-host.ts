@@ -4,9 +4,8 @@ import { closeNow, createLog, type Log, listen } from '@agentage/extension/inter
 import { cloudApp } from './cloud-app.js';
 import { type Drain, drainOf } from './cloud-drain.js';
 import { createCloudDiscovery, type DiscoveryOptions } from './cloud-discovery.js';
-import { cloudEnvOf } from './cloud-env.js';
+import { cloudEnvOf, programOf } from './cloud-env.js';
 import { readCloudFiles } from './cloud-files.js';
-import { cloudShell } from './cloud-page.js';
 import { createCloudSession } from './cloud-session.js';
 import { shellPackageDir } from './shell-package.js';
 import { entriesOf, startRuns } from './cloud-run.js';
@@ -53,8 +52,9 @@ const partsOf = async (environment: NodeJS.ProcessEnv, o: CloudHostOptions) => {
   const env = cloudEnvOf(environment);
   const log = o.log ?? cloudLog(env.build.version);
   if (env.issuer === null) log.warn(signInOff(environment['AGENTAGE_ISSUER']));
-  const files = await readCloudFiles(env.installationFile, env.upstreamsFile, env.own);
-  const shell = await cloudShell(files.installation, o.shellDir ?? shellPackageDir());
+  const shellDir = o.shellDir ?? shellPackageDir();
+  const read = await readCloudFiles(env.installationFile, env.upstreamsFile, env.own, shellDir);
+  const { files, shell } = read;
   const entries = entriesOf(files);
   // The discovery is made below; the feed reads it only once a page connects.
   const events = shellEvents(HEARTBEAT_MS, () => discovery.current().document);
@@ -63,6 +63,8 @@ const partsOf = async (environment: NodeJS.ProcessEnv, o: CloudHostOptions) => {
   const discovery = createCloudDiscovery({
     ...o.discovery,
     installation,
+    ...(shell && { shell }),
+    program: programOf(env),
     entries,
     own: env.own,
     log,

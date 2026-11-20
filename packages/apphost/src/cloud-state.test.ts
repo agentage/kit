@@ -32,7 +32,6 @@ describe('through the supervisor and the upstream runner (J.4.3 one seam)', () =
     const extensions = [
       { id: 'echo', version: '1.0.0' },
       { id: 'lost', version: '1.0.0' },
-      { id: 'off', version: '1.0.0', enabled: false },
     ];
     const upstreams = [{ id: 'echo', service: 'echo', address: up.address }];
     const files = { installation: { host: 'site', extensions }, upstreams };
@@ -46,7 +45,6 @@ describe('through the supervisor and the upstream runner (J.4.3 one seam)', () =
     expect(states).toEqual([
       ['echo', 'running'],
       ['lost', 'starting'],
-      ['off', 'disabled'],
     ]);
     expect(entries.get('lost')?.error).toBe('no upstream for lost in the upstream list');
     expect([entries.get('echo')?.lane?.child.state(), up.healthReads]).toEqual(['running', 0]);

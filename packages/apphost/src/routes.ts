@@ -118,7 +118,7 @@ export const daemonApp = (
   const app = express();
   const proxy = proxyTo(entries, deps, hostToken);
   app.disable('x-powered-by');
-  app.use(agcidMiddleware, hostHeaders({ https: false }), localOnly(port));
+  app.use(agcidMiddleware, hostHeaders(false), localOnly(port));
   const api = servesPart(entries, 'api');
   const mcp = servesPart(entries, 'mcp');
   app.use('/api/:id', ownAppOnly, api, proxy);

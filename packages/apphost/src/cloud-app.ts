@@ -53,13 +53,8 @@ const shellRoutes = (app: Express, { session, events, shell }: CloudParts) => {
 export const cloudApp = (parts: CloudParts): Express => {
   const app = express();
   app.disable('x-powered-by');
-  const https = parts.env.own.startsWith('https:');
-  app.use(
-    agcidMiddleware,
-    hostHeaders({ https }),
-    closeWhileDraining(parts.draining),
-    requestGuard
-  );
+  const headers = hostHeaders(parts.env.own.startsWith('https:'));
+  app.use(agcidMiddleware, headers, closeWhileDraining(parts.draining), requestGuard);
   app.get('/health', cloudHealth(parts.host, parts.env, parts.draining, parts.discovery.ready));
   // After /health, as in the kit: the probe reads it every few seconds. No ctx.exit on a host.
   app.use(requestLine(parts.log, () => undefined));

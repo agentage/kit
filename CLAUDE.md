@@ -119,7 +119,7 @@ Read the file named here before you read `src/` (`src/` = `packages/extension/sr
 
 ## Gotchas
 
-- Screenshot baselines are made in `mcr.microsoft.com/playwright:v1.65.0-noble` (the CI job's
+- Screenshot baselines are made in `mcr.microsoft.com/playwright:v1.65.1-noble` (the CI job's
   image), never on a host: `npx playwright test -c packages/widget --update-snapshots` inside it.
 - Browser code uses `zod/mini` with `import * as z`: full `zod` or a named import puts about
   400 KB into every widget bundle.

@@ -8,6 +8,9 @@ interface AppBars {
 
 const NONE: AppBars = { pages: [], bottom: null };
 
+const same = (a: PageLink[], b: PageLink[]) =>
+  a.length === b.length && a.every((p, i) => p.title === b[i]?.title && p.path === b[i]?.path);
+
 // What each app gave for the frame bars (title page menu, bottom bar), kept per app id.
 export const createAppBars = () => {
   let byId: ReadonlyMap<string, AppBars> = new Map();
@@ -19,7 +22,9 @@ export const createAppBars = () => {
     listeners.forEach((fn) => fn());
   };
   return {
-    setPages: (id: string, pages: PageLink[]) => set(id, { pages }),
+    setPages: (id: string, pages: PageLink[]) => {
+      if (!same(byId.get(id)?.pages ?? NONE.pages, pages)) set(id, { pages });
+    },
     setBottom: (id: string, bottom: BottomBar | null) => set(id, { bottom }),
     snapshot: () => byId,
     subscribe: (fn: () => void) => (listeners.add(fn), () => void listeners.delete(fn)),

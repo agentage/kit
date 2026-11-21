@@ -20,7 +20,7 @@ export interface FrameProps {
   version: string;
   // The title in the actions bar (the open app's title).
   title: string;
-  // The open app's pages: the title becomes a menu ("Overview ⌄") when there are any.
+  // The open app's pages: the title becomes a menu ("Overview ⌄") and the nav lists them under its row.
   pages?: PageItem[];
   aside: AsideState | null;
   unread?: number;
@@ -73,6 +73,7 @@ export const Frame = (p: FrameProps) => {
         />
         <Nav
           rows={p.rows}
+          pages={p.pages ?? []}
           account={p.account}
           version={p.version}
           apps={p.apps ?? []}

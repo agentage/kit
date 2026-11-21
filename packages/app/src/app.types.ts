@@ -25,7 +25,7 @@ export interface ShellPort {
   closeAside: () => void;
   // A page of the app: `navigate('runs/7')` goes to `/{id}/runs/7`.
   navigate: (page: string) => void;
-  // The app's pages: the actions bar title becomes a menu of them ("Overview ⌄").
+  // The app's pages: the actions bar title becomes a menu of them ("Overview ⌄") and the nav lists them under the app row.
   setPages: (pages: PageLink[]) => void;
   // The bottom bar: the app gives its title and count; null hides the bottom region.
   setBottomBar: (bar: BottomBar | null) => void;

@@ -37,7 +37,7 @@ export interface Command {
   run: () => void;
 }
 
-// One page of the open app, listed in the title menu of the actions bar.
+// One page of the open app, listed in the title menu of the actions bar and under its nav row.
 export interface PageItem {
   title: string;
   href: string;

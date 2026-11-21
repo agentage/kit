@@ -1,9 +1,10 @@
 import { IconButton } from '@agentage/design-system/icon-button';
 import { Kbd } from '@agentage/design-system/kbd';
 import type { RegionName } from '@agentage/app';
+import { Fragment, type MouseEvent } from 'react';
 import { Bell, PanelLeft, Search } from 'lucide-react';
 import { AccountMenu } from './account-menu.js';
-import type { Account, NavRow } from './frame.types.js';
+import type { Account, NavRow, PageItem } from './frame.types.js';
 import { Brand } from './logo.js';
 import { NAV_SPLIT, Splitter } from './splitter.js';
 import type { usePeek } from './use-peek.js';
@@ -11,6 +12,8 @@ import type { FrameState } from './use-frame-state.js';
 
 interface Props {
   rows: NavRow[];
+  // The open app's pages, listed under its row.
+  pages: PageItem[];
   account: Account;
   version: string;
   apps: { id: string; version: string }[];
@@ -26,6 +29,7 @@ const icon = <PanelLeft className="i" aria-hidden="true" />;
 
 export const Nav = ({
   rows,
+  pages,
   account,
   version,
   apps,
@@ -35,6 +39,13 @@ export const Nav = ({
   peek,
   ...on
 }: Props) => {
+  const go = (e: MouseEvent<HTMLAnchorElement>, href: string) => {
+    if (e.defaultPrevented || e.button !== 0 || e.ctrlKey || e.metaKey || e.shiftKey || e.altKey)
+      return;
+    e.preventDefault();
+    state.setDrawer(false);
+    on.onNavigate(href);
+  };
   const hideLabel = state.navHidden ? 'Dock sidebar' : 'Hide sidebar';
   return (
     <nav
@@ -61,21 +72,34 @@ export const Nav = ({
           <Kbd>Ctrl K</Kbd>
         </button>
         {rows.map((r) => (
-          <a
-            key={r.id}
-            className="row"
-            href={r.href}
-            title={r.title}
-            aria-current={r.current ? 'page' : undefined}
-            onClick={(e) => {
-              e.preventDefault();
-              state.setDrawer(false);
-              on.onNavigate(r.href);
-            }}
-          >
-            {r.icon}
-            <span className="lbl">{r.title}</span>
-          </a>
+          <Fragment key={r.id}>
+            <a
+              className="row"
+              href={r.href}
+              title={r.title}
+              aria-current={r.current ? 'page' : undefined}
+              onClick={(e) => go(e, r.href)}
+            >
+              {r.icon}
+              <span className="lbl">{r.title}</span>
+            </a>
+            {r.current && pages.length > 1 && (
+              <div className="subrows" role="group" aria-label={`${r.title} pages`}>
+                {pages.map((p) => (
+                  <a
+                    key={p.href}
+                    className="row subrow"
+                    href={p.href}
+                    title={p.title}
+                    aria-current={p.current ? 'page' : undefined}
+                    onClick={(e) => go(e, p.href)}
+                  >
+                    <span className="lbl">{p.title}</span>
+                  </a>
+                ))}
+              </div>
+            )}
+          </Fragment>
         ))}
       </div>
       <div className="foot">

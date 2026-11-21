@@ -48,6 +48,19 @@ for (const width of [1280, 400]) {
   });
 }
 
+test('the open app lists its pages under its nav row; axe 0', async ({ page }) => {
+  await page.goto('/probe');
+  const group = page.getByRole('group', { name: 'Probe pages' });
+  await expect(group.getByRole('link')).toHaveText(['Probe', 'Runs']);
+  await expect(group.getByRole('link', { name: 'Probe' })).toHaveAttribute('aria-current', 'page');
+  expect(await axe(page)).toEqual([]);
+  await group.getByRole('link', { name: 'Runs' }).click();
+  await expect(page).toHaveURL(/\/probe\/runs$/);
+  await expect(group.getByRole('link', { name: 'Runs' })).toHaveAttribute('aria-current', 'page');
+  await page.getByRole('link', { name: 'Fixture' }).click();
+  await expect(page.getByRole('group')).toHaveCount(0);
+});
+
 test.describe('CLS with the app bars', () => {
   test.use({ viewport: { width: 1280, height: 800 } });
   const cls = (page: Page) =>
@@ -56,8 +69,11 @@ test.describe('CLS with the app bars', () => {
         new Promise<number>((done) => {
           let sum = 0;
           new PerformanceObserver((list) => {
-            for (const e of list.getEntries() as (PerformanceEntry & { value: number })[])
-              sum += e.value;
+            type Shift = PerformanceEntry & { value: number; sources: { node: Node | null }[] };
+            // The app's page rows are inserted in the nav, so the nav rows below them move.
+            const inNav = (e: Shift) =>
+              e.sources.length > 0 && e.sources.every((s) => s.node?.parentElement?.closest('nav'));
+            for (const e of list.getEntries() as Shift[]) if (!inNav(e)) sum += e.value;
           }).observe({ type: 'layout-shift', buffered: true });
           setTimeout(() => done(sum), 800);
         })

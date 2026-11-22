@@ -20,7 +20,7 @@ updates:
           - '*'
 
   - package-ecosystem: 'github-actions'
-    directories: ['/', '/template']
+    directory: '/'
     schedule:
       interval: 'weekly'
       day: 'friday'

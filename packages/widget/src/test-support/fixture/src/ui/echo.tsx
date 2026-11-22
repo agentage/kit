@@ -7,7 +7,7 @@ export function Echo() {
   const [answer, setAnswer] = useState('');
   return (
     <Card title="probe">
-      <Button onClick={async () => setAnswer((await tool('probe__echo', { msg: 'hi' })).msg)}>
+      <Button onClick={async () => setAnswer((await tool('probe_echo', { msg: 'hi' })).msg)}>
         ping
       </Button>
       <p>{answer}</p>

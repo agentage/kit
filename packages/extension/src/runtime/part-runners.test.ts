@@ -67,7 +67,7 @@ const start = async (part: string, env: Record<string, string> = {}, at = dir): 
 };
 
 describe('runPart per part', () => {
-  it('mcp: imports dist/mcp/index.js and serves its tools as {id}__{name}', async () => {
+  it('mcp: imports dist/mcp/index.js and serves its tools as {id}_{name}', async () => {
     const url = await start('mcp');
     const snapshot = await mcpSnapshot(`${url}/mcp`, '2025-11-25');
     const $schema = 'https://json-schema.org/draft/2020-12/schema';
@@ -76,7 +76,7 @@ describe('runPart per part', () => {
       serverInfo: { name: 'agentage-probe', version: '0.2.0' },
       tools: [
         {
-          name: 'probe__echo',
+          name: 'probe_echo',
           description: 'Echo',
           inputSchema: { ...object, type: 'object' },
           outputSchema: { ...object, type: 'object', additionalProperties: false },

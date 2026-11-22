@@ -21,7 +21,7 @@ const SNAPSHOT = {
         required: ['msg'],
         type: 'object',
       },
-      name: 'probe__echo',
+      name: 'probe_echo',
       outputSchema: {
         $schema: SCHEMA,
         additionalProperties: false,
@@ -33,7 +33,7 @@ const SNAPSHOT = {
     {
       description: 'Lists nothing',
       inputSchema: { $schema: SCHEMA, properties: {}, type: 'object' },
-      name: 'probe__list',
+      name: 'probe_list',
       outputSchema: {
         $schema: SCHEMA,
         additionalProperties: false,

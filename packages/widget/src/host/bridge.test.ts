@@ -9,13 +9,15 @@ describe('createBridge', () => {
   it('reaches only its own tools and numbers its requests', async () => {
     const { fetch, calls } = fakeFetch(toolAnswer({ structuredContent: {} }), toolAnswer({}));
     const host = createBridge({ id: 'probe', version: '0.2.0', fetch });
-    await host.tool('probe__echo');
+    await host.tool('probe_echo');
     await host.tool('probe__echo', { msg: 'x' });
-    await expect(host.tool('memory__search')).rejects.toMatchObject({
+    await expect(host.tool('memory_search')).rejects.toMatchObject({
       code: 'FOREIGN_TOOL',
-      message: 'a probe widget calls only probe__ tools',
+      message: 'a probe widget calls only probe_ tools',
     });
-    await expect(host.tool('probex__echo')).rejects.toMatchObject({ code: 'FOREIGN_TOOL' });
+    await expect(host.tool('probex_echo')).rejects.toMatchObject({ code: 'FOREIGN_TOOL' });
+    for (const name of ['probex__echo', 'probe___echo', 'probe-x_echo'])
+      await expect(host.tool(name), name).rejects.toMatchObject({ code: 'FOREIGN_TOOL' });
     const bodies = calls.map((call) => JSON.parse(String(call.init.body)));
     expect(bodies.map((body) => body.id)).toEqual([1, 2]);
     expect(bodies[0].params.arguments).toEqual({});
@@ -51,7 +53,7 @@ describe('createBridge', () => {
     const host = createBridge({ id: 'probe', version: '0.2.0', fetch, token });
     expect(Object.keys(host).sort()).toEqual(['api', 'context', 'tool']);
     expect(JSON.stringify(host)).not.toContain('aga_secret');
-    await host.tool('probe__echo');
+    await host.tool('probe_echo');
     expect(new Headers(calls[0]?.init.headers).get('authorization')).toBe('Bearer aga_secret');
   });
 
@@ -63,7 +65,7 @@ describe('createBridge', () => {
       fetch,
       props: { n: 1 },
     });
-    await host.tool('probe__echo');
+    await host.tool('probe_echo');
     await expect(host.api('/two')).resolves.toBe(2);
     expect(calls.map((call) => call.url)).toEqual([
       'https://probe.next.agentage.io/mcp',

@@ -46,8 +46,8 @@ describe('one host process runs every server part', () => {
     const ticks = await (await server.fetch('/api/all/ticks')).json();
     expect(ticks).toMatchObject({ data: { total: 0, part: 'api' } });
     const list = await (await server.fetch('/mcp/all', rpc('tools/list'))).text();
-    expect(list).toContain('"name":"all__echo"');
-    const call = rpc('tools/call', { name: 'all__echo', arguments: { msg: 'hi' } });
+    expect(list).toContain('"name":"all_echo"');
+    const call = rpc('tools/call', { name: 'all_echo', arguments: { msg: 'hi' } });
     expect(await (await server.fetch('/mcp/all', call)).text()).toContain('pong hi');
     expect((await server.fetch('/mcp/all')).status).toBe(405);
     expect((await server.fetch('/mcp', rpc('tools/list'))).status).toBe(404);

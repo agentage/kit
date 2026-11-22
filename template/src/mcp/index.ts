@@ -1,7 +1,7 @@
 import { type McpContext } from '@agentage/extension';
 import { z } from 'zod';
 
-// The kit serves this tool as {id}__echo on POST /mcp; scope read is {id}:read.
+// The kit serves this tool as {id}_echo on POST /mcp; scope read is {id}:read.
 export function create(ctx: McpContext) {
   ctx.tool(
     'echo',

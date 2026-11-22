@@ -19,7 +19,7 @@ afterEach(async () => {
 });
 
 const MCP = { 'content-type': 'application/json', accept: 'application/json, text/event-stream' };
-const CALL = { name: 'all__echo', arguments: { msg: 'hi' } };
+const CALL = { name: 'all_echo', arguments: { msg: 'hi' } };
 
 const call = (port: number, authorization: string) =>
   fetch(`http://127.0.0.1:${port}/mcp/all`, {

@@ -6,7 +6,7 @@
   "host": "https://apps.example.com",
   "parts": { "api": {}, "mcp": {}, "worker": {} },
   "openapi": "/api/probe/openapi.json",
-  "tools": [{ "name": "probe__echo", "scope": "probe:read" }],
+  "tools": [{ "name": "probe_echo", "scope": "probe:read" }],
   "serves": ["api", "mcp", "worker", "app"],
   "app": {
     "title": "Probe",

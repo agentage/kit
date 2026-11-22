@@ -25,7 +25,7 @@ afterEach(() => vi.restoreAllMocks());
 describe('callTool', () => {
   it('POSTs a 2026-07-28 tools/call and resolves the structuredContent', async () => {
     const { fetch, calls } = fakeFetch(toolAnswer(echo, 7));
-    await expect(callTool(options(fetch), 'probe__echo', { msg: 'hi' })).resolves.toEqual({
+    await expect(callTool(options(fetch), 'probe_echo', { msg: 'hi' })).resolves.toEqual({
       msg: 'pong hi',
     });
     const [call] = calls;
@@ -37,14 +37,14 @@ describe('callTool', () => {
       accept: 'application/json, text/event-stream',
       'mcp-protocol-version': PROTOCOL_VERSION,
       'mcp-method': 'tools/call',
-      'mcp-name': 'probe__echo',
+      'mcp-name': 'probe_echo',
     });
     expect(JSON.parse(String(call?.init.body))).toEqual({
       jsonrpc: '2.0',
       id: 7,
       method: 'tools/call',
       params: {
-        name: 'probe__echo',
+        name: 'probe_echo',
         arguments: { msg: 'hi' },
         _meta: {
           'io.modelcontextprotocol/protocolVersion': '2026-07-28',
@@ -57,8 +57,8 @@ describe('callTool', () => {
 
   it('sends the token as a bearer only when there is one', async () => {
     const { fetch, calls } = fakeFetch(toolAnswer(echo), toolAnswer(echo));
-    await callTool(options(fetch, 'aga_x'), 'probe__echo', {});
-    await callTool(options(fetch), 'probe__echo', {});
+    await callTool(options(fetch, 'aga_x'), 'probe_echo', {});
+    await callTool(options(fetch), 'probe_echo', {});
     expect(new Headers(calls[0]?.init.headers).get('authorization')).toBe('Bearer aga_x');
     expect(new Headers(calls[1]?.init.headers).has('authorization')).toBe(false);
   });
@@ -69,7 +69,7 @@ describe('callTool', () => {
       structuredContent: { error: { code: 'NOT_FOUND', message: 'gone' } },
     };
     const { fetch } = fakeFetch(toolAnswer(failed));
-    await expect(callTool(options(fetch), 'probe__echo', {})).rejects.toMatchObject({
+    await expect(callTool(options(fetch), 'probe_echo', {})).rejects.toMatchObject({
       name: 'HostError',
       code: 'NOT_FOUND',
       message: 'gone',
@@ -81,11 +81,11 @@ describe('callTool', () => {
       toolAnswer({ isError: true, content: [{ type: 'image' }, { type: 'text', text: 'boom' }] }),
       toolAnswer({ isError: true })
     );
-    await expect(callTool(options(fetch), 'probe__echo', {})).rejects.toMatchObject({
+    await expect(callTool(options(fetch), 'probe_echo', {})).rejects.toMatchObject({
       code: 'TOOL_ERROR',
       message: 'boom',
     });
-    await expect(callTool(options(fetch), 'probe__echo', {})).rejects.toMatchObject({
+    await expect(callTool(options(fetch), 'probe_echo', {})).rejects.toMatchObject({
       code: 'TOOL_ERROR',
       message: 'the tool reported an error',
     });
@@ -96,11 +96,11 @@ describe('callTool', () => {
       jsonResponse({ jsonrpc: '2.0', id: 7, error: { code: -32602, message: 'bad args' } }, 400),
       toolAnswer({ isError: 'yes' })
     );
-    await expect(callTool(options(fetch), 'probe__echo', {})).rejects.toMatchObject({
+    await expect(callTool(options(fetch), 'probe_echo', {})).rejects.toMatchObject({
       code: '-32602',
       message: 'bad args',
     });
-    await expect(callTool(options(fetch), 'probe__echo', {})).rejects.toMatchObject({
+    await expect(callTool(options(fetch), 'probe_echo', {})).rejects.toMatchObject({
       code: 'BAD_RESULT',
       message: 'the tool answered an invalid result',
     });
@@ -108,7 +108,7 @@ describe('callTool', () => {
 
   it('resolves {} for a result without structuredContent', async () => {
     const { fetch } = fakeFetch(toolAnswer({ content: [] }));
-    await expect(callTool(options(fetch), 'probe__echo', {})).resolves.toEqual({});
+    await expect(callTool(options(fetch), 'probe_echo', {})).resolves.toEqual({});
   });
 
   it('accepts a text/event-stream answer and picks the message with its id', async () => {
@@ -121,12 +121,12 @@ describe('callTool', () => {
       '',
     ].join('\n');
     const { fetch } = fakeFetch(jsonResponse(stream, 200, 'text/event-stream'));
-    await expect(callTool(options(fetch), 'probe__echo', {})).resolves.toEqual({ msg: 'pong hi' });
+    await expect(callTool(options(fetch), 'probe_echo', {})).resolves.toEqual({ msg: 'pong hi' });
   });
 
   it('rejects with the HTTP status when no JSON-RPC message comes back', async () => {
     const { fetch } = fakeFetch(jsonResponse('<html>bad gateway</html>', 502, 'text/html'));
-    await expect(callTool(options(fetch), 'probe__echo', {})).rejects.toMatchObject({
+    await expect(callTool(options(fetch), 'probe_echo', {})).rejects.toMatchObject({
       code: 'HTTP_502',
       message: 'MCP answered 502 without a JSON-RPC message',
     });
@@ -143,7 +143,7 @@ describe('callTool', () => {
       const { fetch } = fakeFetch(
         jsonResponse({ success: false, error: { code, message } }, status)
       );
-      await expect(callTool(options(fetch), 'probe__echo', {})).rejects.toMatchObject({
+      await expect(callTool(options(fetch), 'probe_echo', {})).rejects.toMatchObject({
         code,
         message,
       });
@@ -153,19 +153,19 @@ describe('callTool', () => {
   it('bounds every call at 30 s and names the tool that did not answer', async () => {
     const { timeout, signal, expire } = controlledTimeout();
     const { fetch, calls, called } = hangingFetch();
-    const pending = callTool(options(fetch), 'probe__echo', {});
+    const pending = callTool(options(fetch), 'probe_echo', {});
     await called;
     expect(timeout).toHaveBeenCalledWith(30_000);
     expect(calls[0]?.init.signal).toBe(signal);
     expire();
     await expect(pending).rejects.toMatchObject({
       code: 'TIMEOUT',
-      message: 'probe__echo did not answer in 30 s',
+      message: 'probe_echo did not answer in 30 s',
     });
   });
 
   it('passes a network failure through as it is', async () => {
     const offline = async () => Promise.reject(new TypeError('Failed to fetch'));
-    await expect(callTool(options(offline), 'probe__echo', {})).rejects.toThrow('Failed to fetch');
+    await expect(callTool(options(offline), 'probe_echo', {})).rejects.toThrow('Failed to fetch');
   });
 });

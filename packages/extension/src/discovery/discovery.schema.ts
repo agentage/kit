@@ -4,6 +4,7 @@ import {
   CommitSchema,
   ExtensionIdSchema,
   IMAGE_PART_KINDS,
+  ownsTool,
   PrefixedToolNameSchema,
   SecretNameSchema,
   SecretPartSchema,
@@ -142,11 +143,11 @@ const OPENAPI_RULE = { message: 'openapi is /api/{id}/openapi.json', path: ['ope
 const openapiIsOwn = ({ id, openapi }: { id: string; openapi?: string }) =>
   !openapi || openapi === `/api/${id}/openapi.json`;
 
-// A served tool is {id}__{name} of this id: the host gives every tool under its extension.
+// A served tool is {id}_{name} (or the old {id}__{name}) of this id: the host names it so.
 export const toolsAreOwn = ({ id, tools }: { id: string; tools?: { name: string }[] }) =>
-  (tools ?? []).every((t) => t.name.startsWith(`${id}__`));
+  (tools ?? []).every((t) => ownsTool(id, t.name));
 
-export const TOOLS_RULE = { message: 'every tool is {id}__{name}', path: ['tools'] };
+export const TOOLS_RULE = { message: 'every tool is {id}_{name}', path: ['tools'] };
 
 // A scoped name lives only in secretParts, so an estate that does not read it mounts nothing.
 const scoped = (name: string) =>

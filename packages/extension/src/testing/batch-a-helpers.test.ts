@@ -45,7 +45,7 @@ describe('startTestMcp().call', () => {
 
   it('throws on a tool error', async () => {
     server = await startTestMcp({ create: echo });
-    await expect(server.call('refuse')).rejects.toThrow(/^tool test__refuse: /);
+    await expect(server.call('refuse')).rejects.toThrow(/^tool test_refuse: /);
   });
 });
 

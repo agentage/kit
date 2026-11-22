@@ -186,7 +186,7 @@
           "name": {
             "type": "string",
             "maxLength": 64,
-            "pattern": "^[a-z][a-z0-9-]*__[a-z][a-z0-9_-]*$"
+            "pattern": "^[a-z][a-z0-9-]*__?[a-z][a-z0-9_-]*$"
           },
           "scope": {
             "type": "string",

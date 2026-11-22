@@ -81,7 +81,7 @@ export const startTestServer = async <C extends PartContext = PartContext>(
   );
 };
 
-// Runs an mcp part's create(ctx) inside the kit's real /mcp app: tools named {id}__{name}; connector tools at /connector.
+// Runs an mcp part's create(ctx) inside the kit's real /mcp app: tools named {id}_{name}; connector tools at /connector.
 export const startTestMcp = async (options: TestMcpOptions): Promise<TestMcp> => {
   const ctx = options.ctx ?? createTestContext();
   const registry = createToolRegistry();

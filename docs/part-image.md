@@ -34,7 +34,7 @@ id with no valid answer is `down` and has no route. A part routes only when a co
 and the installation exposes it. An answer for an id that is not installed is refused, and so is a second pages route. The caller can
 set a row to `starting` or `failed`; with its last good document the entry keeps its `app` row and
 has no route. A document with an old `/api/v{N}` openapi is refused, and so is a tool that is not
-`{id}__{name}` of its own id. An answer can carry `expectedId`, the id its container was listed for;
+`{id}_{name}` of its own id. The old form `{id}__{name}` is still accepted for a time. An answer can carry `expectedId`, the id its container was listed for;
 an answer for another id is refused as `claims another id`. When some answer is listed for an id, an
 answer with no `expectedId` for that id is refused as `not listed for this id`. A bad answer never throws. Only an
 installation that gives an invalid host document (two rows of one id) throws.

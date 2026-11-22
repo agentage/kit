@@ -11,7 +11,7 @@ npm install @agentage/extension express zod
 ```
 
 A part is one folder in `src/`. This MCP part, from the extension template, serves the tool
-`{id}__echo` on `POST /mcp`:
+`{id}_echo` on `POST /mcp`:
 
 ```ts
 import { type McpContext } from '@agentage/extension';
@@ -30,6 +30,9 @@ export function create(ctx: McpContext) {
   );
 }
 ```
+
+Since 0.23.0 the kit names each tool `{id}_{name}`, with one underscore. Its schemas still accept
+the old `{id}__{name}` for now, and refuse a tool of another id.
 
 Start a new extension with `npx @agentage/cli extension create my-ext`: it pins this kit for you.
 

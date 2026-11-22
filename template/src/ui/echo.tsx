@@ -7,7 +7,7 @@ export function Echo() {
   const [answer, setAnswer] = useState('');
   // A refused call (no token on next) shows the host's reason, not an empty card.
   const ping = () =>
-    tool(`${context.extension}__echo`, { msg: 'hi' }).then(
+    tool(`${context.extension}_echo`, { msg: 'hi' }).then(
       ({ msg }) => String(msg),
       (error: Error) => error.message
     );

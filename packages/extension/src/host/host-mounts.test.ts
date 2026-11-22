@@ -71,9 +71,9 @@ describe('extra mounts with no token check (a daemon child)', () => {
     const server = await open();
     const connector = await (await server.fetch('/connector/mem', rpc('tools/list'))).text();
     expect(connector).toContain('"name":"search"');
-    expect(connector).not.toContain('mem__echo');
+    expect(connector).not.toContain('mem_echo');
     const mcp = await (await server.fetch('/mcp/mem', rpc('tools/list'))).text();
-    expect([mcp.includes('"name":"mem__echo"'), mcp.includes('search')]).toEqual([true, false]);
+    expect([mcp.includes('"name":"mem_echo"'), mcp.includes('search')]).toEqual([true, false]);
     const call = rpc('tools/call', { name: 'search', arguments: { query: 'q' } });
     expect(await (await server.fetch('/connector/mem', call)).text()).toContain('nobody');
     const record = await (await server.fetch('/.well-known/agentage-extension.json')).text();
@@ -111,7 +111,7 @@ describe('extra mounts with a token check', () => {
         authorization_servers: [issuer!.url],
       });
     }
-    const call = rpc('tools/call', { name: 'mem__echo', arguments: {} });
+    const call = rpc('tools/call', { name: 'mem_echo', arguments: {} });
     const refused = await at('/mcp/mem', call);
     const metadata = `Bearer resource_metadata="${ORIGIN}/.well-known/oauth-protected-resource/mcp/mem"`;
     expect([refused.status, refused.headers.get('www-authenticate')]).toEqual([401, metadata]);

@@ -11,7 +11,10 @@ npm install -D @agentage/widget
 npm install react react-dom
 ```
 
-This widget from the extension template calls the extension's MCP tool `{id}__echo`:
+This widget from the extension template calls the extension's MCP tool `{id}_echo`:
+
+Since 0.5.0 a widget calls a tool of its own id in the form `{id}_{name}` or the old `{id}__{name}`.
+A tool of another id is refused with `FOREIGN_TOOL`.
 
 ```tsx
 // src/ui/echo.tsx
@@ -23,7 +26,7 @@ export function Echo() {
   const { tool, context } = useHost();
   const [answer, setAnswer] = useState('');
   const ping = () =>
-    tool(`${context.extension}__echo`, { msg: 'hi' }).then(
+    tool(`${context.extension}_echo`, { msg: 'hi' }).then(
       ({ msg }) => String(msg),
       (error: Error) => error.message
     );

@@ -9,7 +9,7 @@ envelope is the kit's standard JSON answer shape: `{ success, data, meta? }` or 
 export const create = (ctx: PartContext): Router => {
   /* ctx.store.query(...) */
 };
-// src/mcp/index.ts: tools served as {id}__{name} on POST /mcp (SDK v2, stateless)
+// src/mcp/index.ts: tools served as {id}_{name} on POST /mcp (SDK v2, stateless)
 export function create(ctx: McpContext) {
   ctx.tool(
     'echo',

@@ -23,7 +23,7 @@ export const create = (ctx) =>
 
 const SCHEMA = 'https://json-schema.org/draft/2020-12/schema';
 const ECHO = {
-  name: 'probe__echo',
+  name: 'probe_echo',
   description: 'Echo',
   inputSchema: {
     $schema: SCHEMA,
@@ -163,11 +163,11 @@ describe('surface, the mcp part', () => {
   it('names each tool that differs, and a missing snapshot', async () => {
     const stale = [
       { ...ECHO, description: 'Old' },
-      { ...ECHO, name: 'probe__gone' },
+      { ...ECHO, name: 'probe_gone' },
     ];
     const files = { 'dist/mcp/index.js': MCP, 'probe.mcpc.json': snapshot(stale) };
     expect(await surfaceOf(files, { mcp: true })).toEqual([
-      'probe.mcpc.json differs from the generated tool list (probe__echo, probe__gone)',
+      'probe.mcpc.json differs from the generated tool list (probe_echo, probe_gone)',
     ]);
     expect(await surfaceOf({ 'dist/mcp/index.js': MCP }, { mcp: true })).toEqual([
       'probe.mcpc.json is missing: the mcp part commits its tool list',

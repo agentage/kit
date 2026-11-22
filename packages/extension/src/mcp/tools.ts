@@ -69,7 +69,7 @@ export type ToolHandler<I extends ObjectSchema, O extends ObjectSchema> = (
   caller: Caller | null
 ) => Answer<O> | Promise<Answer<O>>;
 
-// Registers a tool under its own name; the kit serves it as {id}__{name}.
+// Registers a tool under its own name; the kit serves it as {id}_{name}.
 export type ToolRegistrar = <I extends ObjectSchema, O extends ObjectSchema>(
   name: string,
   spec: ToolSpec<I, O>,
@@ -119,8 +119,8 @@ export const createToolRegistry = () => {
   return { tool, tools, instructions, served, connector, connectors };
 };
 
-export const prefixed = (id: string, name: string): string => `${id}__${name}`;
+export const prefixed = (id: string, name: string): string => `${id}_${name}`;
 
-// A connector tool keeps its own name (search, fetch); every other is {id}__{name}.
+// A connector tool keeps its own name (search, fetch); every other is {id}_{name}.
 export const nameOf = (id: string, name: string, bare?: boolean): string =>
   bare ? name : prefixed(id, name);

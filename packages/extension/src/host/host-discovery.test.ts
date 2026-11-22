@@ -42,7 +42,7 @@ describe('the kit host serves the full discovery record', () => {
       host,
       parts: { api: {}, mcp: {}, worker: {}, store: { kind: 'postgres', migrations: 1 } },
       openapi: '/api/all/openapi.json',
-      tools: [{ name: 'all__echo', scope: 'all:read' }],
+      tools: [{ name: 'all_echo', scope: 'all:read' }],
       serves: ['api', 'mcp', 'worker'],
     });
     expect(doc).not.toHaveProperty('app');

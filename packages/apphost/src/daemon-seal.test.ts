@@ -80,7 +80,7 @@ describe.runIf(SEALED)('a sealed child (C2, Node at the floor)', () => {
       headers: MCP,
       body,
     });
-    expect(await listed.text()).toContain('all__echo');
+    expect(await listed.text()).toContain('all_echo');
     await vi.waitFor(
       async () => {
         const ticks = (await h.call('GET', '/api/all/ticks')).body as { data: { total: number } };

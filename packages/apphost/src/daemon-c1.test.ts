@@ -40,8 +40,8 @@ const rpc = (method: string, params?: object) =>
 describe('the daemon routes of C1', () => {
   it('/mcp/{id} reaches the child: tools/list, tools/call; GET is 405 from the child', async () => {
     await allRunning();
-    expect(await (await rpc('tools/list')).text()).toContain('"name":"all__echo"');
-    const call = await rpc('tools/call', { name: 'all__echo', arguments: { msg: 'hi' } });
+    expect(await (await rpc('tools/list')).text()).toContain('"name":"all_echo"');
+    const call = await rpc('tools/call', { name: 'all_echo', arguments: { msg: 'hi' } });
     expect(await call.text()).toContain('pong hi');
     expect((await fetch(at('/mcp/all'))).status).toBe(405);
   });
@@ -74,7 +74,7 @@ describe('the daemon routes of C1', () => {
           commit: '0'.repeat(40),
           state: 'running',
           parts: PARTS,
-          tools: [{ name: 'all__echo', scope: 'all:read' }],
+          tools: [{ name: 'all_echo', scope: 'all:read' }],
           openapi: '/api/all/openapi.json',
           expose: { api: 'internal', mcp: 'internal' },
         },

@@ -66,7 +66,7 @@ const started = async (text?: string) => {
   const api = async () =>
     ((await (await fetch(at('/api/who/me'))).json()) as { data: unknown }).data;
   const tool = async () => {
-    const params = { name: 'who__who', arguments: {} };
+    const params = { name: 'who_who', arguments: {} };
     const body = JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/call', params });
     const text = await (await fetch(at('/mcp/who'), { method: 'POST', headers: MCP, body })).text();
     const line = text.split('\n').find((l) => l.startsWith('data:')) ?? `data:${text}`;

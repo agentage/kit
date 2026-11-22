@@ -45,7 +45,7 @@ const PROBE_FILES = {
 
 const SCHEMA = { $schema: 'https://json-schema.org/draft/2020-12/schema', type: 'object' };
 const ECHO = {
-  name: 'probe__echo',
+  name: 'probe_echo',
   description: 'Echo',
   inputSchema: { ...SCHEMA, properties: {} },
   outputSchema: { ...SCHEMA, properties: {}, additionalProperties: false },

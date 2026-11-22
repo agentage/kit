@@ -20,7 +20,7 @@ const SAMPLES: Record<string, Record<string, unknown>> = {
   },
   mcp: {
     'mcp.method.name': 'tools/call',
-    'gen_ai.tool.name': 'probe__echo',
+    'gen_ai.tool.name': 'probe_echo',
     'agentage.results': 1,
   },
   job: {

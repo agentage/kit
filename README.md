@@ -73,7 +73,7 @@ export function create(ctx: McpContext) {
 - `worker`: jobs on a five-field cron. A job never runs twice at once.
 - `cli`: one handler per command in `agentage.commands`.
 
-[extension-probe](https://github.com/agentage/extension-probe) has every part kind.
+[the probe extension](https://github.com/agentage/examples) has every part kind.
 
 More: [docs/parts.md](docs/parts.md).
 
@@ -137,7 +137,7 @@ The same run builds the app host program image from `packages/apphost/Dockerfile
 the release. A re-run records the image that it pushed before. It refuses a version tag with
 another digest. The decision and the record are in `packages/apphost/scripts/image-release.mjs`.
 
-Before that, CI builds [extension-probe](https://github.com/agentage/extension-probe) on the
+Before that, CI builds [the probe extension](https://github.com/agentage/examples) on the
 packed packages, runs `up`, and checks every part image and the served discovery document. A kit
 change is proven in containers before it ships.
 

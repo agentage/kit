@@ -92,7 +92,7 @@ The app part is one root component in `src/app/index.tsx`, its default export. I
 - `check` refuses an app part whose package.json does not declare `@agentage/design-system` `^0.20` (the kit app code imports it); `@agentage/extension` lists it as an optional peer.
 
 The manifest is the `agentage` block of the extension's `package.json`. See
-[extension-probe](https://github.com/agentage/extension-probe) for every part kind.
+[the probe extension](https://github.com/agentage/examples) for every part kind.
 
 ## Store
 

@@ -139,8 +139,8 @@ Read the file named here before you read `src/` (`src/` = `packages/extension/sr
 - `up` names its compose project per working copy; scripts reach it with
   `-f .agentage/compose.json`, never `-p`. The ui CSP allows the dev issuer only when
   `AGENTAGE_DEV_ISSUER` is set (only `up` sets it).
-- CI's image smoke clones extension-probe master (or, on a PR, the probe branch of the same name
-  when one exists), installs the packed packages it uses and runs `up`: a probe change can turn
+- CI's image smoke clones agentage/examples master (or, on a PR, the branch of the same name
+  when one exists), takes extensions/probe (the repo root when absent), installs the packed packages it uses and runs `up`: a probe change can turn
   this CI red, and a kit change that breaks the probe never reaches npm.
 - Public repo: no secrets, no internal hosts, no provider names, no roadmap in code or docs.
 - Docs: sentences of 25 words or fewer, no em dash, no plan ids a reader cannot open.

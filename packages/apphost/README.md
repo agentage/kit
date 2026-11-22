@@ -17,7 +17,7 @@ The bin `agentage-apphost-cloud` runs a cloud app host. It reads `installation.j
 ```json
 {
   "host": "platform",
-  "program": { "version": "0.3.0" },
+  "program": { "version": "0.4.0" },
   "shell": { "package": "@agentage/shell-dashboard" },
   "extensions": [{ "id": "fixture", "version": "0.2.19", "expose": { "api": "public" } }]
 }

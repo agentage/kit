@@ -169,16 +169,16 @@ jobs:
             --build-arg COMMIT_SHA="$GITHUB_SHA" --build-arg VERSION="$version" .
           node packages/apphost/scripts/image-smoke.mjs apphost:ci
 
-      - name: Image smoke - extension-probe on this kit, every part through up
+      - name: Image smoke - the probe extension on this kit, every part through up
         env:
           PROBE_REF: ${{ vars.PROBE_REF }}
         run: |
           set -euo pipefail
           mkdir -p /tmp/pack
           npm pack --workspaces --pack-destination /tmp/pack >/dev/null
-          # A PR runs against the extension-probe branch named as its head (or a non-default base), else
+          # A PR runs against the examples branch named as its head (or a non-default base), else
           # the repo variable PROBE_REF (set while a kit change waits on a probe release), else master.
-          probe=https://github.com/agentage/extension-probe.git
+          probe=https://github.com/agentage/examples.git
           branch="${PROBE_REF:-master}"
           # The base counts only when it is another PR's branch: a PR on master falls to the variable.
           base="${GITHUB_BASE_REF:-}"
@@ -186,10 +186,12 @@ jobs:
           for ref in "$base" "${GITHUB_HEAD_REF:-}"; do
             if [ -n "$ref" ] && git ls-remote --exit-code --heads "$probe" "$ref" >/dev/null; then branch="$ref"; fi
           done
-          echo "extension-probe branch: $branch" >> "$GITHUB_STEP_SUMMARY"
+          echo "examples branch: $branch" >> "$GITHUB_STEP_SUMMARY"
           git clone --depth 1 --branch "$branch" "$probe" /tmp/probe
-          mkdir -p /tmp/probe/.kit
-          cd /tmp/probe
+          dir=$(node "$GITHUB_WORKSPACE/scripts/probe-dir.mjs" /tmp/probe)
+          echo "PROBE_DIR=$dir" >> "$GITHUB_ENV"
+          mkdir -p "$dir/.kit"
+          cd "$dir"
           # The probe's @agentage/* dependencies built here replace the registry copies.
           tarballs=()
           for tgz in /tmp/pack/agentage-*.tgz; do
@@ -207,7 +209,7 @@ jobs:
           node node_modules/@agentage/extension/dist/tool/cli.js up
 
       - name: Image smoke - discovery is valid through the gateway, e2e (up already asserted each part's /health commit)
-        working-directory: /tmp/probe
+        working-directory: ${{ env.PROBE_DIR }}
         run: |
           set -euo pipefail
           curl -sf http://localhost:4280/.well-known/agentage-extension.json > /tmp/discovery.json
@@ -216,7 +218,7 @@ jobs:
           npm run test:e2e
 
       - name: Image smoke - the kit caller route through the gateway (200 own scopes, 401, 403)
-        working-directory: /tmp/probe
+        working-directory: ${{ env.PROBE_DIR }}
         run: |
           set -euo pipefail
           at=http://localhost:4280/api/probe/caller
@@ -229,7 +231,7 @@ jobs:
 
       # The one container (C7): the image builds from this kit, starts healthy and serves the api.
       - name: One container smoke - build --container, run it, the api answers
-        working-directory: /tmp/probe
+        working-directory: ${{ env.PROBE_DIR }}
         run: |
           set -euo pipefail
           node node_modules/@agentage/extension/dist/tool/cli.js build --container
@@ -245,7 +247,7 @@ jobs:
 
       - name: Container logs on failure
         if: failure()
-        run: docker compose -f /tmp/probe/.agentage/compose.json logs --no-color --tail 80 || true
+        run: docker compose -f "$PROBE_DIR/.agentage/compose.json" logs --no-color --tail 80 || true
 
   widget-screenshots:
     name: Widget screenshots
@@ -305,13 +307,13 @@ jobs:
           path: platform
 
       # The same probe branch as the image smoke: head, a non-default base, vars.PROBE_REF, master.
-      - name: Pick the extension-probe branch
+      - name: Pick the examples branch
         id: probe-ref
         env:
           PROBE_REF: ${{ vars.PROBE_REF }}
         run: |
           branch="${PROBE_REF:-master}"
-          probe=https://github.com/agentage/extension-probe.git
+          probe=https://github.com/agentage/examples.git
           # The base counts only when it is another PR's branch: a PR on master falls to the variable.
           base="${GITHUB_BASE_REF:-}"
           if [ "$base" = "${{ github.event.repository.default_branch }}" ]; then base=""; fi
@@ -338,12 +340,16 @@ jobs:
           echo "e2e branch: $branch" >> "$GITHUB_STEP_SUMMARY"
           echo "branch=$branch" >> "$GITHUB_OUTPUT"
 
-      - name: Checkout agentage/extension-probe
+      - name: Checkout agentage/examples
         uses: actions/checkout@v7
         with:
-          repository: agentage/extension-probe
+          repository: agentage/examples
           ref: ${{ steps.probe-ref.outputs.branch }}
           path: probe
+
+      # extensions/probe when the checked-out ref has it, else the repo root.
+      - name: Find the probe folder
+        run: echo "PROBE_DIR=$(node platform/scripts/probe-dir.mjs "$PWD/probe")" >> "$GITHUB_ENV"
 
       # agentage/e2e is private; the org PAT_TOKEN reads it. Dependabot runs get no secrets.
       - name: Checkout agentage/e2e
@@ -368,8 +374,8 @@ jobs:
         run: |
           npm ci --prefix platform
           npm run build --prefix platform
-          npm pack --workspaces --prefix platform --pack-destination "$PWD/probe"
-          cd probe
+          npm pack --workspaces --prefix platform --pack-destination "$PROBE_DIR"
+          cd "$PROBE_DIR"
           # No npm ci first: a probe that already pins the candidate version cannot fetch it from npm.
           # Any other workspace package the probe names (identity) comes from this tree too, never npm.
           tarballs=(./agentage-extension-*.tgz ./agentage-widget-*.tgz)
@@ -388,19 +394,17 @@ jobs:
           npm run build
 
       - name: agentage extension up
-        working-directory: probe
+        working-directory: ${{ env.PROBE_DIR }}
         # The kit's own tool, not the agentage bin: the probe's @agentage/cli bundles the released kit.
         run: node node_modules/@agentage/extension/dist/tool/cli.js up
 
       - name: e2e gate on docker (agentage/e2e, probe gate docker)
         if: github.actor != 'dependabot[bot]'
         working-directory: e2e-suite
-        env:
-          PROBE_DIR: ${{ github.workspace }}/probe
         run: |
           npm ci
           # The gate validates the discovery document and the record with the kit under test.
-          npm install --no-save ../probe/agentage-extension-*.tgz
+          npm install --no-save "$PROBE_DIR"/agentage-extension-*.tgz
           # The version alone cannot tell the candidate from npm (both can be 0.13.0): the source can.
           resolved=$(jq -r '.packages["node_modules/@agentage/extension"].resolved' node_modules/.package-lock.json)
           echo "e2e validates with @agentage/extension $(jq -r .version node_modules/@agentage/extension/package.json) from $resolved"
@@ -418,5 +422,5 @@ jobs:
 
       - name: agentage extension down
         if: always()
-        working-directory: probe
+        working-directory: ${{ env.PROBE_DIR }}
         run: node node_modules/@agentage/extension/dist/tool/cli.js down || true

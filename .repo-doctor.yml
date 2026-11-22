@@ -8,4 +8,4 @@ waive:
   - id: ts-nodenext-ext
     reason: "the only hits are JSON fixtures imported with { type: 'json' }; tsc enforces .js on every .ts import"
   - id: cicd-no-npm-install
-    reason: 'the image smoke runs npm install ./.kit/kit.tgz in a throwaway extension-probe clone, so the image carries the packed kit; this repo installs with npm ci'
+    reason: 'the image smoke runs npm install ./.kit/kit.tgz in a throwaway probe clone, so the image carries the packed kit; this repo installs with npm ci'

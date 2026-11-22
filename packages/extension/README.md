@@ -35,6 +35,8 @@ Start a new extension with `npx @agentage/cli extension create my-ext`: it pins 
 
 - The subpaths, the core client, the check report and secrets:
   [docs/extension-package.md](https://github.com/agentage/kit/blob/master/docs/extension-package.md).
-- Every part kind, the tool and the part image: the [kit README](https://github.com/agentage/kit#readme).
+- Every part kind: [docs/parts.md](https://github.com/agentage/kit/blob/master/docs/parts.md). The tool:
+  [docs/tool.md](https://github.com/agentage/kit/blob/master/docs/tool.md). The whole kit: the
+  [kit README](https://github.com/agentage/kit#readme).
 
 License: MIT

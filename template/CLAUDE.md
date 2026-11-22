@@ -42,7 +42,7 @@ The start steps are in [README.md](README.md#quick-start). After `create`:
 - Edit to the parts you kept: the part table and the lines of [README.md](README.md), and
   `description` in `package.json`.
 - `MIN_EXECUTED` in `ci.yml` is the gate's floor, the fewest tests the gate must run (the gate is
-  the e2e suite in agentage/e2e). `25` fits all eight parts. With fewer parts the gate runs fewer
+  the shared end-to-end suite, in a private repo). `25` fits all eight parts. With fewer parts the gate runs fewer
   tests, so lower it, or the job is red.
 
 ## 3. Write parts
@@ -78,7 +78,7 @@ The commands are in [README.md](README.md#run-it-on-your-machine). Rules for the
   images, postgres with your migrations, a dev issuer (4281) and a gateway (4280) laid out like
   `next` (the shared test environment). Both write `.agentage/` (ignored).
 - CI runs the same steps with `up --docker`, then the e2e gate: `npm run e2e -- template gate docker`
-  in agentage/e2e. The gate needs your row in its `extensions.json` (section 6). It never retries.
+  in the shared end-to-end suite. The gate needs your row in its `extensions.json` (section 6). It never retries.
 
 ## 5. Release
 
@@ -96,13 +96,13 @@ The commands are in [README.md](README.md#run-it-on-your-machine). Rules for the
 An extension runs where an operator lists it. These touches are outside this repo. Each is one
 small PR or one owner action.
 
-| Where                                 | What                                                                      |
-| ------------------------------------- | ------------------------------------------------------------------------- |
-| agentage/apphosts `installation.json` | `{ "id": "{id}", "version", "store", "expose": { "api": "public" } }`     |
-| agentage/estate `estate.yaml`         | `extensions.{id}: { version, parts: { api: api, ... } }`                  |
-| agentage/e2e `extensions.json`        | `{ "id": "{id}", "token": "GATE_TOKENS", "targets": ["docker", "next"] }` |
-| the `GATE_TOKENS` secret (owner)      | a `"{id}"` entry: the bearer your gate sends on `next`                    |
-| agentage/auth `pat-scopes.ts` (owner) | the id in `EXTENSION_IDS`: echo declares `{id}:read`, so it is needed     |
+| Where                               | What                                                                      |
+| ----------------------------------- | ------------------------------------------------------------------------- |
+| the app host's `installation.json`  | `{ "id": "{id}", "version", "store", "expose": { "api": "public" } }`     |
+| the estate's `estate.yaml`          | `extensions.{id}: { version, parts: { api: api, ... } }`                  |
+| the shared gate's `extensions.json` | `{ "id": "{id}", "token": "GATE_TOKENS", "targets": ["docker", "next"] }` |
+| the `GATE_TOKENS` secret (owner)    | a `"{id}"` entry: the bearer your gate sends on `next`                    |
+| the auth service's scopes (owner)   | the id in `EXTENSION_IDS`: echo declares `{id}:read`, so it is needed     |
 
 - An extension has one of the two rows. The `installation.json` row puts it on an app host: one
   service at `{app host}/api/{id}/...` and `{app host}/mcp/{id}`. This is the target shape.
@@ -113,9 +113,9 @@ small PR or one owner action.
 
 ## 7. Operate
 
-- A merge to estate master, or to apphosts master, deploys `next`. The deploy applies the stacks, checks each part's
+- A merge to master of the estate, or of the app hosts, deploys `next`. The deploy applies the stacks, checks each part's
   `/health`, then runs your gate: `npm run e2e -- {id} gate next`.
-- Read a red run on the Actions tab of agentage/estate. The run names the part and the check.
+- Read a red run of the estate deploy (the owner has access). The run names the part and the check.
   A part logs JSON lines with the request's `agcid`: search for it.
 - A release goes live so:
   - A merge to master runs `release.yml`: the date version, the images, the records and the package.

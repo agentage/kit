@@ -15,14 +15,15 @@ Status: before 1.0. Extensions built on the kit run on the staging estate "next"
 Make a new extension from the template in this repo and check it:
 
 ```bash
-npx @agentage/cli@latest extension create my-ext --no-install
+npx @agentage/cli extension create my-ext
 cd extension-my-ext && npm ci
 npm run verify
 npx agentage extension check   # PASS my-ext 0.1.2 conforms (6 rules)
 ```
 
-`--no-install` only makes the folder. Without it, `create` also runs the new extension on the
-local daemon (`127.0.0.1:4243`). The guide of the new folder is its own `README.md`.
+`create` builds the folder and gives it to the local daemon (`127.0.0.1:4243`), so it runs at once.
+Add `--no-install` to only create the files: CI and agents always do. The guide of the new folder
+is its own `README.md`.
 
 ## What is in this repo
 

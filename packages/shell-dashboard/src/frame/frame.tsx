@@ -1,13 +1,21 @@
 import type { RegionName } from '@agentage/app';
 import { ChevronUp, PanelLeft } from 'lucide-react';
-import { useEffect, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { cn } from '../lib/cn.js';
 import { Aside } from './aside.js';
 import { CommandList } from './command-list.js';
 import { frameCommands } from './commands.js';
-import type { Account, AsideState, BottomState, NavRow, PageItem } from './frame.types.js';
+import type {
+  Account,
+  AsideState,
+  BottomState,
+  NavRow,
+  NavSectionView,
+  PageItem,
+} from './frame.types.js';
 import { MobileHeader } from './mobile-header.js';
 import { Nav } from './nav.js';
+import { useLeadWatch } from './use-lead-watch.js';
 import { SidePane } from './side-pane.js';
 import { BOTTOM_SPLIT, Splitter } from './splitter.js';
 import { TitleMenu } from './title-menu.js';
@@ -20,8 +28,10 @@ export interface FrameProps {
   version: string;
   // The title in the actions bar (the open app's title).
   title: string;
-  // The open app's pages: the title becomes a menu ("Overview ⌄") when there are any.
+  // The open app's pages: the title becomes a menu ("Overview ⌄").
   pages?: PageItem[];
+  // The open app's titled nav list, below the app rows.
+  section?: NavSectionView | null;
   aside: AsideState | null;
   unread?: number;
   // The bottom region shows only when an app fills it (S1.4.1); closed by default.
@@ -55,6 +65,9 @@ export const Frame = (p: FrameProps) => {
   const state = useFrameState();
   const peek = usePeek(state.navHidden);
   const [wide, setWide] = useState(false);
+  const group = useRef<HTMLDivElement>(null);
+  useLeadWatch(group);
+  useEffect(() => void (document.title = `${p.title} - agentage`), [p.title]);
   const onInbox = p.onInbox ?? (() => undefined);
   const commands = frameCommands(p, state);
   useAsideEscape(p.aside, state.palette || state.drawer);
@@ -73,6 +86,7 @@ export const Frame = (p: FrameProps) => {
         />
         <Nav
           rows={p.rows}
+          section={p.section ?? null}
           account={p.account}
           version={p.version}
           apps={p.apps ?? []}
@@ -95,7 +109,7 @@ export const Frame = (p: FrameProps) => {
         </button>
         <div className="center">
           <div className="abar" data-region="actions">
-            <div className="lgrp">
+            <div className="lgrp" ref={group}>
               <div className="lead" data-region="lead" ref={p.regionRef('lead')} />
               <TitleMenu title={p.title} pages={p.pages ?? []} onNavigate={p.onNavigate} />
             </div>
@@ -104,7 +118,9 @@ export const Frame = (p: FrameProps) => {
           {/* The bar spans side and main (frame.html), so a side pane that opens moves no bar. */}
           <div className="split">
             <SidePane regionRef={p.regionRef} />
-            <main data-region="main">{p.children}</main>
+            <main data-region="main" aria-label={p.title}>
+              {p.children}
+            </main>
           </div>
           <section
             className="bottom"

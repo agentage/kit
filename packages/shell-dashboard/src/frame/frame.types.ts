@@ -44,6 +44,12 @@ export interface PageItem {
   current?: boolean;
 }
 
+// The open app's titled nav list: one row per item, below the app rows.
+export interface NavSectionView {
+  title: string;
+  items: (PageItem & { icon: ReactNode })[];
+}
+
 // The bottom slot bar: the title and count the app gives; the shell adds no content.
 export interface BottomState {
   title: string;

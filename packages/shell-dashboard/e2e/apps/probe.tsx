@@ -11,15 +11,19 @@ const Details = () => {
 export default function Probe() {
   const [draft, setDraft] = useAppState('draft', '');
   const [pong, setPong] = useState('');
-  const { notify, openAside, route, setPages, setBottomBar } = useAppShell();
+  const { notify, openAside, route, setPages, setNavSection, setBottomBar } = useAppShell();
   const { api, user } = useAppHost();
   useEffect(() => {
     setPages([
       { title: 'Probe', path: '' },
       { title: 'Runs', path: 'runs' },
     ]);
+    setNavSection({
+      title: 'Memories',
+      items: ['personal', 'work', 'agentage'].map((n) => ({ title: n, path: n, icon: 'folder' })),
+    });
     setBottomBar({ title: 'Probe log', count: 1 });
-  }, [setPages, setBottomBar]);
+  }, [setPages, setNavSection, setBottomBar]);
   return (
     <div className="scroll">
       <h1>Probe</h1>

@@ -48,6 +48,22 @@ for (const width of [1280, 400]) {
   });
 }
 
+test('the open app lists its nav section below the app rows; axe 0', async ({ page }) => {
+  await page.goto('/probe/work');
+  const group = page.getByRole('group', { name: 'Memories' });
+  await expect(group.getByRole('link')).toHaveText(['personal', 'work', 'agentage']);
+  await expect(group.getByRole('link', { name: 'work' })).toHaveAttribute('aria-current', 'page');
+  expect(await axe(page)).toEqual([]);
+  await group.getByRole('link', { name: 'agentage' }).click();
+  await expect(page).toHaveURL(/\/probe\/agentage$/);
+  await expect(group.getByRole('link', { name: 'agentage' })).toHaveAttribute(
+    'aria-current',
+    'page'
+  );
+  await page.getByRole('link', { name: 'Fixture' }).click();
+  await expect(page.getByRole('group')).toHaveCount(0);
+});
+
 test.describe('CLS with the app bars', () => {
   test.use({ viewport: { width: 1280, height: 800 } });
   const cls = (page: Page) =>

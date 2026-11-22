@@ -6,7 +6,7 @@ export const Probe = () => {
   const [draft, setDraft] = useAppState('draft', '');
   const [plain, setPlain] = useState('');
   const [pong, setPong] = useState('');
-  const { notify, openAside, route, setPages, setBottomBar } = useAppShell();
+  const { notify, openAside, route, setPages, setNavSection, setBottomBar } = useAppShell();
   const { api, user } = useAppHost();
   const raw = useContext(AppContext)?.host;
   useEffect(() => {
@@ -14,8 +14,12 @@ export const Probe = () => {
       { title: 'Probe one', path: '' },
       { title: 'Runs', path: 'runs' },
     ]);
+    setNavSection({
+      title: 'Memories',
+      items: ['personal', 'work', 'agentage'].map((n) => ({ title: n, path: n, icon: 'folder' })),
+    });
     setBottomBar({ title: 'Probe log', count: 2 });
-  }, [setPages, setBottomBar]);
+  }, [setPages, setNavSection, setBottomBar]);
   return (
     <div>
       <h1>Probe one</h1>

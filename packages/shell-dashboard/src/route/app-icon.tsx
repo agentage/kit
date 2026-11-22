@@ -73,7 +73,13 @@ const COMMON: Record<string, LucideIcon> = {
 };
 
 // A nav row icon by its lucide name (`agentage.app.icon`); a name outside the set shows `box`.
-export const AppIcon = ({ name = 'box' }: { name?: string }) => {
-  const Icon = COMMON[name] ?? Box;
+export const AppIcon = ({
+  name = 'box',
+  fallback = 'box',
+}: {
+  name?: string;
+  fallback?: string;
+}) => {
+  const Icon = COMMON[name] ?? COMMON[fallback] ?? Box;
   return <Icon className="i" aria-hidden="true" data-icon={name} />;
 };

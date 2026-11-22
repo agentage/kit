@@ -15,6 +15,8 @@ export type {
   RegionHost,
   RegionName,
   PageLink,
+  NavItem,
+  NavSection,
   ShellPort,
   StateStore,
 } from './app.types.js';

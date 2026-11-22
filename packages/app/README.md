@@ -25,6 +25,8 @@ The shell serves one copy of React and of this package through an import map: an
 | `AppBoundary`             | the error boundary the shell puts around each app root and `Region`                                                                                                                                                  |
 | `AppApiError`             | what `api` throws: `code` (the envelope code, `FORBIDDEN` for a refused path, else `HTTP_<status>`), `status`                                                                                                        |
 
+`setPages` makes the actions bar title a menu of the pages. `setNavSection({ title, items })` adds a titled list of items (`title`, `path`, optional `icon` name) to the nav panel below the app rows while the app is open; `null` removes it. The current item is the longest `path` that equals the route or is a folder above it (`''` matches only the app root).
+
 Keys of `openAside`: `inspect`, `details`, `inbox` (the shell puts the key in the URL, `?details=1`).
 
 ## Rules the code enforces

@@ -11,6 +11,8 @@ import { signOut } from './host/sign-out.js';
 import { AppPage } from './loader/app-page.js';
 import { InboxBody, Toasts } from './notices/notice-list.js';
 import { createNotices, unreadOf, useNotices } from './notices/notices.js';
+import { navSectionView } from './route/nav-section.js';
+import { pageItems } from './route/page-items.js';
 import { appRows, navRowsOf, type AppExtension } from './route/nav-rows.js';
 import { Home, NoExtensions, NotFound, Removed } from './route/pages.js';
 import { navigate, setAside, useRoute, type Route } from './route/router.js';
@@ -89,14 +91,8 @@ export const ShellApp = ({ deps, version }: { deps: ShellDeps; version: string }
         apps={rows.map((r) => ({ id: r.id, version: r.version }))}
         version={version}
         title={title}
-        pages={own.pages.map((p) => {
-          const path = p.path.replace(/^\/+/, '');
-          return {
-            title: p.title,
-            href: `/${route.id}${path && `/${path}`}`,
-            current: path === route.page,
-          };
-        })}
+        pages={pageItems(route.id, route.page, own.pages)}
+        section={row ? navSectionView(route.id, route.page, own.section) : null}
         bottom={row ? own.bottom : null}
         unread={unreadOf(list)}
         aside={

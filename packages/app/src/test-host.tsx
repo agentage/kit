@@ -8,6 +8,7 @@ import type {
   HostAdapter,
   HostInfo,
   Notice,
+  NavSection,
   PageLink,
   RegionHost,
   RegionName,
@@ -31,6 +32,7 @@ export interface TestRecord {
   aside: AsideKey | null;
   pages: string[];
   pageLinks: PageLink[];
+  navSection: NavSection | null;
   bottomBar: BottomBar | null;
 }
 
@@ -62,6 +64,7 @@ export const createTestRecord = (): TestRecord => ({
   aside: null,
   pages: [],
   pageLinks: [],
+  navSection: null,
   bottomBar: null,
 });
 
@@ -83,6 +86,7 @@ const testShell = (record: TestRecord): AppContextValue['shell'] => ({
   closeAside: () => void (record.aside = null),
   navigate: (page) => void record.pages.push(page),
   setPages: (pages) => void (record.pageLinks = pages),
+  setNavSection: (section) => void (record.navSection = section),
   setBottomBar: (bar) => void (record.bottomBar = bar),
 });
 

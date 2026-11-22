@@ -222,6 +222,19 @@ nav.side .sep {
 .row[aria-pressed='true'] .i {
   color: var(--color-primary);
 }
+.navsect {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.sectlist {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-height: 416px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
 .search {
   border: 1px solid var(--color-border);
   margin-bottom: 6px;
@@ -449,6 +462,9 @@ main {
   font-size: 15px;
   font-weight: 600;
   white-space: nowrap;
+}
+.lgrp[data-lead] .ttl {
+  display: none;
 }
 .ttl:hover,
 .ttl[aria-expanded='true'] {

@@ -82,13 +82,13 @@ The commands are in [README.md](README.md#run-it-on-your-machine). Rules for the
 
 ## 5. Release
 
-- The steps are in [README.md](README.md#release). `release.yml` runs `agentage extension release`.
+- A merge to master is the release ([README.md](README.md#release)). `release.yml` runs `agentage extension release --changed`.
 - The release attaches two records to the GitHub release: `agentage-extension.json` (the part
   images by digest) and `agentage-container.json` (the one image an app host runs).
 - A package with `"private": true` is never published to npm.
 - The first publish of a new npm name waits for the owner's approval. Then add `release.yml` as
   the trusted publisher on npmjs.com.
-- A re-run only retries npm; a moved tag is refused. A fix is a new version. Never move a `v*` tag.
+- A re-run only retries npm; a moved tag is refused. A fix is a new merge. Never move an `<id>@*` tag.
 - `agentage extension release` refuses the id of the repo this one was copied from, and passes for every other id.
 
 ## 6. The deployment row
@@ -118,7 +118,7 @@ small PR or one owner action.
 - Read a red run on the Actions tab of agentage/estate. The run names the part and the check.
   A part logs JSON lines with the request's `agcid`: search for it.
 - A release goes live so:
-  - A `v*` tag runs `release.yml`: the images, the records and the package.
+  - A merge to master runs `release.yml`: the date version, the images, the records and the package.
   - The market lists the version.
   - A floating row (`"track": "latest"` in `installation.json`, `version: latest` in `estate.yaml`): the cloud extension opens a PR that changes the version. It merges by itself and the deploy to `next` runs. A red deploy is reverted by a PR.
   - A row with an exact version (a pin: the version never moves by itself) changes only by a PR to its file.

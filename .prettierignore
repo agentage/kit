@@ -11,3 +11,4 @@ playwright-report
 packages/shell-dashboard/dist-e2e
 packages/shell-dashboard/.vendor
 packages/shell-dashboard/shots
+template

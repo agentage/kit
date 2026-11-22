@@ -81,5 +81,5 @@ but ui; `{ "name": "github-app-key", "parts": ["worker"] }` only in the parts it
 other part starts without it, and a read of `ctx.secrets.githubAppKey` there throws. A test
 takes a part's view with `createTestContext({ extension: { part: 'worker' } })`.
 
-See the [platform README](https://github.com/agentage/platform#readme) for every part kind, the
+See the [kit README](https://github.com/agentage/kit#readme) for every part kind, the
 manifest, the tool and how a part image runs.

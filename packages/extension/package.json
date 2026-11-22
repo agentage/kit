@@ -6,12 +6,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/agentage/platform.git",
+    "url": "git+https://github.com/agentage/kit.git",
     "directory": "packages/extension"
   },
-  "homepage": "https://agentage.io",
+  "homepage": "https://github.com/agentage/kit#readme",
   "bugs": {
-    "url": "https://github.com/agentage/platform/issues"
+    "url": "https://github.com/agentage/kit/issues"
   },
   "publishConfig": {
     "access": "public"

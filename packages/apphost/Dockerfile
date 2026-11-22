@@ -14,7 +14,7 @@ ARG COMMIT_SHA=unknown
 ARG BUILD_TIME=unknown
 ARG VERSION=0.0.0
 ENV NODE_ENV=production COMMIT_SHA=$COMMIT_SHA BUILD_TIME=$BUILD_TIME VERSION=$VERSION PORT=3000
-LABEL org.opencontainers.image.source=https://github.com/agentage/platform \
+LABEL org.opencontainers.image.source=https://github.com/agentage/kit \
   org.opencontainers.image.revision=$COMMIT_SHA org.opencontainers.image.version=$VERSION
 WORKDIR /app
 COPY --from=build /src/package.json /src/package-lock.json ./

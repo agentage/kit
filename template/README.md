@@ -1,87 +1,67 @@
 # extension-template
 
-An agentage extension with one of every part (a part is one folder in `src/`; the `store` part is
-`migrations/` and `seeds/`). It is for extension developers. An extension is one npm package. It adds
-a web page, a widget, an API, MCP tools, a job or CLI commands to agentage.
+An agentage extension: one npm package that adds pages, a widget, an API, MCP tools, a job,
+terminal commands and an app to agentage. `agentage extension create` made this repo. Each part is
+one folder in `src/`; the `store` part is `migrations/` and `seeds/`. Delete the lines of this
+README about the parts you did not keep.
 
-You need Node 22 or newer, npm 10 or newer, Docker and git. Nothing needs a sign-in.
-
-```bash
-npx @agentage/cli@latest extension create <id> [part...]   # no part = all eight
-```
-
-The parts are `pages`, `ui`, `api`, `mcp`, `worker`, `cli`, `app` and `store` (postgres). `create` keeps
-the parts you name and deletes the other parts. It writes your id into every file. In your copy,
-delete the README lines about parts you did not keep. See the [id rules](docs/run-locally.md#create).
+You need Node 22 or newer, npm 10 or newer and git. `up --docker` also needs Docker.
 
 ## Quick start
 
 ```bash
-cd extension-<id>
-npm ci && npm run build
-npx agentage extension check          # PASS <id> <version> conforms (6 rules)
-npm run verify                         # type-check, lint, format, test, build
-git init -b master && git add -A && git commit -m "feat: <id> extension"
+npm ci
+npm run verify                  # type-check, lint, format, test, build
+npx agentage extension check    # PASS template <version> conforms (6 rules)
+git init -b master && git add -A && git commit -m "feat: template extension"
 ```
 
-Commit before `up`: it needs a git commit, or `COMMIT_SHA` set. `build` needs a clean tree.
-Use `npx agentage` here. It runs the pinned version. A global `agentage` can be older and lack `extension up`.
-
-More: [when up or build stops](docs/run-locally.md#when-up-or-build-stops).
+Use `npx agentage` in this folder: it runs the cli version that `package.json` pins. A global
+`agentage` can be older. `up` needs one git commit; `build` needs a clean tree. More:
+[when up or build stops](docs/run-locally.md#when-up-or-build-stops).
 
 ### Run it on your machine
 
-`npx agentage extension up` runs the folder on the daemon (127.0.0.1:4243): api, mcp (`/mcp/template`) and
-worker in one sealed child, no token, and each saved change in `src/` reloads it. `extension down` removes the row.
-
-With Docker, `up --docker` runs the release images, as a deployment does:
-
 ```bash
-npx agentage extension up --docker  # Docker; prints "ready N parts healthy" when done
-T=$(npx agentage extension token --scope template:read)
-curl -s -H "Authorization: Bearer $T" "localhost:4280/api/template/echo?msg=hi"
-npx agentage extension down    # removes this folder's containers, network and volume
+npx agentage extension up       # runs this folder on the local daemon, reloads each change
+npx agentage extension down     # removes it from the daemon again
 ```
 
-- `up` needs ports 4280 (gateway) and 4281 (token issuer) free.
-- `token` asks localhost:4281 only, so run `up` first. The scope starts with `agentage.id` of `package.json`.
-- Open `http://localhost:4280/` for the pages part.
+`up` runs the api, the mcp tools (`/mcp/template`) and the worker on the daemon at
+`127.0.0.1:4243`, with no token. Each saved change in `src/` reloads it.
+
+`up --docker` runs the release images instead, as a deployment does. It needs the ports 4280 and
+4281 free and prints `ready N parts healthy` when it is done:
+
+```bash
+npx agentage extension up --docker
+T=$(npx agentage extension token --scope template:read)
+curl -s -H "Authorization: Bearer $T" "localhost:4280/api/template/echo?msg=hi"
+npx agentage extension down     # removes the containers, the network and the volume
+```
 
 ### Call it
 
 - `GET /api/template/echo?msg=hi` with a token answers 200; without `msg`, 400.
-- `GET /api/template/ping` is public and answers 200 `pong`.
+- `GET /api/template/ping` is public and answers 200 with `pong`.
 - A protected route without a token answers 401.
+- The MCP tool `template__echo` is at `POST /mcp`, with the same token.
 
-`openapi.json` (api) and `template.mcpc.json` (mcp) list all routes and tools. The MCP tool
-`template__echo` is at `POST /mcp`, with the same token.
-
-More: [answers](docs/run-locally.md#answers).
-
-Each part serves `/health` on port 3000 in its container. `up` does not publish it. More:
-[Health and logs](docs/run-locally.md#health-and-logs).
+`openapi.json` lists the routes and `template.mcpc.json` lists the tools. More:
+[answers](docs/run-locally.md#answers) and [health and logs](docs/run-locally.md#health-and-logs).
 
 ## What it serves
 
-- pages, `src/pages`: `/` shows the id, version and commit.
-- ui, `src/ui`: the widget `<{id}-echo>`, served at `/ui/{version}/{id}.js`.
-- api, `src/api`: `GET /api/template/echo` (scope `{id}:read`) and `GET /api/template/ping` (public).
-- mcp, `src/mcp`: the tool `{id}__echo` (scope `{id}:read`).
+- pages, `src/pages`: `/` shows the id, the version and the commit.
+- ui, `src/ui`: the widget `<template-echo>`.
+- api, `src/api`: `GET /api/template/echo` (scope `template:read`) and `GET /api/template/ping` (public).
+- mcp, `src/mcp`: the tool `template__echo` (scope `template:read`).
 - worker, `src/worker`: the job `tick`, every minute.
-- store, `migrations/` and `seeds/`: postgres; `ping` counts the rows of `pings`.
+- store, `migrations/` and `seeds/`: postgres. A seed runs once, on an empty store.
 - cli, `src/cli`: `agentage ping [msg]` prints `pong`.
-- app, `src/app`: the shell page `/{id}`: an Echo button that calls the api through `useAppHost()`.
+- app, `src/app`: the shell page `/template`, an Echo button that calls the api.
 
-A seed in `seeds/` runs once, on an empty store.
-
-## Verify
-
-```bash
-npm run verify                    # type-check, lint, format, test, build
-npx agentage extension check      # the six conformance rules
-```
-
-[CLAUDE.md](CLAUDE.md) has the rules for a change. After a route or tool changes, regenerate the contracts:
+After you change a route or a tool, write the contracts again:
 
 ```bash
 npm run build && npx agentage extension check --write && npm run format
@@ -89,27 +69,29 @@ npm run build && npx agentage extension check --write && npm run format
 
 ## Release
 
-A merge to master is the release. `release.yml` runs `agentage extension release --changed`: when the
-extension changed since its last `<id>@*` tag, it gets a date version `YYYY.MDD.N` and the tag
-`<id>@<version>`. The run pushes the images, attaches the records `agentage-container.json` and
-`agentage-extension.json` to the GitHub release and publishes the package to npm. Do not raise the
-version in `package.json` by hand: the run writes the date version in its own copy only.
+A merge to master is the release. `.github/workflows/release.yml` runs
+`agentage extension release --changed`. When the extension changed since its last tag, it gets a
+date version such as `2026.1122.1` and the tag `template@<version>`. The run pushes the images and
+attaches the records `agentage-container.json` and `agentage-extension.json` to the GitHub release.
+A change only in a root `*.md` file, `docs/` or `.github/` releases nothing; `.release-ignore`
+adds more patterns.
 
-The package starts with `"private": true`: a release pushes the images and the records, never npm.
-To publish to npm on purpose, first add `release.yml` of your repo as the trusted publisher on npmjs.com.
-Then remove `"private": true` from `package.json` and merge: the next release publishes the package.
-A fix is a new merge: never move a tag.
+Do not raise the version in `package.json` by hand. A fix is a new merge: never move a tag.
+
+The package is private (`"private": true`), so a release never publishes it to npm. To publish on
+purpose: add `release.yml` of this repo as the trusted publisher of the name on npmjs.com, remove
+`"private": true` from `package.json`, and merge. The next release publishes the package.
 
 ## Deploy
 
-A release deploys nothing. An operator adds a row with the id and the version to the
-`installation.json` of an app host (repo agentage/apphosts). The app host then serves
-`/api/template/...` and `/mcp/template` at its own address. More: [CLAUDE.md](CLAUDE.md#6-the-deployment-row).
+A release deploys nothing. An operator adds the id and the version to an app host. The app host
+then serves `/api/template/...` and `/mcp/template` at its own address. More:
+[CLAUDE.md](CLAUDE.md#6-the-deployment-row).
 
-## Documentation
+## For agents
 
-- [docs/run-locally.md](docs/run-locally.md): id rules, start errors, answers, health and logs.
-- [CLAUDE.md](CLAUDE.md): the rules for an agent that changes this repo.
+Read [CLAUDE.md](CLAUDE.md) first: the rules for a change, where each fact lives, and what CI
+checks. Run `npm run verify` and `npx agentage extension check` before each push.
 
 ## License
 

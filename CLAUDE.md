@@ -3,7 +3,7 @@
 Public repo. The extension kit and its build tool, and the widget kit; no product code. Standards: the
 engineering standards batch (repo-baseline, typescript, monorepo, code-style, testing, ci-cd,
 docker-deploy, security, backend); this file only adds what the tree does not say. Words: [README.md](README.md)
-"Words used here" (record, sealing: `docs/tool.md`); this file does not repeat the docs listed below.
+"What is in this repo" (record, sealing: `docs/tool.md`); this file does not repeat the docs listed below.
 
 ## Where facts live
 
@@ -15,15 +15,20 @@ docker-deploy, security, backend); this file only adds what the tree does not sa
 - Build steps, six rules, image recipe, `up`, `down`, `token`, timeouts: `docs/tool.md` (proof: `src/tool/`).
 - Part image entry, port, `AGENTAGE_*` settings: `docs/part-image.md` (proof: `src/runtime/`, `src/auth/part-auth.ts`).
 - Host, daemon routes, limits, seal: `docs/part-image.md` "Host one extension" and `docs/daemon.md` (proof: `src/host/`, `packages/apphost/src/`).
+- App host program: cloud `installation.json`, request lines, security headers: `docs/apphost.md`.
 - Manifest, record, discovery, `/health` and envelope schemas: `packages/extension/schemas/*.json` (generated, never edit by hand).
-- Check report JSON, secrets: `packages/extension/README.md`.
+- Kit subpaths, the core client, check report JSON, secrets: `docs/extension-package.md`.
 - Event line kinds, redaction and limits, events client: `packages/logs/README.md` (proof: `packages/logs/src/`).
-- Widget: `packages/widget/README.md` "Imports", "Bundle output", "The harness page", "Rules the code enforces".
+- Widget: `docs/widget.md` "Imports", "Bundle output", "The harness page", "Rules the code enforces".
 - App kit `@agentage/extension/app` (hooks, `Region`, `Split`, test host): `packages/app/README.md`.
-- Dashboard shell (`@agentage/shell-dashboard`, served by `@agentage/apphost`): `packages/shell-dashboard/README.md`.
-- Sign in, page token, `mintToken`, `revokeToken`, sign out: `packages/identity/README.md`.
-- The extension template: `template/` (its own `CLAUDE.md`, lockfile and CI files); README "The extension template".
-- CI jobs: `.github/workflows/ci.yml`. Coverage floor: `vitest.config.ts`. Release rules: `README.md` "Release" (proof: `.github/workflows/release.yml`).
+- Dashboard shell (`@agentage/shell-dashboard`, served by `@agentage/apphost`): `docs/shell-dashboard.md`.
+- Sign in, page token, `mintToken`, `revokeToken`, sign out: `docs/identity.md`.
+- The extension template: `template/` (its own `CLAUDE.md`, lockfile and CI files). It is not a workspace: it takes the kit
+  from npm, and the root lint, format, tests, type-check, build and image context leave it out. The `Template` check
+  runs its verify, `extension check`, `up --docker`, the e2e gate and `Template create` (short and long id) when
+  `template/` or `ci.yml` changes. Its `README.md` is copied into each new extension with `template` replaced by the
+  id: keep the id out of tables (prettier aligns them). The cli refuses a symbolic link in it.
+- CI jobs: `.github/workflows/ci.yml`. Coverage floor: `vitest.config.ts`. Release rules: `docs/release.md` (proof: `.github/workflows/release.yml`).
 
 Read the file named here before you read `src/` (`src/` = `packages/extension/src`).
 

@@ -1,0 +1,44 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 420" width="1400" height="420" font-family="Segoe UI, Ubuntu, Helvetica, Arial, sans-serif">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0b0f19"/>
+      <stop offset="1" stop-color="#0d1220"/>
+    </linearGradient>
+  </defs>
+  <rect x="0" y="0" width="1400" height="420" fill="url(#bg)"/>
+  <text x="700" y="64" text-anchor="middle" font-size="30" font-weight="800" fill="#ffffff">What is in this repo</text>
+  <rect x="610" y="80" width="180" height="4" rx="2" fill="#F59E0B"/>
+  <rect x="50" y="130" width="200" height="190" rx="13" fill="#11161f" stroke="#3a3320" stroke-width="1.5"/>
+  <text x="150" y="185" text-anchor="middle" font-size="14" font-weight="700" letter-spacing="1.5" fill="#F59E0B">THE KIT</text>
+  <text x="150" y="220" text-anchor="middle" font-size="11" font-family="JetBrains Mono, Consolas, monospace" fill="#c9d1d9">@agentage/extension</text>
+  <text x="150" y="254" text-anchor="middle" font-size="12.5" fill="#9aa4b2">parts, build tool,</text>
+  <text x="150" y="274" text-anchor="middle" font-size="12.5" fill="#9aa4b2">app kit, logs</text>
+  <rect x="270" y="130" width="200" height="190" rx="13" fill="#11161f" stroke="#2a3140" stroke-width="1"/>
+  <text x="370" y="185" text-anchor="middle" font-size="14" font-weight="700" letter-spacing="1.5" fill="#58a6ff">WIDGETS</text>
+  <text x="370" y="220" text-anchor="middle" font-size="11" font-family="JetBrains Mono, Consolas, monospace" fill="#c9d1d9">@agentage/widget</text>
+  <text x="370" y="254" text-anchor="middle" font-size="12.5" fill="#9aa4b2">the ui part as React</text>
+  <text x="370" y="274" text-anchor="middle" font-size="12.5" fill="#9aa4b2">custom elements</text>
+  <rect x="490" y="130" width="200" height="190" rx="13" fill="#11161f" stroke="#2a3140" stroke-width="1"/>
+  <text x="590" y="185" text-anchor="middle" font-size="14" font-weight="700" letter-spacing="1.5" fill="#58a6ff">SIGN IN</text>
+  <text x="590" y="220" text-anchor="middle" font-size="11" font-family="JetBrains Mono, Consolas, monospace" fill="#c9d1d9">@agentage/identity</text>
+  <text x="590" y="254" text-anchor="middle" font-size="12.5" fill="#9aa4b2">browser sign-in and</text>
+  <text x="590" y="274" text-anchor="middle" font-size="12.5" fill="#9aa4b2">a one-hour token</text>
+  <rect x="710" y="130" width="200" height="190" rx="13" fill="#11161f" stroke="#2a3140" stroke-width="1"/>
+  <text x="810" y="185" text-anchor="middle" font-size="14" font-weight="700" letter-spacing="1.5" fill="#b48eff">APP HOST</text>
+  <text x="810" y="220" text-anchor="middle" font-size="11" font-family="JetBrains Mono, Consolas, monospace" fill="#c9d1d9">@agentage/apphost</text>
+  <text x="810" y="254" text-anchor="middle" font-size="12.5" fill="#9aa4b2">the daemon and the</text>
+  <text x="810" y="274" text-anchor="middle" font-size="12.5" fill="#9aa4b2">cloud host program</text>
+  <rect x="930" y="130" width="200" height="190" rx="13" fill="#11161f" stroke="#2a3140" stroke-width="1"/>
+  <text x="1030" y="185" text-anchor="middle" font-size="14" font-weight="700" letter-spacing="1.5" fill="#b48eff">SHELL</text>
+  <text x="1030" y="220" text-anchor="middle" font-size="11" font-family="JetBrains Mono, Consolas, monospace" fill="#c9d1d9">@agentage/shell-dashboard</text>
+  <text x="1030" y="254" text-anchor="middle" font-size="12.5" fill="#9aa4b2">the dashboard frame</text>
+  <text x="1030" y="274" text-anchor="middle" font-size="12.5" fill="#9aa4b2">an app host serves</text>
+  <rect x="1150" y="130" width="200" height="190" rx="13" fill="#11161f" stroke="#2a3140" stroke-width="1"/>
+  <text x="1250" y="185" text-anchor="middle" font-size="14" font-weight="700" letter-spacing="1.5" fill="#8ea3bd">TEMPLATE</text>
+  <text x="1250" y="220" text-anchor="middle" font-size="11" font-family="JetBrains Mono, Consolas, monospace" fill="#c9d1d9">template/</text>
+  <text x="1250" y="254" text-anchor="middle" font-size="12.5" fill="#9aa4b2">the start of every</text>
+  <text x="1250" y="274" text-anchor="middle" font-size="12.5" fill="#9aa4b2">new extension</text>
+  <line x1="270" y1="345" x2="1130" y2="345" stroke="#3d4660" stroke-width="1"/>
+  <text x="700" y="372" text-anchor="middle" font-size="12.5" fill="#8b949e">the five packages are public on npm; a <tspan fill="#F59E0B" font-family="JetBrains Mono, Consolas, monospace">v*</tspan> tag on master releases them</text>
+  <text x="700" y="400" text-anchor="middle" font-size="13" fill="#8b949e">agentage extension create copies template/ into a new repo of its own</text>
+</svg>

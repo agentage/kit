@@ -26,7 +26,7 @@ jobs:
         env:
           TITLE: ${{ github.event.pull_request.title }}
         run: |
-          scoped='^(feat|fix|refactor|test|chore|ci|docs|perf|build)\((extension|apphost|logs|widget|identity|shell|app|release|ci|docs|deps)\)!?: .{1,60}$'
+          scoped='^(feat|fix|refactor|test|chore|ci|docs|perf|build)\((extension|apphost|logs|widget|identity|shell|app|template|release|ci|docs|deps)\)!?: .{1,60}$'
           bare='^(ci|docs|chore|build): '
           if [ "${#TITLE}" -le 72 ] && { [[ $TITLE =~ $scoped ]] || [[ $TITLE =~ $bare ]]; }; then exit 0; fi
           echo "::error::PR title '$TITLE' breaks the commit title rules in CLAUDE.md (type(scope): text, max 72)"; exit 1
@@ -424,3 +424,188 @@ jobs:
         if: always()
         working-directory: ${{ env.PROBE_DIR }}
         run: node node_modules/@agentage/extension/dist/tool/cli.js down || true
+
+  # template/ is the start of every new extension, with its own lockfile (not a workspace).
+  template-changes:
+    name: Template changes
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      run: ${{ steps.pick.outputs.run }}
+      candidate: ${{ steps.pick.outputs.candidate }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      # template/** or this file: the template on its lockfile kit. A kit package it imports: on the candidate kit.
+      - name: Pick what this change touches
+        id: pick
+        env:
+          BASE: ${{ github.event.pull_request.base.sha || github.event.before }}
+        run: |
+          set -euo pipefail
+          files=''
+          if [ -n "$BASE" ] && git cat-file -e "$BASE^{commit}" 2>/dev/null; then
+            files=$(git diff --name-only "$BASE" HEAD)
+          fi
+          own=false; kit=false
+          if [ -z "$files" ] || grep -qE '^(template/|\.github/workflows/ci\.yml$)' <<<"$files"; then own=true; fi
+          if [ -z "$files" ] || grep -qE '^packages/(extension|widget|logs|app)/' <<<"$files"; then kit=true; fi
+          run=$([ "$own" = true ] || [ "$kit" = true ] && echo true || echo false)
+          echo "template: $own, kit: $kit" | tee -a "$GITHUB_STEP_SUMMARY"
+          echo "run=$run" >> "$GITHUB_OUTPUT"
+          echo "candidate=$kit" >> "$GITHUB_OUTPUT"
+
+  template-verify:
+    name: Template verify and check
+    needs: template-changes
+    if: needs.template-changes.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      CANDIDATE: ${{ needs.template-changes.outputs.candidate }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: template/package-lock.json
+
+      # The root install goes before the template's: a root node_modules would hide a missing template dependency.
+      - name: The candidate kit and widget, packed into template/.kit
+        if: env.CANDIDATE == 'true'
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund && npm run build
+          mkdir -p template/.kit
+          npm pack -w @agentage/extension -w @agentage/widget --pack-destination template/.kit
+          rm -rf node_modules packages/*/node_modules
+
+      - name: Install (the template's own lockfile; the candidate on top when the kit changed)
+        working-directory: template
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          if [ "$CANDIDATE" = true ]; then
+            npm install --no-audit --no-fund ./.kit/agentage-*.tgz
+            npm pkg set engines.agentage=">=0.6"
+          fi
+
+      - name: Verify (type-check, lint, format, test with coverage, build)
+        working-directory: template
+        run: npm run verify
+
+      - name: Conformance (the kit's six rules; the store rule uses the runner's docker)
+        working-directory: template
+        run: node_modules/.bin/agentage extension check
+
+  template-local:
+    name: Template up and the e2e gate on local
+    needs: template-changes
+    if: needs.template-changes.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    # The gate on docker stays under 10 minutes; the candidate build adds about 2.
+    timeout-minutes: 15
+    env:
+      CANDIDATE: ${{ needs.template-changes.outputs.candidate }}
+      SECRETS_OK: ${{ github.actor != 'dependabot[bot]' && github.event.pull_request.head.repo.fork != true }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: template/package-lock.json
+
+      - name: The candidate kit and widget, packed into template/.kit
+        if: env.CANDIDATE == 'true'
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund && npm run build
+          mkdir -p template/.kit
+          npm pack -w @agentage/extension -w @agentage/widget --pack-destination template/.kit
+          rm -rf node_modules packages/*/node_modules
+
+      - name: Install (and Chromium for the widget test; the runner has its OS libraries)
+        working-directory: template
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          if [ "$CANDIDATE" = true ]; then
+            npm install --no-audit --no-fund ./.kit/agentage-*.tgz
+            npm pkg set engines.agentage=">=0.6"
+          fi
+          npx playwright install chromium
+
+      # agentage/e2e is private (the org PAT_TOKEN reads it); Dependabot and fork runs get no secrets.
+      - name: Checkout agentage/e2e
+        if: env.SECRETS_OK == 'true'
+        uses: actions/checkout@v7
+        with:
+          repository: agentage/e2e
+          path: e2e-suite
+          token: ${{ secrets.PAT_TOKEN }}
+          persist-credentials: false
+
+      - name: Install agentage/e2e (the candidate kit validates when the kit changed)
+        if: env.SECRETS_OK == 'true'
+        working-directory: e2e-suite
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          if [ "$CANDIDATE" = true ]; then npm install --no-save ../template/.kit/agentage-extension-*.tgz; fi
+          npx playwright install chromium
+
+      # The lockfile cli as in a created repo; on the candidate, the kit's own tool (the cli bundles the released kit).
+      - name: agentage extension up --docker (the release recipes, store, dev issuer, gateway)
+        working-directory: template
+        run: |
+          if [ "$CANDIDATE" = true ]; then node node_modules/@agentage/extension/dist/tool/cli.js up
+          else node_modules/.bin/agentage extension up --docker; fi
+
+      - name: The widget a11y test through the local gateway (src/**/*.spec.ts)
+        working-directory: template
+        run: npm run test:e2e
+
+      - name: e2e gate on docker (agentage/e2e, the template row)
+        if: env.SECRETS_OK == 'true'
+        working-directory: e2e-suite
+        run: env "TEMPLATE_DIR=$GITHUB_WORKSPACE/template" npm run e2e -- template gate docker
+
+      # A gate that skipped itself is not green.
+      - name: Assert the gate was not vacuous
+        if: env.SECRETS_OK == 'true'
+        working-directory: e2e-suite
+        env:
+          MIN_EXECUTED: '25'
+        run: node scripts/assert-executed.mjs
+
+      - name: Logs on failure
+        if: failure() || cancelled()
+        working-directory: template
+        run: docker compose -f .agentage/compose.json logs --no-color --tail 80 || true
+
+  # The one context for the template: green when its jobs passed or this change did not touch it.
+  template:
+    name: Template
+    needs: [template-changes, template-verify, template-local]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Every template job passed or had nothing to test
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          set -euo pipefail
+          jq -r 'to_entries[] | "\(.key): \(.value.result)"' <<<"$NEEDS"
+          jq -e '.["template-changes"].result == "success" and all(.[]; .result == "success" or .result == "skipped")' <<<"$NEEDS" >/dev/null

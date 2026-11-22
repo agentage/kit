@@ -63,16 +63,14 @@ Each part serves `/health` on port 3000 in its container. `up` does not publish 
 
 ## What it serves
 
-| Part   | Folder                  | What it does                                                                     |
-| ------ | ----------------------- | -------------------------------------------------------------------------------- |
-| pages  | `src/pages`             | `/` shows the id, version and commit                                             |
-| ui     | `src/ui`                | the widget `<{id}-echo>`, served at `/ui/{version}/{id}.js`                      |
-| api    | `src/api`               | `GET /api/template/echo` (scope `{id}:read`), `GET /api/template/ping` (public)  |
-| mcp    | `src/mcp`               | the tool `{id}__echo` (scope `{id}:read`)                                        |
-| worker | `src/worker`            | the job `tick`, every minute                                                     |
-| store  | `migrations/`, `seeds/` | postgres; `ping` counts the rows of `pings`                                      |
-| cli    | `src/cli`               | `agentage ping [msg]` prints `pong`                                              |
-| app    | `src/app`               | the shell page `/{id}`: an Echo button that calls the api through `useAppHost()` |
+- pages, `src/pages`: `/` shows the id, version and commit.
+- ui, `src/ui`: the widget `<{id}-echo>`, served at `/ui/{version}/{id}.js`.
+- api, `src/api`: `GET /api/template/echo` (scope `{id}:read`) and `GET /api/template/ping` (public).
+- mcp, `src/mcp`: the tool `{id}__echo` (scope `{id}:read`).
+- worker, `src/worker`: the job `tick`, every minute.
+- store, `migrations/` and `seeds/`: postgres; `ping` counts the rows of `pings`.
+- cli, `src/cli`: `agentage ping [msg]` prints `pong`.
+- app, `src/app`: the shell page `/{id}`: an Echo button that calls the api through `useAppHost()`.
 
 A seed in `seeds/` runs once, on an empty store.
 

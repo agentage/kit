@@ -451,7 +451,7 @@ jobs:
             files=$(git diff --name-only "$BASE" HEAD)
           fi
           own=false; kit=false
-          if [ -z "$files" ] || grep -qE '^(template/|\.github/workflows/ci\.yml$)' <<<"$files"; then own=true; fi
+          if [ -z "$files" ] || grep -qE '^(template/|scripts/template-create\.mjs$|\.github/workflows/ci\.yml$)' <<<"$files"; then own=true; fi
           if [ -z "$files" ] || grep -qE '^packages/(extension|widget|logs|app)/' <<<"$files"; then kit=true; fi
           run=$([ "$own" = true ] || [ "$kit" = true ] && echo true || echo false)
           echo "template: $own, kit: $kit" | tee -a "$GITHUB_STEP_SUMMARY"
@@ -599,10 +599,50 @@ jobs:
         working-directory: template
         run: docker compose -f .agentage/compose.json logs --no-color --tail 80 || true
 
+  # What create makes: a short id, a long id and one part, each must pass verify (the rewrite is scripts/template-create.mjs).
+  template-create:
+    name: Template create (${{ matrix.case }})
+    needs: template-changes
+    if: needs.template-changes.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { case: short id, id: ab, parts: '' }
+          - { case: long id, id: a-very-long-extension-id, parts: '' }
+          - { case: api part only, id: demo, parts: api }
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          cache: 'npm'
+          cache-dependency-path: template/package-lock.json
+
+      - name: Create the copy (the cli's drop and whole-word rewrite)
+        env:
+          ID: ${{ matrix.id }}
+          PARTS: ${{ matrix.parts }}
+        run: node scripts/template-create.mjs template "$RUNNER_TEMP/copy" "$ID" $PARTS
+
+      - name: Install, commit (build needs a clean git tree) and verify
+        working-directory: ${{ runner.temp }}/copy
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          git init -q -b master && git add -A
+          git -c user.name=ci -c user.email=ci@example.com commit -qm init
+          npm run verify
+
   # The one context for the template: green when its jobs passed or this change did not touch it.
   template:
     name: Template
-    needs: [template-changes, template-verify, template-local]
+    needs: [template-changes, template-verify, template-local, template-create]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5

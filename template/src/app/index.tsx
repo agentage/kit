@@ -4,6 +4,8 @@ import { Input } from '@agentage/design-system/input';
 import { Label } from '@agentage/design-system/label';
 import { useState } from 'react';
 
+const FIELD = 'template-msg';
+
 // The shell page of the extension: it reaches its own api through useAppHost().api, never fetch.
 export default function App() {
   const { api } = useAppHost();
@@ -20,8 +22,8 @@ export default function App() {
     <section className="flex max-w-xl flex-col gap-4 p-6">
       <h1 className="text-xl font-semibold">template</h1>
       <div className="flex flex-col gap-2">
-        <Label htmlFor="template-msg">Message</Label>
-        <Input id="template-msg" value={msg} onChange={(e) => setMsg(e.target.value)} />
+        <Label htmlFor={FIELD}>Message</Label>
+        <Input id={FIELD} value={msg} onChange={(e) => setMsg(e.target.value)} />
       </div>
       <Button onClick={() => void ping()}>Echo</Button>
       <p aria-live="polite" className="min-h-6">

@@ -1,6 +1,6 @@
 {
   "name": "@agentage/shell-dashboard",
-  "version": "0.3.1",
+  "version": "0.4.0",
   "description": "The agentage dashboard shell: a built page (dist/index.html and its files) that an app host serves at /. Not an extension: no manifest, no create(ctx), no container",
   "type": "module",
   "license": "MIT",

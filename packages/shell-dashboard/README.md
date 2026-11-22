@@ -7,6 +7,7 @@ prototype (variant B; a copy is `e2e/prototype/index.html`) in React 19, styled 
 It is published on npm (`files`: `dist`). The app host program (`@agentage/apphost`) depends on it
 and serves this package on both kinds: the daemon, and a cloud host whose `installation.json` names it.
 The page names this package's version. The kit carries no copy of it.
+Since 0.4.0 the shell shows a titled nav section that the open app provides (`setNavSection`).
 
 ## Bundle output
 

@@ -26,7 +26,7 @@ const SPY_MANIFEST = {
   name: '@agentage/extension-spy',
   version: '0.1.0',
   type: 'module',
-  engines: { agentage: '^0.21' },
+  engines: { agentage: '^0.22' },
   agentage: { id: 'spy', parts: { api: true } },
 };
 

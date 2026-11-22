@@ -2,7 +2,13 @@ import { createServer, type Server } from 'node:http';
 import { type AddressInfo } from 'node:net';
 import { afterEach, describe, expect, it } from 'vitest';
 import { type Entries } from './entries.js';
-import { DOC_READ_MS, hostDocumentOf, readChildDocument, type LastGood } from './host-document.js';
+import {
+  DOC_READ_MS,
+  hostDocumentOf,
+  readChildDocument,
+  withAppRow,
+  type LastGood,
+} from './host-document.js';
 import { type Lane } from './lane.js';
 import { type Entry, type State } from './supervisor.js';
 
@@ -141,3 +147,25 @@ describe('hostDocumentOf: the host document from the discovery of each child (J.
 });
 
 const app = { title: 'A', entry: '/app/a/app-0123456789.js', css: '/app/a/app-0123456789.css' };
+
+describe('withAppRow: the folder row wins after an app-only rebuild', () => {
+  const old = { ...app, icon: 'box', order: 2 };
+  const fresh = { title: 'A', entry: '/app/a/app-ffffffffff.js', css: '/app/a/app-ffffffffff.css' };
+  const running = (row?: typeof old) =>
+    ({ id: 'a', state: 'running', parts: ['api', 'app'], app: row }) as never;
+
+  it('names the new entry and css and keeps the other fields of the child row', () => {
+    const out = withAppRow(running(old), fresh);
+    expect(out.app).toEqual({ ...old, entry: fresh.entry, css: fresh.css });
+  });
+
+  it('with no folder row, the child row stands unchanged', () => {
+    const entry = running(old);
+    expect(withAppRow(entry, undefined)).toBe(entry);
+  });
+
+  it('with no child row, the folder row is the app row and the app part is listed', () => {
+    const out = withAppRow({ id: 'a', state: 'running', parts: ['api'] } as never, fresh);
+    expect(out).toMatchObject({ parts: ['api', 'app'], app: fresh });
+  });
+});

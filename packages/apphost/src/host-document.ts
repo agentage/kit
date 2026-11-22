@@ -45,11 +45,11 @@ const answersOf = async (entry: Entry, lastGood: LastGood): Promise<Answer[]> =>
 const toldOf = ({ state }: Entry): CallerState | undefined =>
   state === 'starting' || state === 'failed' ? state : undefined;
 
-// On a machine the daemon serves /app/{id}/ from the folder: its row stands when no document names one.
-const withAppRow = (entry: HostEntry, row: AppRow | undefined): HostEntry => {
-  if (entry.app || !row) return entry;
+// On a machine the daemon serves /app/{id}/ from the folder: its entry and css win over the child's (an app-only rebuild).
+export const withAppRow = (entry: HostEntry, row: AppRow | undefined): HostEntry => {
+  if (!row) return entry;
   const parts = SERVES_KINDS.filter((k) => k === 'app' || entry.parts.includes(k));
-  return { ...entry, parts, app: row };
+  return { ...entry, parts, app: { ...entry.app, ...row } };
 };
 
 const statesOf = (all: Entry[]): Record<string, CallerState> => {

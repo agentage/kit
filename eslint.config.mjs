@@ -26,6 +26,8 @@ export default [
       'packages/shell-dashboard/.vendor/**',
       '**/test-results/**',
       '**/playwright-report/**',
+      // The extension template lints with its own config and node_modules (template/eslint.config.mjs).
+      'template/**',
     ],
   },
   {

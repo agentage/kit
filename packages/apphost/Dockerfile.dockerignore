@@ -12,3 +12,4 @@ packages/shell-dashboard/.vendor
 packages/shell-dashboard/shots
 packages/widget/src/ds/styles.generated.ts
 packages/widget/src/test-support/fixture/dist
+template

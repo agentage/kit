@@ -11,7 +11,7 @@
     "url": "git+https://github.com/agentage/kit.git",
     "directory": "packages/logs"
   },
-  "homepage": "https://github.com/agentage/kit#readme",
+  "homepage": "https://agentage.io",
   "bugs": {
     "url": "https://github.com/agentage/kit/issues"
   },

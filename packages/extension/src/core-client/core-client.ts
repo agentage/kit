@@ -143,7 +143,7 @@ const logsOf = (s: State, o: CoreClientOptions) => {
   return { send, down: () => s.first.logs ?? null };
 };
 
-// Never throws and never waits past timeoutMs; the caller rules: README "The core client".
+// Never throws, never waits past timeoutMs; caller rules: docs/extension-package.md "The core client".
 export const createCoreClient = (o: CoreClientOptions = {}): CoreClient => {
   const s: State = {
     url: o.url ?? coreUrlOf(o.env ?? {}),

@@ -2,7 +2,7 @@
 
 Humans start at [README.md](README.md): the start steps, running on a laptop, calling it and the
 release. This page is for the agent that changes the code. Do not repeat the README here.
-The deployed proof of the same shape is [agentage/extension-probe](https://github.com/agentage/extension-probe).
+The deployed proof of the same shape is the probe extension in [agentage/examples](https://github.com/agentage/examples) (`extensions/probe`).
 The kit is the library `@agentage/extension` that owns the server. Its rules, and those of the
 widget kit `@agentage/widget`, are in their npm READMEs.
 

@@ -63,7 +63,7 @@
     "!dist/**/*.test.*"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json && (test ! -d src/ui || agentage-widget bundle) && node node_modules/@agentage/extension/dist/tool/cli.js app",
+    "build": "tsc -p tsconfig.build.json && (test ! -d src/ui || agentage-widget bundle) && (test ! -d src/app || node node_modules/@agentage/extension/dist/tool/cli.js app)",
     "type-check": "tsc --noEmit -p tsconfig.eslint.json",
     "lint": "eslint .",
     "format": "prettier --write .",

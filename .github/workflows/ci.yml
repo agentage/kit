@@ -599,10 +599,52 @@ jobs:
         working-directory: template
         run: docker compose -f .agentage/compose.json logs --no-color --tail 80 || true
 
+  # The real `agentage extension create` on this change's template/ folder, then verify in the created folder.
+  template-create:
+    name: Template create (${{ matrix.case }})
+    needs: template-changes
+    if: needs.template-changes.outputs.run == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { case: short id, id: ab, parts: '' }
+          - { case: long id, id: a-very-long-extension-id, parts: '' }
+          - { case: api part only, id: demo, parts: api }
+          - { case: app and api, id: demo, parts: app api }
+    steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 22
+
+      # --no-install: without it create would build the folder and give it to a local daemon.
+      - name: agentage extension create from this change's template/
+        env:
+          ID: ${{ matrix.id }}
+          PARTS: ${{ matrix.parts }}
+          REPO: ${{ github.event.pull_request.head.repo.full_name || github.repository }}
+          REF: ${{ github.head_ref || github.ref_name }}
+        run: |
+          set -euo pipefail
+          mkdir "$RUNNER_TEMP/made" && cd "$RUNNER_TEMP/made"
+          npx -y @agentage/cli@0.72.0 extension create "$ID" $PARTS --from "$REPO#$REF:template" --yes --no-install
+
+      - name: Install, commit (build needs a clean git tree) and verify
+        working-directory: ${{ runner.temp }}/made/extension-${{ matrix.id }}
+        run: |
+          set -euo pipefail
+          npm ci --no-audit --no-fund
+          git init -q -b master && git add -A
+          git -c user.name=ci -c user.email=ci@example.com commit -qm init
+          npm run verify
+
   # The one context for the template: green when its jobs passed or this change did not touch it.
   template:
     name: Template
-    needs: [template-changes, template-verify, template-local]
+    needs: [template-changes, template-verify, template-local, template-create]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5

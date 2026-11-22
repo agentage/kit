@@ -8,12 +8,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/agentage/platform.git",
+    "url": "git+https://github.com/agentage/kit.git",
     "directory": "packages/logs"
   },
   "homepage": "https://agentage.io",
   "bugs": {
-    "url": "https://github.com/agentage/platform/issues"
+    "url": "https://github.com/agentage/kit/issues"
   },
   "publishConfig": {
     "access": "public"

@@ -1,4 +1,4 @@
-# platform
+# kit
 
 agentage is a small platform that runs extensions. An extension is one npm package that adds pages,
 an app, widgets, an API, MCP tools, jobs or CLI commands. This repo holds the kit, the library every
@@ -141,9 +141,13 @@ Before that, CI builds [the probe extension](https://github.com/agentage/example
 packed packages, runs `up`, and checks every part image and the served discovery document. A kit
 change is proven in containers before it ships.
 
+### Before the next release
+
+The repo is now `agentage/kit` (it was `agentage/platform`). npm provenance and trusted publishing match the repo and the workflow file, so the owner must change the trusted publisher on npmjs.com of each of the five packages (`@agentage/extension`, `@agentage/apphost`, `@agentage/identity`, `@agentage/shell-dashboard`, `@agentage/widget`) to repository `agentage/kit` and workflow `release.yml` before the next kit release. The program image name stays `ghcr.io/agentage/platform/apphost`: old release records name it.
+
 ### When a release run fails
 
-Run the failed run of the tag again (`gh run rerun <id> -R agentage/platform`). Do not open a
+Run the failed run of the tag again (`gh run rerun <id> -R agentage/kit`). Do not open a
 version-only PR: CI refuses a package version that moves with no other change in that package
 (`scripts/check-bumps.mjs`). A second attempt is safe:
 
@@ -172,7 +176,7 @@ then publishes the real version (done this way for `@agentage/apphost` and
    `0.0.0-stage` version on the name anyway (as on four older `@agentage` packages): use
    `0.0.0-bootstrap.0`.
 2. Add the trusted publisher with publish allowed:
-   `npx npm@12 trust github <name> --repo agentage/platform --file release.yml --allow-publish --yes`.
+   `npx npm@12 trust github <name> --repo agentage/kit --file release.yml --allow-publish --yes`.
    Without `--allow-publish` it is stage-only, and each release needs the owner again. A new
    trusted publisher expires if it does not publish within 2 days; then remove it and add it again.
 3. Run the tag run again. It skips every version already on npm and publishes the new name.

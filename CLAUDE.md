@@ -1,4 +1,4 @@
-# CLAUDE.md - agentage/platform
+# CLAUDE.md - agentage/kit
 
 Public repo. The extension kit and its build tool, and the widget kit; no product code. Standards: the
 engineering standards batch (repo-baseline, typescript, monorepo, code-style, testing, ci-cd,

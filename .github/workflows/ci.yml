@@ -497,6 +497,11 @@ jobs:
             npm pkg set engines.agentage=">=0.6"
           fi
 
+      # create rewrites the word template to the id only: a kit repo URL or a directory would break npm provenance.
+      - name: package.json is private and names no kit repo
+        working-directory: template
+        run: jq -e '.private == true and (.repository.url | test("agentage/(platform|kit)") | not) and (.repository.directory == null) and (.bugs.url | test("agentage/(platform|kit)") | not)' package.json
+
       - name: Verify (type-check, lint, format, test with coverage, build)
         working-directory: template
         run: npm run verify

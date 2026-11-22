@@ -97,7 +97,9 @@ extension changed since its last `<id>@*` tag, it gets a date version `YYYY.MDD.
 `agentage-extension.json` to the GitHub release and publishes the package to npm. Do not raise the
 version in `package.json` by hand: the run writes the date version in its own copy only.
 
-A package with `"private": true` skips npm. The owner does the first publish of a new npm name.
+The package starts with `"private": true`: a release pushes the images and the records, never npm.
+To publish to npm on purpose, first add `release.yml` of your repo as the trusted publisher on npmjs.com.
+Then remove `"private": true` from `package.json` and merge: the next release publishes the package.
 A fix is a new merge: never move a tag.
 
 ## Deploy

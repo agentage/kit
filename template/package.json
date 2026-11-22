@@ -1,17 +1,17 @@
 {
   "name": "@agentage/extension-template",
   "version": "0.1.2",
+  "private": true,
   "description": "An agentage extension: start from this repo with agentage extension create",
   "type": "module",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/agentage/platform.git",
-    "directory": "template"
+    "url": "git+https://github.com/agentage/extension-template.git"
   },
   "homepage": "https://agentage.io",
   "bugs": {
-    "url": "https://github.com/agentage/platform/issues"
+    "url": "https://github.com/agentage/extension-template/issues"
   },
   "publishConfig": {
     "access": "public"

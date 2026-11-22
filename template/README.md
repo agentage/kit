@@ -91,13 +91,14 @@ npm run build && npx agentage extension check --write && npm run format
 
 ## Release
 
-1. Raise the version in `package.json`.
-2. Run `npx agentage extension check --write`, commit, and push the tag `v<version>` on that commit, on master.
-3. `release.yml` pushes the images, attaches the records `agentage-container.json` and
-   `agentage-extension.json` to the GitHub release and publishes the package to npm.
+A merge to master is the release. `release.yml` runs `agentage extension release --changed`: when the
+extension changed since its last `<id>@*` tag, it gets a date version `YYYY.MDD.N` and the tag
+`<id>@<version>`. The run pushes the images, attaches the records `agentage-container.json` and
+`agentage-extension.json` to the GitHub release and publishes the package to npm. Do not raise the
+version in `package.json` by hand: the run writes the date version in its own copy only.
 
 A package with `"private": true` skips npm. The owner does the first publish of a new npm name.
-A fix is a new version: never move a tag.
+A fix is a new merge: never move a tag.
 
 ## Deploy
 

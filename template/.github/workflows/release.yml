@@ -1,11 +1,12 @@
 name: Release
 
-# A v* tag: agentage extension release refuses the starting-point id, a commit off master and a tag that is
-# not the version, keeps a released version (re-run = npm only), then pushes the images, attaches
-# agentage-extension.json to the release and publishes to npm with OIDC (npm = this file).
+# A merge is the release: agentage extension release --changed gives this extension, when its files
+# differ from its last <id>@* tag, a date version YYYY.MDD.N, the tag <id>@<version>, its images, the
+# records on the GitHub release and npm with OIDC (a private package skips npm). It refuses the id of
+# the starting point, so only a repo made by agentage extension create releases.
 on:
   push:
-    tags: ['v*']
+    branches: [master]
 
 concurrency:
   group: release
@@ -30,10 +31,10 @@ jobs:
           node-version: 22
           cache: 'npm'
       - run: npm ci --ignore-scripts && npm run verify
-      - run: npm install -g npm@11.21.2 # OIDC needs npm >= 11.5.1; 11.21.2 published probe 0.5.2
+      - run: npm install -g npm@11 # OIDC needs npm >= 11.5.1
       - env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: printf '%s' "$GHCR_TOKEN" | docker login ghcr.io -u "${{ github.actor }}" --password-stdin
       - env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: node_modules/.bin/agentage extension release # the lockfile's cli, never a fresh resolve
+        run: npx -y @agentage/cli@0.71.0 extension release --changed # pinned: the merge-release cli

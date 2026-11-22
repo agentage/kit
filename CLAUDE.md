@@ -22,6 +22,7 @@ docker-deploy, security, backend); this file only adds what the tree does not sa
 - App kit `@agentage/extension/app` (hooks, `Region`, `Split`, test host): `packages/app/README.md`.
 - Dashboard shell (`@agentage/shell-dashboard`, served by `@agentage/apphost`): `packages/shell-dashboard/README.md`.
 - Sign in, page token, `mintToken`, `revokeToken`, sign out: `packages/identity/README.md`.
+- The extension template: `template/` (its own `CLAUDE.md`, lockfile and CI files); README "The extension template".
 - CI jobs: `.github/workflows/ci.yml`. Coverage floor: `vitest.config.ts`. Release rules: `README.md` "Release" (proof: `.github/workflows/release.yml`).
 
 Read the file named here before you read `src/` (`src/` = `packages/extension/src`).
@@ -49,7 +50,7 @@ Read the file named here before you read `src/` (`src/` = `packages/extension/sr
 
 ## Commits
 
-- Scopes: `extension, apphost, logs, widget, identity, shell, app, release, ci, docs, deps`; repo-level `ci`, `docs`, `chore`
+- Scopes: `extension, apphost, logs, widget, identity, shell, app, template, release, ci, docs, deps`; repo-level `ci`, `docs`, `chore`
   and `build` commits may go scopeless. Titles are conventional commits, 72 characters at most; CI
   checks the PR title.
 - A release bump commit touches one package, or uses the `release` scope.
@@ -119,6 +120,9 @@ Read the file named here before you read `src/` (`src/` = `packages/extension/sr
 
 ## Gotchas
 
+- `template/` is not a workspace: run `npm ci` and `npm run verify` inside it. Its `.github/` files
+  never run here; `agentage extension create` copies them once the cli takes `template/`. The
+  `Template` job runs its CI.
 - Screenshot baselines are made in `mcr.microsoft.com/playwright:v1.65.1-noble` (the CI job's
   image), never on a host: `npx playwright test -c packages/widget --update-snapshots` inside it.
 - Browser code uses `zod/mini` with `import * as z`: full `zod` or a named import puts about

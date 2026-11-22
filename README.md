@@ -20,7 +20,7 @@ npx agentage extension up                                  # runs it on the loca
 No part named means all parts. `up` runs the package's `build` script itself, adds the folder to
 the daemon on `127.0.0.1:4243` and reloads the extension at each change. `up --docker` runs the
 part images on Docker instead; it needs the ports 4280 and 4281 free. The template and its guide are in
-[extension-template](https://github.com/agentage/extension-template).
+[template/](template). See "The extension template" below.
 
 To work on this repo, you need Node 22+ and npm 10+:
 
@@ -187,6 +187,21 @@ npm deprecate <name>@0.0.0-bootstrap.0 "placeholder for the first trusted publis
 npm deprecate <name>@0.0.0-stage "placeholder for the first trusted publish"
 npm dist-tag rm <name> bootstrap
 ```
+
+## The extension template
+
+The folder [template/](template) is the start of every new extension. It came here with its
+history from the repo `agentage/extension-template`. It is not an npm workspace: it keeps its own
+`package-lock.json` and takes the kit from npm, as a new extension does. The root lint, format, tests,
+type-check, build and image context leave it out.
+
+- CI: the `Template` check runs its verify, `agentage extension check`, `up --docker` and the e2e gate
+  when `template/` or `ci.yml` changes. A change in a kit package it imports runs the same jobs on the
+  candidate kit and widget.
+- Release: `template/.github/workflows/release.yml` never runs here. A repo made by
+  `agentage extension create` gets it at its root: a merge to master is its release.
+- The cli clones the old repo `agentage/extension-template` until a cli release takes this folder.
+  The old repo stays readable for older cli versions until it is archived.
 
 ## License
 

@@ -11,6 +11,7 @@ import { signOut } from './host/sign-out.js';
 import { AppPage } from './loader/app-page.js';
 import { InboxBody, Toasts } from './notices/notice-list.js';
 import { createNotices, unreadOf, useNotices } from './notices/notices.js';
+import { navSectionView } from './route/nav-section.js';
 import { pageItems } from './route/page-items.js';
 import { appRows, navRowsOf, type AppExtension } from './route/nav-rows.js';
 import { Home, NoExtensions, NotFound, Removed } from './route/pages.js';
@@ -91,6 +92,7 @@ export const ShellApp = ({ deps, version }: { deps: ShellDeps; version: string }
         version={version}
         title={title}
         pages={pageItems(route.id, route.page, own.pages)}
+        section={row ? navSectionView(route.id, route.page, own.section) : null}
         bottom={row ? own.bottom : null}
         unread={unreadOf(list)}
         aside={

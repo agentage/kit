@@ -222,18 +222,18 @@ nav.side .sep {
 .row[aria-pressed='true'] .i {
   color: var(--color-primary);
 }
-.subrows {
+.navsect {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+.sectlist {
   display: flex;
   flex-direction: column;
   gap: 2px;
   max-height: 416px;
   overflow-y: auto;
   overscroll-behavior: contain;
-  flex: none;
-}
-.row.subrow {
-  padding-left: 50px;
-  font-size: 13px;
 }
 .search {
   border: 1px solid var(--color-border);
@@ -462,6 +462,9 @@ main {
   font-size: 15px;
   font-weight: 600;
   white-space: nowrap;
+}
+.lgrp[data-lead] .ttl {
+  display: none;
 }
 .ttl:hover,
 .ttl[aria-expanded='true'] {

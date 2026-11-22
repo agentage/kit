@@ -1,10 +1,10 @@
 import { IconButton } from '@agentage/design-system/icon-button';
 import { Kbd } from '@agentage/design-system/kbd';
 import type { RegionName } from '@agentage/app';
-import { Fragment, type MouseEvent } from 'react';
+import type { MouseEvent } from 'react';
 import { Bell, PanelLeft, Search } from 'lucide-react';
 import { AccountMenu } from './account-menu.js';
-import type { Account, NavRow, PageItem } from './frame.types.js';
+import type { Account, NavRow, NavSectionView } from './frame.types.js';
 import { Brand } from './logo.js';
 import { NAV_SPLIT, Splitter } from './splitter.js';
 import type { usePeek } from './use-peek.js';
@@ -12,8 +12,7 @@ import type { FrameState } from './use-frame-state.js';
 
 interface Props {
   rows: NavRow[];
-  // The open app's pages, listed under its row.
-  pages: PageItem[];
+  section: NavSectionView | null;
   account: Account;
   version: string;
   apps: { id: string; version: string }[];
@@ -25,11 +24,40 @@ interface Props {
   onInbox: () => void;
 }
 
+const NavSection = ({
+  section,
+  go,
+}: {
+  section: NavSectionView;
+  go: (e: MouseEvent<HTMLAnchorElement>, href: string) => void;
+}) => (
+  <div className="navsect" role="group" aria-labelledby="navsect-title">
+    <div className="sect" id="navsect-title">
+      {section.title}
+    </div>
+    <div className="sectlist">
+      {section.items.map((it) => (
+        <a
+          key={it.href}
+          className="row"
+          href={it.href}
+          title={it.title}
+          aria-current={it.current ? 'page' : undefined}
+          onClick={(e) => go(e, it.href)}
+        >
+          {it.icon}
+          <span className="lbl">{it.title}</span>
+        </a>
+      ))}
+    </div>
+  </div>
+);
+
 const icon = <PanelLeft className="i" aria-hidden="true" />;
 
 export const Nav = ({
   rows,
-  pages,
+  section,
   account,
   version,
   apps,
@@ -72,35 +100,18 @@ export const Nav = ({
           <Kbd>Ctrl K</Kbd>
         </button>
         {rows.map((r) => (
-          <Fragment key={r.id}>
-            <a
-              className="row"
-              href={r.href}
-              title={r.title}
-              aria-current={r.current ? 'page' : undefined}
-              onClick={(e) => go(e, r.href)}
-            >
-              {r.icon}
-              <span className="lbl">{r.title}</span>
-            </a>
-            {r.current && pages.length > 1 && (
-              <div className="subrows" role="group" aria-label={`${r.title} pages`}>
-                {pages.map((p) => (
-                  <a
-                    key={p.href}
-                    className="row subrow"
-                    href={p.href}
-                    title={p.title}
-                    aria-current={p.current ? 'page' : undefined}
-                    onClick={(e) => go(e, p.href)}
-                  >
-                    <span className="lbl">{p.title}</span>
-                  </a>
-                ))}
-              </div>
-            )}
-          </Fragment>
+          <a
+            className="row"
+            href={r.href}
+            title={r.title}
+            aria-current={r.current ? 'page' : undefined}
+            onClick={(e) => go(e, r.href)}
+          >
+            {r.icon}
+            <span className="lbl">{r.title}</span>
+          </a>
         ))}
+        {section && <NavSection section={section} go={go} />}
       </div>
       <div className="foot">
         <div className="acctslot" data-region="account">

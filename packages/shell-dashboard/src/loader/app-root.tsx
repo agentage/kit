@@ -8,7 +8,7 @@ import {
   type ShellPort,
   type StateStore,
 } from '@agentage/app';
-import { useMemo, type ComponentType } from 'react';
+import { useEffect, useMemo, type ComponentType } from 'react';
 
 interface Props {
   id: string;
@@ -34,6 +34,8 @@ export const AppRoot = ({ id, title, entry, App, host, shell, route, store, regi
     () => ({ id, route, host, shell, store, regions }),
     [id, route, host, shell, store, regions]
   );
+  // The section belongs to the open app: it goes when the app unmounts or another app opens.
+  useEffect(() => () => shell.setNavSection(null), [shell]);
   return (
     <AppContext.Provider value={value}>
       <AppBoundary

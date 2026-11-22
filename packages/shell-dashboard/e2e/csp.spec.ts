@@ -35,7 +35,7 @@ test('the shell page and an app page run under the policy with no violation', as
   await expect(main(page)).toContainText('pong hi');
   await main(page).getByRole('button', { name: 'Details' }).click();
   await expect(page.locator('[data-region="aside"]')).toContainText('probe details');
-  await page.getByRole('link', { name: 'Probe' }).first().click();
+  await page.getByRole('link', { name: 'Probe' }).click();
   expect(await violations(page)).toEqual([]);
   expect(errors).toEqual([]);
 });

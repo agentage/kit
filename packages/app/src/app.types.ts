@@ -25,8 +25,10 @@ export interface ShellPort {
   closeAside: () => void;
   // A page of the app: `navigate('runs/7')` goes to `/{id}/runs/7`.
   navigate: (page: string) => void;
-  // The app's pages: the actions bar title becomes a menu of them ("Overview ⌄") and the nav lists them under the app row.
+  // The app's pages: the actions bar title becomes a menu of them ("Overview ⌄").
   setPages: (pages: PageLink[]) => void;
+  // A titled list of items in the nav panel below the app rows; null removes it.
+  setNavSection: (section: NavSection | null) => void;
   // The bottom bar: the app gives its title and count; null hides the bottom region.
   setBottomBar: (bar: BottomBar | null) => void;
 }
@@ -35,6 +37,18 @@ export interface ShellPort {
 export interface PageLink {
   title: string;
   path: string;
+}
+
+// One item of the nav section: `path` is as in `PageLink`; `icon` is a nav icon name (default folder).
+export interface NavItem {
+  title: string;
+  path: string;
+  icon?: string;
+}
+
+export interface NavSection {
+  title: string;
+  items: NavItem[];
 }
 
 export interface BottomBar {

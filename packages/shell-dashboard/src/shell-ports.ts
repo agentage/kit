@@ -15,6 +15,7 @@ export const createPorts = (notices: Notices, bars: AppBarsStore) => {
       closeAside: () => setAside(null),
       navigate: (page) => navigate(`/${id}/${page.replace(/^\/+/, '')}`),
       setPages: (pages) => bars.setPages(id, pages),
+      setNavSection: (section) => bars.setSection(id, section),
       setBottomBar: (bar) => bars.setBottom(id, bar),
     };
     ports.set(id, port);

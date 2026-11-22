@@ -37,11 +37,17 @@ export interface Command {
   run: () => void;
 }
 
-// One page of the open app, listed in the title menu of the actions bar and under its nav row.
+// One page of the open app, listed in the title menu of the actions bar.
 export interface PageItem {
   title: string;
   href: string;
   current?: boolean;
+}
+
+// The open app's titled nav list: one row per item, below the app rows.
+export interface NavSectionView {
+  title: string;
+  items: (PageItem & { icon: ReactNode })[];
 }
 
 // The bottom slot bar: the title and count the app gives; the shell adds no content.

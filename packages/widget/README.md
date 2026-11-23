@@ -13,9 +13,6 @@ npm install react react-dom
 
 This widget from the extension template calls the extension's MCP tool `{id}_echo`:
 
-Since 0.5.0 a widget calls a tool of its own id in the form `{id}_{name}` or the old `{id}__{name}`.
-A tool of another id is refused with `FOREIGN_TOOL`.
-
 ```tsx
 // src/ui/echo.tsx
 import { useState } from 'react';
@@ -41,6 +38,9 @@ export function Echo() {
 // src/ui/index.ts
 export const widgets = { echo: Echo };
 ```
+
+Since 0.5.0 a widget calls a tool of its own id in the form `{id}_{name}` or the old `{id}__{name}`.
+A tool of another id is refused with `FOREIGN_TOOL`.
 
 ```bash
 npx agentage-widget bundle   # writes dist/ui/{id}.js, widgets.json and the harness page

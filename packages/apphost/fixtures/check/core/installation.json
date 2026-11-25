@@ -1,6 +1,6 @@
 {
   "host": "core",
-  "program": { "version": "0.4.0" },
+  "program": { "version": "0.5.0" },
   "extensions": [
     {
       "id": "market",

@@ -43,6 +43,9 @@ export const widgets = { echo: Echo };
 npx agentage-widget bundle   # writes dist/ui/{id}.js, widgets.json and the harness page
 ```
 
+Since 0.5.0, `Button` and `Card` take their look from `@agentage/components` ^0.21, not from
+`@agentage/design-system`.
+
 - Themes, the imports, the bundle output, the harness page and the rules:
   [docs/widget.md](https://github.com/agentage/kit/blob/master/docs/widget.md).
 - The whole kit: the [kit README](https://github.com/agentage/kit#readme).

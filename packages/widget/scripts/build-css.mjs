@@ -8,11 +8,22 @@ import postcss from 'postcss';
 const pkgDir = join(dirname(fileURLToPath(import.meta.url)), '..');
 const input = join(pkgDir, 'src/ds/widget.css');
 const output = join(pkgDir, 'src/ds/styles.generated.ts');
-const DS_FILES = ['button.js', 'button.variants.js', 'card.js', 'card-base.js'];
+const RELATIVE = /(?:from|import)\s*\(?\s*["'](\.{1,2}\/[^"']+\.js)["']/g;
 
-const dsSources = () => {
-  const dir = dirname(fileURLToPath(import.meta.resolve('@agentage/design-system/button')));
-  return DS_FILES.map((file) => `@source "${join(dir, file)}";`).join('\n');
+// Button and Card and every library file they import: a class in any of them must be in the sheet.
+const libSources = async () => {
+  const queue = ['button', 'card'].map((n) =>
+    fileURLToPath(import.meta.resolve(`@agentage/components/${n}`))
+  );
+  const seen = new Set();
+  while (queue.length > 0) {
+    const file = queue.pop();
+    if (seen.has(file)) continue;
+    seen.add(file);
+    for (const [, rel] of (await readFile(file, 'utf8')).matchAll(RELATIVE))
+      queue.push(join(dirname(file), rel));
+  }
+  return [...seen].map((file) => `@source "${file}";`).join('\n');
 };
 
 const isRootRule = (node) => node.type === 'rule' && node.selectors.includes(':root');
@@ -35,7 +46,7 @@ const toShadow = (root) => {
   return { widgetCss: root.toString(), propertyCss: properties.join('') };
 };
 
-const source = `${await readFile(input, 'utf8')}\n${dsSources()}\n`;
+const source = `${await readFile(input, 'utf8')}\n${await libSources()}\n`;
 const tw = tailwind({ base: pkgDir, optimize: { minify: true } });
 const compiled = await postcss([tw]).process(source, { from: input });
 const { widgetCss, propertyCss } = toShadow(postcss.parse(compiled.css));

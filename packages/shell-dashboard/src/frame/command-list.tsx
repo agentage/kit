@@ -1,4 +1,4 @@
-import { Command, CommandItem } from '@agentage/design-system/command';
+import { Command, CommandItem } from '@agentage/components/command';
 import type { Command as Cmd } from './frame.types.js';
 
 interface Props {

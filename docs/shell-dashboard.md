@@ -5,7 +5,7 @@ to `packages/shell-dashboard/`.
 
 The dashboard shell: one static folder that a host serves at `/`. It is the frame of the accepted
 prototype (variant B; a copy is `e2e/prototype/index.html`) in React 19, styled by Tailwind v4 with the
-`@agentage/design-system` token files (no `base.css`) and the prototype CSS as a `components` layer.
+`@agentage/components` token files (no `base.css`) and the prototype CSS as a `components` layer.
 
 It is published on npm (`files`: `dist`). The app host program (`@agentage/apphost`) depends on it
 and serves this package on both kinds: the daemon, and a cloud host whose `installation.json` names it.
@@ -39,7 +39,7 @@ The host serves `dist/*` at `/shell/*` (one mapping, `shellFileOf` in `scripts/b
 - No built-in nav row: the left menu holds Search and one row per installed app (`agentage.app` in
   the extension's `package.json`). The inbox is a bell button in the nav foot, beside the account
   menu (region `notices`; on a phone, the bell in `mobile-header`).
-- When no extension is open, `main` shows the design-system empty state (`EmptyState`): "No
+- When no extension is open, `main` shows the components empty state (`EmptyState`): "No
   extensions" with the install command when none is installed, else "Open an app" on `/`.
 - Signed out: when `/shell/session` has `signIn` (a cloud app host: its auth page; the
   daemon: `/shell/sign-in`), the account region is a "Sign in" link
@@ -62,15 +62,15 @@ while an app puts content in it through `Region name="side"`; the shell puts not
 ## Rules the code enforces
 
 - Tokens: one `@theme` block (`@agentage/app/theme.css`, imported by `src/styles/shell.css`) puts the prototype hex values under the
-  design-system names (`--color-background`, `--color-card`, `--color-accent` = hover surface,
+  components token names (`--color-background`, `--color-card`, `--color-accent` = hover surface,
   `--color-primary` = amber). `frame.css` reads only those names.
 - No layout shift: the pre-paint script in `index.html` sets `--nav-full`, `--aside-w`, `--bot-h`
   and the `nh` (nav hidden) and `bo` (bottom open) classes from `localStorage` (`ag.nav`,
   `ag.side`, `ag.aside`, `ag.bot`, `ag.navh`, `ag.bot.open`) before any module; `SPLIT_PREPAINT` of
   `@agentage/extension/app` does the same for app splits.
 - Splitters (`role="separator"`): drag, arrows 16 px, Shift 64 px, Home, End.
-- `Ctrl+K` opens the command list (design-system `Command`): one line per app and "Toggle sidebar".
-- Design-system components by subpath: `command`, `dropdown-menu` (account), `icon-button`, `kbd`.
+- `Ctrl+K` opens the command list (components `Command`): one line per app and "Toggle sidebar".
+- `@agentage/components` modules by subpath: `command`, `dropdown-menu` (account), `icon-button`, `kbd`.
 
 ## The shell at run time
 

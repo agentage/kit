@@ -1,1 +1,1 @@
-export { Button, type ButtonProps } from '@agentage/design-system/button';
+export { Button, type ButtonProps } from '@agentage/components/button';

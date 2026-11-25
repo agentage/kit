@@ -1,4 +1,4 @@
-import { IconButton } from '@agentage/design-system/icon-button';
+import { IconButton } from '@agentage/components/icon-button';
 import type { RegionName } from '@agentage/app';
 import { Maximize2, Minimize2, X } from 'lucide-react';
 import { useState } from 'react';

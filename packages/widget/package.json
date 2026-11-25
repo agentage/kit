@@ -1,7 +1,7 @@
 {
   "name": "@agentage/widget",
   "version": "0.4.0",
-  "description": "The agentage widget kit: useHost, design-system Button and Card in a shadow root, registerWidgets, and the ui bundler with its harness page",
+  "description": "The agentage widget kit: useHost, components Button and Card in a shadow root, registerWidgets, and the ui bundler with its harness page",
   "type": "module",
   "license": "MIT",
   "repository": {
@@ -55,7 +55,7 @@
     "prepublishOnly": "npm run verify"
   },
   "dependencies": {
-    "@agentage/design-system": "^0.20.1",
+    "@agentage/components": "^0.21.0",
     "esbuild": "^0.28.2",
     "zod": "^4.2.0"
   },

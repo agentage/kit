@@ -1,4 +1,4 @@
-import { DropdownMenu, DropdownMenuItem } from '@agentage/design-system/dropdown-menu';
+import { DropdownMenu, DropdownMenuItem } from '@agentage/components/dropdown-menu';
 import { ChevronDown } from 'lucide-react';
 import type { PageItem } from './frame.types.js';
 

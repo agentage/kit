@@ -2,7 +2,7 @@
 import {
   resizableSplitCollapsedVar,
   resizableSplitVar,
-} from '@agentage/design-system/resizable-split';
+} from '@agentage/components/resizable-split';
 import { act } from 'react';
 import { createRoot, type Root } from 'react-dom/client';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
@@ -47,8 +47,8 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
-describe('Split (design-system ResizableSplit)', () => {
-  it('keeps the ag.split.{app}.{id} key; the variable names are the design-system ones', () => {
+describe('Split (components ResizableSplit)', () => {
+  it('keeps the ag.split.{app}.{id} key; the variable names are the components ones', () => {
     expect(KEY).toBe('ag.split.memory.tree');
     expect(splitVar('memory', 'tree')).toBe(resizableSplitVar(KEY));
   });

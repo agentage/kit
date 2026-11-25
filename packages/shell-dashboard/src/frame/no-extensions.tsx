@@ -1,4 +1,4 @@
-import { EmptyState } from '@agentage/design-system/empty-state';
+import { EmptyState } from '@agentage/components/empty-state';
 import { Puzzle } from 'lucide-react';
 
 // The shell has no content of its own: with no app installed, main says how to add one.

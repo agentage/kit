@@ -1,4 +1,4 @@
-/* The look of shell-samples/index.html (variant B), its tokens renamed to the design-system names. */
+/* The look of shell-samples/index.html (variant B), its tokens renamed to the components names. */
 :root {
   --nav-full: 280px;
   --nav-cur: var(--nav-full);

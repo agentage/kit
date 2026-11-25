@@ -33,6 +33,9 @@ export function create(ctx: McpContext) {
 
 Start a new extension with `npx @agentage/cli extension create my-ext`: it pins this kit for you.
 
+Since 0.23.0, `check` asks an app part for `@agentage/components` ^0.21, the library that replaces
+`@agentage/design-system`.
+
 - The subpaths, the core client, the check report and secrets:
   [docs/extension-package.md](https://github.com/agentage/kit/blob/master/docs/extension-package.md).
 - Every part kind: [docs/parts.md](https://github.com/agentage/kit/blob/master/docs/parts.md). The tool:

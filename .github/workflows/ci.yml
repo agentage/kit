@@ -84,7 +84,7 @@ jobs:
           node packages/extension/dist/tool/cli.js --help
           # The kit carries logs and the app kit inside: a clean install of the tarball alone resolves every entry.
           mkdir -p /tmp/kit-alone && cd /tmp/kit-alone && npm init -y >/dev/null
-          npm install --no-audit --no-fund /tmp/pack/agentage-extension-*.tgz express zod react react-dom @agentage/design-system
+          npm install --no-audit --no-fund /tmp/pack/agentage-extension-*.tgz express zod react react-dom @agentage/components
           test ! -e node_modules/@agentage/logs
           test ! -e node_modules/@agentage/app
           test ! -e node_modules/@agentage/shell-dashboard

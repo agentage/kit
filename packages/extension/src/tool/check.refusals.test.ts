@@ -57,13 +57,18 @@ describe('the first refusals a caller meets', () => {
   });
 });
 
-describe('the app part needs the design system', () => {
+describe('the app part needs the components', () => {
   const app = (extra: object) => ({
     ...SPEC_MANIFEST,
     ...extra,
     agentage: { ...SPEC_MANIFEST.agentage, parts: { app: true }, app: { title: 'Probe' } },
   });
-  const ds = (spec?: string) => (spec ? { dependencies: { '@agentage/design-system': spec } } : {});
+  const deps = (spec?: string, old?: string) => ({
+    dependencies: {
+      ...(spec ? { '@agentage/components': spec } : {}),
+      ...(old ? { '@agentage/design-system': old } : {}),
+    },
+  });
   const run = async (extra: object) =>
     (
       await check(
@@ -71,17 +76,42 @@ describe('the app part needs the design system', () => {
         entries
       )
     ).problems.map((p) => p.problem);
+  const SWITCH =
+    '@agentage/design-system is replaced: switch the app part to @agentage/components ^0.21';
 
-  it('refuses an app part that does not declare it', async () => {
-    expect(await run(ds())).toEqual([
-      'the app part needs @agentage/design-system ^0.20: declare it in dependencies, devDependencies or peerDependencies',
+  it('refuses an app part that declares neither', async () => {
+    expect(await run(deps())).toEqual([
+      'the app part needs @agentage/components ^0.21: declare it in dependencies, devDependencies or peerDependencies',
     ]);
   });
 
-  it('refuses a range below 0.20 and accepts ^0.20', async () => {
-    expect(await run(ds('^0.19.2'))).toEqual([
-      '@agentage/design-system ^0.19.2, the app part needs ^0.20',
+  it('refuses a range below 0.21 and accepts ^0.21 and 0.21.0', async () => {
+    expect(await run(deps('^0.20.1'))).toEqual([
+      '@agentage/components ^0.20.1, the app part needs ^0.21',
     ]);
-    expect(await run(ds('^0.20.1'))).toEqual([]);
+    expect(await run(deps('^0.21.0'))).toEqual([]);
+    expect(await run(deps('0.21.0'))).toEqual([]);
+  });
+
+  it('tells an app part on the old library alone to switch', async () => {
+    expect(await run(deps(undefined, '^0.20.1'))).toEqual([SWITCH]);
+    expect(await run({ peerDependencies: { '@agentage/design-system': '^0.20' } })).toEqual([
+      SWITCH,
+    ]);
+  });
+
+  it('only warns when the old library is declared beside the new one', async () => {
+    const dir = await tempPackage({
+      'package.json': json(app(deps('0.21.0', '0.20.1'))),
+      'dist/app/index.js': '',
+    });
+    const report = await check(dir, entries);
+    expect(report.problems).toEqual([]);
+    expect(report.warnings?.map((w) => w.problem)).toEqual([
+      '@agentage/design-system is replaced by @agentage/components: remove it',
+    ]);
+    expect(await run(deps('^0.20.0', '0.20.1'))).toEqual([
+      '@agentage/components ^0.20.0, the app part needs ^0.21',
+    ]);
   });
 });

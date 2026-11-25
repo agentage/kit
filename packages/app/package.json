@@ -35,6 +35,6 @@
     "react"
   ],
   "dependencies": {
-    "@agentage/design-system": "^0.20.1"
+    "@agentage/components": "^0.21.0"
   }
 }

@@ -1,4 +1,4 @@
-import { IconButton } from '@agentage/design-system/icon-button';
+import { IconButton } from '@agentage/components/icon-button';
 import { Bell, Menu } from 'lucide-react';
 import { AccountMenu } from './account-menu.js';
 import type { Account } from './frame.types.js';

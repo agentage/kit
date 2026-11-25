@@ -1,9 +1,8 @@
 import {
   DropdownMenu,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
-} from '@agentage/design-system/dropdown-menu';
+} from '@agentage/components/dropdown-menu';
 import {
   ChevronUp,
   Command as CommandIcon,
@@ -59,6 +58,13 @@ const trigger = ({ account, version, compact }: Pick<Props, 'account' | 'version
     </button>
   );
 
+// The library label is a small uppercase heading; a name and versions keep their own case.
+const Row = ({ children }: { children: ReactNode }) => (
+  <div className="px-2.5 py-1.5 text-xs font-semibold text-muted-foreground" data-slot="menu-row">
+    {children}
+  </div>
+);
+
 // Settings, Tokens and Sign out link to the account extension; absent routes hide the item.
 const links = (account: Account, go: (href: string) => void): ReactNode[] => {
   const l = account.links ?? {};
@@ -89,11 +95,11 @@ export const AccountMenu = ({ account, version, apps = [], compact, ...on }: Pro
       align={compact ? 'end' : 'start'}
       trigger={trigger({ account, version, compact })}
     >
-      <DropdownMenuLabel>{account.label ?? SIGNED_OUT}</DropdownMenuLabel>
+      <Row>{account.label ?? SIGNED_OUT}</Row>
       <DropdownMenuSeparator />
-      <DropdownMenuLabel>shell {version}</DropdownMenuLabel>
+      <Row>shell {version}</Row>
       {apps.map((a) => (
-        <DropdownMenuLabel key={a.id}>{`${a.id} ${a.version}`}</DropdownMenuLabel>
+        <Row key={a.id}>{`${a.id} ${a.version}`}</Row>
       ))}
       <DropdownMenuSeparator />
       <DropdownMenuItem onClick={on.onPalette}>

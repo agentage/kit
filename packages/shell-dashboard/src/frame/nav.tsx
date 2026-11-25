@@ -1,5 +1,5 @@
-import { IconButton } from '@agentage/design-system/icon-button';
-import { Kbd } from '@agentage/design-system/kbd';
+import { IconButton } from '@agentage/components/icon-button';
+import { Kbd } from '@agentage/components/kbd';
 import type { RegionName } from '@agentage/app';
 import type { MouseEvent } from 'react';
 import { Bell, PanelLeft, Search } from 'lucide-react';

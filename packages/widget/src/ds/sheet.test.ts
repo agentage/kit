@@ -70,12 +70,18 @@ describe('the compiled css', () => {
     expect(widgetCss).toContain(
       `@media (prefers-color-scheme:light){:host(:not([data-theme='dark']))${light}`
     );
-    expect(widgetCss).toContain(':host([data-theme=dark]) .dark\\:border-input{');
-    expect(widgetCss).toContain(':host(:not([data-theme=light])) .dark\\:border-input{');
   });
 
   it('carries the utilities Button and Card use', () => {
-    for (const utility of ['.bg-primary{', '.bg-card{', '.rounded-xl{', '.shadow-sm{', '.h-7{'])
+    const utilities = [
+      '.bg-primary{',
+      '.bg-card{',
+      '.rounded-lg{',
+      '.h-7{',
+      '.text-ui{',
+      '.focus-ring{',
+    ];
+    for (const utility of [...utilities, '.text-muted-foreground{'])
       expect(widgetCss).toContain(utility);
   });
 });

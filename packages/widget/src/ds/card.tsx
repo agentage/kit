@@ -4,7 +4,7 @@ import {
   CardHeader,
   CardTitle,
   type CardRootProps,
-} from '@agentage/design-system/card';
+} from '@agentage/components/card';
 import { type ReactNode } from 'react';
 
 export interface CardProps extends Omit<CardRootProps, 'title' | 'children'> {

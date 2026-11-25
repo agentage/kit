@@ -1,11 +1,11 @@
 import type { NoticeKind, RegionHost } from '@agentage/app';
-import { Button } from '@agentage/design-system/button';
-import { ToastProvider, useToast } from '@agentage/design-system/toast';
+import { Button } from '@agentage/components/button';
+import { ToastProvider, useToast } from '@agentage/components/toast';
 import { useEffect, useSyncExternalStore, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { NOTICE_LIFE_MS, unreadOf, type Notices } from './notices.js';
 
-// The design-system toast variants: ok is success, error is destructive.
+// The components toast variants: ok is success, error is destructive.
 const TOAST_VARIANT = { ok: 'success', error: 'destructive', info: 'info' } as const;
 const variantOf = (kind: NoticeKind = 'info') => TOAST_VARIANT[kind];
 
@@ -25,7 +25,7 @@ const Bridge = ({ notices }: { notices: Notices }) => {
   return null;
 };
 
-// Each new notice is a design-system toast for 5 s; the history stays in the inbox.
+// Each new notice is a components toast for 5 s; the history stays in the inbox.
 export const Toasts = ({ notices, children }: { notices: Notices; children: ReactNode }) => (
   <ToastProvider>
     <Bridge notices={notices} />

@@ -1,14 +1,14 @@
-/* Tailwind v4 with the design-system token files (no base.css) and the prototype look as a layer (K2). */
+/* Tailwind v4 with the components token files (no base.css) and the prototype look as a layer (K2). */
 @import 'tailwindcss' source(none);
-@import '@agentage/design-system/primitives.css';
-@import '@agentage/design-system/styles/tokens.css';
+@import '@agentage/components/primitives.css';
+@import '@agentage/components/styles/tokens.css';
 @import './frame.css' layer(components);
 @source '../';
 
-/* K11: the shell-samples/index.html hex values under the design-system token names (one source). */
+/* K11: the shell-samples/index.html hex values under the components token names (one source). */
 @import '@agentage/app/theme.css';
 
-/* Shell additions to the prototype layer: the React root and design-system wrappers fill their slot. */
+/* Shell additions to the prototype layer: the React root and components wrappers fill their slot. */
 @layer components {
   #root {
     height: 100%;

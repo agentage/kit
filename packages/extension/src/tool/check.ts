@@ -10,7 +10,7 @@ import { type ImagePartKind } from '../manifest/primitives.schema.js';
 import { formatIssues, readJsonIfExists } from '../manifest/read-manifest.js';
 import { runCommand, type Run } from './exec.js';
 import { problemLines, warningLines } from './format.js';
-import { designSystemProblems } from './rules/app-deps.js';
+import { componentsProblems } from './rules/app-deps.js';
 import { exportedPartCode } from './rules/folders.js';
 import { sealing } from './rules/sealing.js';
 import { store } from './rules/store.js';
@@ -101,7 +101,7 @@ const APP_BUILT =
 const appProblem = async ({ dir, pkg }: CheckInput): Promise<Finding[]> => {
   if (!appOf(pkg)) return [];
   const built = (await exists(join(dir, 'dist/app/index.js'))) ? [] : [{ problem: APP_BUILT }];
-  return [...built, ...designSystemProblems(pkg)];
+  return [...built, ...componentsProblems(pkg)];
 };
 
 // Every part built and exporting only create; cli handlers = commands; exports hold no part code.

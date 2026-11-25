@@ -12,20 +12,20 @@ const PKG = {
 const cssOf = async (dir: string) =>
   readFile(join(dir, 'dist/app', (await buildApp(dir)).css), 'utf8');
 
-describe('the app css scans the design-system files the app bundles (L3 bug 2)', () => {
-  it('a class only in a bundled design-system file is in the css; an unused file is not', async () => {
-    const ds = 'node_modules/@agentage/design-system';
+describe('the app css scans the components files the app bundles (L3 bug 2)', () => {
+  it('a class only in a bundled components file is in the css; an unused file is not', async () => {
+    const lib = 'node_modules/@agentage/components';
     const dir = await tempPackage({
       'package.json': json(PKG),
-      'src/app/index.tsx': `import { Pill } from '@agentage/design-system/pill';
+      'src/app/index.tsx': `import { Pill } from '@agentage/components/pill';
 export default function Probe() { return <Pill />; }
 `,
-      [`${ds}/package.json`]: json({
-        name: '@agentage/design-system',
+      [`${lib}/package.json`]: json({
+        name: '@agentage/components',
         exports: { './pill': './dist/pill.js', './other': './dist/other.js' },
       }),
-      [`${ds}/dist/pill.js`]: `export const Pill = () => ({ className: 'rounded-full px-7 tracking-widest' });\n`,
-      [`${ds}/dist/other.js`]: `export const Other = () => ({ className: 'skew-x-12' });\n`,
+      [`${lib}/dist/pill.js`]: `export const Pill = () => ({ className: 'rounded-full px-7 tracking-widest' });\n`,
+      [`${lib}/dist/other.js`]: `export const Other = () => ({ className: 'skew-x-12' });\n`,
     });
     const css = await cssOf(dir);
     expect(css).toContain('.px-7');
@@ -33,20 +33,23 @@ export default function Probe() { return <Pill />; }
     expect(css).not.toContain('.skew-x-12');
   });
 
-  it('the real design-system Button gets its classes (bg-primary, h-9)', async () => {
+  it('the real Button gets its classes: tokens, the 28 px height and the focus-ring utility', async () => {
     const real = dirname(
-      createRequire(import.meta.url).resolve('@agentage/design-system/package.json')
+      createRequire(import.meta.url).resolve('@agentage/components/package.json')
     );
     const dir = await tempPackage({
       'package.json': json(PKG),
-      'src/app/index.tsx': `import { Button } from '@agentage/design-system/button';
+      'src/app/index.tsx': `import { Button } from '@agentage/components/button';
 export default function Probe() { return <Button>Ping</Button>; }
 `,
     });
     await mkdir(join(dir, 'node_modules/@agentage'), { recursive: true });
-    await symlink(real, join(dir, 'node_modules/@agentage/design-system'), 'dir');
+    await symlink(real, join(dir, 'node_modules/@agentage/components'), 'dir');
     const css = await cssOf(dir);
     expect(css).toContain('.bg-primary');
-    expect(css).toMatch(/\.h-9|\.h-10|\.h-8/);
+    expect(css).toContain('.h-7');
+    expect(css).toContain('.text-ui');
+    expect(css).toContain('.focus-ring');
+    expect(css).not.toMatch(/:root|data-theme/);
   });
 });

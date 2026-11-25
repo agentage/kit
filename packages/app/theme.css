@@ -1,4 +1,4 @@
-/* K11: the shell-samples/index.html hex values under the design-system token names, dark only. */
+/* K11: the shell-samples/index.html hex values under the @agentage/components token names, dark only. */
 @theme {
   --color-background: #1f2028;
   --color-foreground: #ffffff;
@@ -22,8 +22,16 @@
   --color-muted-foreground: #a9adc1;
   --color-destructive: #f08a7e;
   --color-destructive-foreground: #1f2028;
+  --color-destructive-solid: oklch(0.588 0.208 25.6);
   --color-success: #5fd08f;
   --color-success-foreground: #1f2028;
+  /* 4.9:1 on the kit accent; the library dark warning is 3.8:1 there. */
+  --color-warning: oklch(0.77 0.16 50);
+  --color-warning-foreground: oklch(0.085 0.013 277);
+  /* The prototype blue: the library dark info is 3.6:1 on the kit card. */
+  --color-info: #8fa8ff;
+  --color-info-foreground: #1f2028;
+  --color-status-offline: oklch(0.7 0.014 256);
   --color-border: #3a3d4a;
   --color-input: #3a3d4a;
   --color-ring: #f5a623;

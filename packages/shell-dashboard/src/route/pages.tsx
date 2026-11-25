@@ -1,4 +1,4 @@
-import { EmptyState } from '@agentage/design-system/empty-state';
+import { EmptyState } from '@agentage/components/empty-state';
 import { CircleSlash, PanelLeft } from 'lucide-react';
 export { NoExtensions } from '../frame/no-extensions.js';
 

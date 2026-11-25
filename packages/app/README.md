@@ -2,7 +2,7 @@
 
 This workspace (`packages/app`, private) is published only inside the kit: the kit build copies its
 `dist` and `theme.css` to `dist/vendor/app` (`scripts/inline-app.mjs`). React 19 is an optional
-peer of the kit. `Split` imports `@agentage/design-system` (^0.20.1): an app that renders it outside
+peer of the kit. `Split` imports `@agentage/components` (^0.21.0): an app that renders it outside
 the shell (tests) installs it; the shell's copy is in `vendor/app.js`. The kit lists it as an
 optional peer (`^0.20`).
 
@@ -21,7 +21,7 @@ The shell serves one copy of React and of this package through an import map: an
 | `useAppHost()`            | `{ id, extension: { id, version }, host: { kind, url }, user, scopes, api(path, init?) }` (C7; `kind` is `local`, `desktop` or `cloud`); `api('/echo')` calls `/api/{id}/echo` and returns the envelope `data`       |
 | `useAppState(key, init)`  | `[value, set]`, kept by the shell per app and key: a remount (a new build, an update) keeps it; every reader of a key sees one value                                                                                 |
 | `<Region name>`           | renders its children into a frame region (`lead`, `actions`, `aside`, `notices`, `bottom`, `side`) as a React portal, inside an error boundary                                                                       |
-| `<Split id init min max>` | two panes on the design-system `ResizableSplit` (px; arrows 16 px, Shift 64 px, Home, End, drag; `orientation`, `collapsible` with `useSplit().toggle()`); the size holds across a reload with no layout shift       |
+| `<Split id init min max>` | two panes on the components `ResizableSplit` (px; arrows 16 px, Shift 64 px, Home, End, drag; `orientation`, `collapsible` with `useSplit().toggle()`); the size holds across a reload with no layout shift          |
 | `AppBoundary`             | the error boundary the shell puts around each app root and `Region`                                                                                                                                                  |
 | `AppApiError`             | what `api` throws: `code` (the envelope code, `FORBIDDEN` for a refused path, else `HTTP_<status>`), `status`                                                                                                        |
 
@@ -38,16 +38,16 @@ Keys of `openAside`: `inspect`, `details`, `inbox` (the shell puts the key in th
 - Limit: an app runs in the same JavaScript realm as the shell. A raw `fetch` with no header is not
   stopped on the machine; `extension check` warns on `fetch(` in `src/app`.
 - A `Split` is stored in `localStorage` key `ag.split.{app}.{id}` (and `.collapsed`); the CSS
-  variables are the design-system ones (`splitVar`). The shell runs `SPLIT_PREPAINT` in the page
+  variables are the components ones (`splitVar`). The shell runs `SPLIT_PREPAINT` in the page
   head: it registers every key by that pattern, so the first paint is final.
 - The shell owns the look of `.split`, `.sep` and `.card-err`; the app ships no layout CSS.
 - Below 760 px a `Split` shows one pane; `pane` (0 or 1) picks it and the app gives the back button.
-- There is no `base.css`: a plain `<input>` has no border. Use the design-system `Input` (or give it a class).
+- There is no `base.css`: a plain `<input>` has no border. Use the components `Input` (or give it a class).
 
 ## Theme
 
 `@agentage/extension/app/theme.css` is one Tailwind v4 `@theme` block: the shell palette (the
-prototype hex values, `packages/shell-dashboard/e2e/prototype/index.html`) under the design-system token names. The shell and the app
+prototype hex values, `packages/shell-dashboard/e2e/prototype/index.html`) under the components token names. The shell and the app
 build import it, so an app utility such as `bg-card` or `text-primary` matches the frame.
 
 ## Tests

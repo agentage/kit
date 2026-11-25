@@ -53,31 +53,29 @@ const esbuildOptions = (dir: string, entry: string): Esbuild.BuildOptions => ({
   outfile: join(dir, APP_DIR, 'app.js'),
 });
 
-const DS = /(^|\/)node_modules\/@agentage\/design-system\//;
+const LIB = /(^|\/)node_modules\/@agentage\/components\//;
 
-// The design-system files the app bundles: their classes are scanned too, or a DS Button has no style.
-export const dsSources = (dir: string, metafile?: Esbuild.Metafile): string[] =>
+// The components files the app bundles: their classes are scanned too, or a Button has no style.
+export const libSources = (dir: string, metafile?: Esbuild.Metafile): string[] =>
   Object.keys(metafile?.inputs ?? {})
-    .filter((file) => DS.test(file))
+    .filter((file) => LIB.test(file))
     .map((file) => resolve(dir, file));
 
-// The @theme blocks of the design-system tokens (the file also has :root rules), as reference only.
-const dsTheme = async (dir: string): Promise<string[]> => {
-  const file = resolveFrom(dir, '@agentage/design-system/styles/tokens.css');
-  if (!file) return [];
-  const blocks = (await readFile(file, 'utf8')).match(/@theme\s*\{[^{}]*\}/g) ?? [];
-  return blocks.map((b) => b.replace(/^@theme/, '@theme reference'));
+// The components tokens as reference: names, @utility and keyframes; the shell gives the values.
+const libTokens = (dir: string): string[] => {
+  const file = resolveFrom(dir, '@agentage/components/styles/tokens.css');
+  return file ? [`@import "${file}" reference;`] : [];
 };
 
 // Utilities only, no preflight and no theme variables: the shell owns both.
 // Token names only (reference): utilities like bg-primary exist; the shell gives the values.
-const cssInput = async (dir: string, extra: string[]): Promise<string> => {
+const cssInput = (dir: string, extra: string[]): string => {
   const tw = packageDir(dir, 'tailwindcss');
   const tokens = resolveFrom(dir, '@agentage/extension/app/theme.css');
   return [
     '@layer theme, utilities;',
     `@import "${join(tw, 'theme.css')}" layer(theme) theme(reference inline);`,
-    ...(await dsTheme(dir)),
+    ...libTokens(dir),
     ...(tokens ? [`@import "${tokens}" layer(theme) theme(reference);`] : []),
     `@import "${join(tw, 'utilities.css')}" layer(utilities) source(none);`,
     `@source "${join(dir, 'src', 'app')}";`,
@@ -94,7 +92,7 @@ const compileCss = async (dir: string, extra: string[]): Promise<string> => {
   const tailwind = await loadFrom<(o: object) => unknown>(dir, '@tailwindcss/postcss');
   const plugin = tailwind({ base: dir, optimize: { minify: true } });
   const from = join(dir, 'src', 'app', 'app.css');
-  return (await postcss([plugin]).process(await cssInput(dir, extra), { from })).css;
+  return (await postcss([plugin]).process(cssInput(dir, extra), { from })).css;
 };
 
 const hashed = (code: Uint8Array | string, ext: string) =>
@@ -140,7 +138,7 @@ export const appBuilder = async (at: string): Promise<AppBuilder> => {
   const rebuild = async () => {
     const result = await ctx.rebuild();
     const code = result.outputFiles?.[0]?.contents ?? new Uint8Array();
-    return writeApp(dir, code, await compileCss(dir, dsSources(dir, result.metafile)));
+    return writeApp(dir, code, await compileCss(dir, libSources(dir, result.metafile)));
   };
   return { rebuild, dispose: () => ctx.dispose() };
 };

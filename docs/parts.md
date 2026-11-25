@@ -89,7 +89,7 @@ The app part is one root component in `src/app/index.tsx`, its default export. I
   - Styles: classes from the compiled `dist/app` stylesheet, or the React `style` prop. An injected `<style>` element, and a `style` attribute in an HTML string, are refused.
   - No `eval` and no `new Function`.
   - A refusal is a "Content Security Policy" error in the browser console and a `securitypolicyviolation` event on the page.
-- `check` refuses an app part whose package.json does not declare `@agentage/design-system` `^0.20` (the kit app code imports it); `@agentage/extension` lists it as an optional peer.
+- `check` refuses an app part whose package.json does not declare `@agentage/components` `^0.21` (the kit app code imports it); `@agentage/extension` lists it as an optional peer. An app part that declares only `@agentage/design-system` is refused with the advice to switch. Both together give a warning: kit 0.22 and older still import the old library.
 
 The manifest is the `agentage` block of the extension's `package.json`. See
 [the probe extension](https://github.com/agentage/examples) for every part kind.

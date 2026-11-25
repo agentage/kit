@@ -86,7 +86,7 @@
     "zod": "^4.2.0"
   },
   "peerDependencies": {
-    "@agentage/design-system": "^0.20",
+    "@agentage/components": "^0.21",
     "@electric-sql/pglite": "^0.5.0",
     "@tailwindcss/postcss": "^4.3.0",
     "esbuild": ">=0.25.0",
@@ -97,7 +97,7 @@
     "tailwindcss": "^4.3.0"
   },
   "peerDependenciesMeta": {
-    "@agentage/design-system": {
+    "@agentage/components": {
       "optional": true
     },
     "@electric-sql/pglite": {

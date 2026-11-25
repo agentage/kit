@@ -1,6 +1,6 @@
 // Builds dist/: index.html, shell.js, shell.css, vendor/* (one React for shell and apps).
 // The daemon serves dist/index.html at / and dist/* at /shell/*: SHELL_URL is that one mapping.
-import { mkdir, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promises';
 import { createRequire } from 'node:module';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -27,17 +27,6 @@ export const SHELL_URL = '/shell/';
 // `/shell/vendor/react.js` -> `vendor/react.js` in dist/; null for any other path.
 export const shellFileOf = (path) =>
   path.startsWith(SHELL_URL) ? path.slice(SHELL_URL.length) : null;
-
-const DS_USED = [
-  'button',
-  'command',
-  'dropdown-menu',
-  'empty-state',
-  'icon-button',
-  'kbd',
-  'resizable',
-  'toast',
-];
 
 const base = {
   bundle: true,
@@ -75,20 +64,40 @@ const buildVendor = async (out, tmp) => {
   });
 };
 
-const dsSources = () => {
-  const dir = dirname(
-    fileURLToPath(
-      import.meta.resolve('@agentage/design-system/kbd', pathToFileURL(pkgDir + '/').href)
-    )
+const LIB_IMPORT = /'@agentage\/components\/([a-z-]+)'/g;
+const RELATIVE = /(?:from|import)\s*\(?\s*["'](\.{1,2}\/[^"']+\.js)["']/g;
+
+// The components subpaths the shell and the app kit import (the kit's Split is in the vendor bundle).
+const libUsed = async () => {
+  const names = new Set();
+  for (const dir of [join(pkgDir, 'src'), join(pkgDir, '../app/src')])
+    for (const file of await readdir(dir, { recursive: true }))
+      if (/\.tsx?$/.test(file) && !/\.test\./.test(file))
+        for (const [, name] of (await readFile(join(dir, file), 'utf8')).matchAll(LIB_IMPORT))
+          names.add(name);
+  return [...names];
+};
+
+// Each used module and every library file it imports: a class in any of them must be generated.
+const libSources = async () => {
+  const base = pathToFileURL(pkgDir + '/').href;
+  const queue = (await libUsed()).map((n) =>
+    fileURLToPath(import.meta.resolve(`@agentage/components/${n}`, base))
   );
-  return DS_USED.map(
-    (f) => `@source "${join(dir, `${f}*.js`)}";\n@source "${join(dir, 'menu*.js')}";`
-  ).join('\n');
+  const seen = new Set();
+  while (queue.length > 0) {
+    const file = queue.pop();
+    if (seen.has(file)) continue;
+    seen.add(file);
+    for (const [, rel] of (await readFile(file, 'utf8')).matchAll(RELATIVE))
+      queue.push(join(dirname(file), rel));
+  }
+  return [...seen].map((file) => `@source "${file}";`).join('\n');
 };
 
 export const buildCss = async (out) => {
   const from = join(pkgDir, 'src/styles/shell.css');
-  const source = `${await readFile(from, 'utf8')}\n${dsSources()}\n`;
+  const source = `${await readFile(from, 'utf8')}\n${await libSources()}\n`;
   const res = await postcss([tailwind({ base: pkgDir, optimize: { minify: true } })]).process(
     source,
     { from }

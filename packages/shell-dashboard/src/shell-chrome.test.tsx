@@ -50,13 +50,14 @@ describe('shell chrome', () => {
     expect(inbox()?.querySelector('.nitem.read')).not.toBeNull();
   });
 
-  it('toast colours come from the design-system variants by kind', async () => {
+  it('toast colours come from the components variants by kind', async () => {
     await shell.start('/probe');
     await shell.click('Notify');
     await shell.click('Fail');
-    const [info, error] = toasts();
-    expect(info?.className).toContain('bg-info/10');
-    expect(error?.className).toContain('bg-destructive/10');
+    // Error toasts are their own group, above the others.
+    const [error, info] = toasts();
+    expect(info?.className).toContain('border-info/50');
+    expect(error?.className).toContain('border-destructive/50');
     expect(error?.getAttribute('role')).toBe('alert');
   });
 
@@ -87,7 +88,7 @@ describe('shell chrome', () => {
     expect(shell.el().querySelector<HTMLElement>('[data-region="bottom"]')!.hidden).toBe(true);
   });
 
-  it('with no extension main is the design-system empty state', async () => {
+  it('with no extension main is the components empty state', async () => {
     shell.host.state.doc = { ...shell.host.state.doc, extensions: [] };
     await shell.start('/');
     expect(shell.el().querySelector('[data-page="empty"]')?.textContent).toContain('No extensions');

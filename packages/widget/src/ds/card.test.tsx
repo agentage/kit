@@ -11,7 +11,7 @@ const render = async (node: React.ReactNode) => {
 };
 
 describe('ds', () => {
-  it('renders a design-system Card with a title header and content', async () => {
+  it('renders a components Card with a title header and content', async () => {
     const container = await render(
       <Card title="probe" className="w-80">
         <Button>ping</Button>

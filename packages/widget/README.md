@@ -39,7 +39,7 @@ export function Echo() {
 export const widgets = { echo: Echo };
 ```
 
-Since 0.5.0 a widget calls a tool of its own id in the form `{id}_{name}` or the old `{id}__{name}`.
+Since 0.6.0 a widget calls a tool of its own id in the form `{id}_{name}` or the old `{id}__{name}`.
 A tool of another id is refused with `FOREIGN_TOOL`.
 
 ```bash

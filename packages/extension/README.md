@@ -31,7 +31,7 @@ export function create(ctx: McpContext) {
 }
 ```
 
-Since 0.23.0 the kit names each tool `{id}_{name}`, with one underscore. Its schemas still accept
+Since 0.24.0 the kit names each tool `{id}_{name}`, with one underscore. Its schemas still accept
 the old `{id}__{name}` for now, and refuse a tool of another id.
 
 Start a new extension with `npx @agentage/cli extension create my-ext`: it pins this kit for you.

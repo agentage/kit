@@ -80,7 +80,7 @@ describe('bundle on the fixture extension', () => {
     window.document.body.append(el);
     (await vi.waitFor(() => shown(el, 'button'))).click();
     await vi.waitFor(() => expect(shown(el, 'p').textContent).toBe('pong hi'));
-    expect(tool).toHaveBeenCalledWith('probe__echo', { msg: 'hi' });
+    expect(tool).toHaveBeenCalledWith('probe_echo', { msg: 'hi' });
     expect(el.shadowRoot?.adoptedStyleSheets).toHaveLength(1);
     expect(window.document.head.innerHTML).toBe('');
   });

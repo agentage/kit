@@ -60,9 +60,9 @@ describe('createLogger', () => {
 
   it('mcp, job, span and event rows, each with its level rule; no deferred fields', async () => {
     const { log, lines } = capture();
-    log.mcp({ tool: 'probe__echo', ms: 9 });
-    log.mcp({ tool: 'probe__find', ms: 6000 });
-    log.mcp({ tool: 'probe__crash', ms: 2, error: new RangeError('x') });
+    log.mcp({ tool: 'probe_echo', ms: 9 });
+    log.mcp({ tool: 'probe_find', ms: 6000 });
+    log.mcp({ tool: 'probe_crash', ms: 2, error: new RangeError('x') });
     log.job({ name: 'retention', runId: 'r1', ms: 310 });
     log.job({ name: 'retention', runId: 'r2', ms: 5, error: new Error('x') });
     await log.span('store.query', () => 1);
@@ -82,7 +82,7 @@ describe('createLogger', () => {
     ]);
     expect(lines[0]?.['fields']).toEqual({
       'mcp.method.name': 'tools/call',
-      'gen_ai.tool.name': 'probe__echo',
+      'gen_ai.tool.name': 'probe_echo',
       'agentage.duration_ms': 9,
     });
     expect(lines[2]?.['fields']).toMatchObject({ 'error.type': 'RangeError' });

@@ -28,7 +28,7 @@ afterEach(async () => {
 
 const start = (settings?: string) =>
   startPart(dir, 'mcp', { ...authEnv(issuer, dir), AGENTAGE_SETTINGS: settings });
-const CALL = { name: 'probe__echo', arguments: { msg: 'hi' } };
+const CALL = { name: 'probe_echo', arguments: { msg: 'hi' } };
 const message = (id: number, method: string, params: object) => ({
   jsonrpc: '2.0',
   id,
@@ -85,7 +85,7 @@ describe('an mcp part checks tokens (C5, C7)', () => {
   it('a bad argument is a failed tool with the REST error shape', async () => {
     const url = await start();
     const read = await issuer.bearer({ scope: 'probe:read' });
-    const bad = await rpc(url, 'tools/call', { name: 'probe__echo', arguments: { msg: 5 } }, read);
+    const bad = await rpc(url, 'tools/call', { name: 'probe_echo', arguments: { msg: 5 } }, read);
     expect(bad.res.status).toBe(200);
     expect(bad.body['result']).toEqual({
       isError: true,
@@ -105,7 +105,7 @@ describe('an mcp part checks tokens (C5, C7)', () => {
     expect((await rpc(url, 'tools/list', {})).res.status).toBe(401);
     const read = await issuer.bearer({ scope: 'probe:read' });
     const listed = await rpc(url, 'tools/list', {}, read);
-    expect(listed.body['result']?.['tools']).toMatchObject([{ name: 'probe__echo' }]);
+    expect(listed.body['result']?.['tools']).toMatchObject([{ name: 'probe_echo' }]);
   });
 
   it('no key and the issuer down: tools/call is 503 with Retry-After 5', async () => {

@@ -74,10 +74,16 @@ export const FULL_SHA = /^[0-9a-f]{40}$/;
 
 export const CommitSchema = z.string().regex(FULL_SHA, { message: 'full 40-hex git sha' });
 
+// {id}_{name} or the old {id}__{name}: an id has no _ and a name starts with a letter.
+const OWN_TOOL_REST = /^__?[a-z][a-z0-9_-]*$/;
+
 export const PrefixedToolNameSchema = z
   .string()
   .max(64)
-  .regex(/^[a-z][a-z0-9-]*__[a-z][a-z0-9_-]*$/);
+  .regex(/^[a-z][a-z0-9-]*__?[a-z][a-z0-9_-]*$/);
+
+export const ownsTool = (id: string, name: string): boolean =>
+  name.startsWith(id) && OWN_TOOL_REST.test(name.slice(id.length));
 
 export const IMAGE_PART_KINDS = ['pages', 'ui', 'api', 'mcp', 'worker'] as const;
 

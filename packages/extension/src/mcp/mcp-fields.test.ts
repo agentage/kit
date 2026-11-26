@@ -70,13 +70,13 @@ const toolNamed = async (url: string, name: string) =>
 
 describe('mcp tool fields (G7)', () => {
   it('lists title and annotations as the production snapshot has them, no SDK defaults', async () => {
-    const write = await toolNamed(await start(), 'memory__write');
+    const write = await toolNamed(await start(), 'memory_write');
     expect(write?.['title']).toBe(WRITE_TITLE);
     expect(write?.['annotations']).toEqual(WRITE_ANNOTATIONS);
   });
 
   it('lists a tool that sets neither field with no title, no annotations', async () => {
-    const plain = await toolNamed(await start(), 'memory__plain');
+    const plain = await toolNamed(await start(), 'memory_plain');
     expect(Object.keys(plain ?? {}).sort()).toEqual([
       'description',
       'inputSchema',
@@ -87,8 +87,8 @@ describe('mcp tool fields (G7)', () => {
 
   it('a tool with no output lists no outputSchema and answers text only', async () => {
     const url = await start();
-    expect((await toolNamed(url, 'memory__text'))?.['outputSchema']).toBeUndefined();
-    expect(await callTool(url, 'memory__text', {})).toBeUndefined();
+    expect((await toolNamed(url, 'memory_text'))?.['outputSchema']).toBeUndefined();
+    expect(await callTool(url, 'memory_text', {})).toBeUndefined();
   });
 });
 
@@ -102,14 +102,14 @@ describe('the caller in the tool handler', () => {
         jsonrpc: '2.0',
         id: 2,
         method: 'tools/call',
-        params: { name: 'memory__write', arguments: {} },
+        params: { name: 'memory_write', arguments: {} },
       }),
     });
     expect((await dataOf(res)).result['structuredContent']).toEqual({ sub: 'u_alice' });
   });
 
   it('is null with no token check (a daemon child)', async () => {
-    expect(await callTool(await start(), 'memory__write', {})).toEqual({ sub: null });
+    expect(await callTool(await start(), 'memory_write', {})).toEqual({ sub: null });
   });
 });
 
@@ -140,7 +140,7 @@ describe('the 2026-07-28 era', () => {
   it('a tools/call handler gets the caller; server/discover gets the per-caller instructions', async () => {
     const per = (caller: Caller | null) => `vaults of ${caller?.sub ?? 'nobody'}`;
     const url = await start(per, byBearer);
-    const call = await modern(url, 'tools/call', { name: 'memory__write', arguments: {} }, 'u_eve');
+    const call = await modern(url, 'tools/call', { name: 'memory_write', arguments: {} }, 'u_eve');
     expect(call['structuredContent']).toEqual({ sub: 'u_eve' });
     const found = await modern(url, 'server/discover', {}, 'u_eve');
     expect(JSON.stringify(found)).toContain('vaults of u_eve');
@@ -149,8 +149,8 @@ describe('the 2026-07-28 era', () => {
 
 describe('server instructions', () => {
   it('a text goes to initialize as it is', async () => {
-    expect(await initialize(await start('Use memory__write to save.'))).toBe(
-      'Use memory__write to save.'
+    expect(await initialize(await start('Use memory_write to save.'))).toBe(
+      'Use memory_write to save.'
     );
   });
 
@@ -164,8 +164,8 @@ describe('server instructions', () => {
   it('a function runs only for the opening message, never for tools/list or tools/call', async () => {
     let runs = 0;
     const url = await start((caller) => `run ${++runs} for ${caller?.sub ?? 'nobody'}`, byBearer);
-    expect(await callTool(url, 'memory__write', {})).toEqual({ sub: null });
-    expect(await callTool(url, 'memory__plain', {})).toEqual({ sub: null });
+    expect(await callTool(url, 'memory_write', {})).toEqual({ sub: null });
+    expect(await callTool(url, 'memory_plain', {})).toEqual({ sub: null });
     const list = JSON.stringify({ jsonrpc: '2.0', id: 4, method: 'tools/list' });
     expect((await fetch(url, { method: 'POST', headers: HEADERS, body: list })).status).toBe(200);
     expect(runs).toBe(0);
@@ -176,7 +176,7 @@ describe('server instructions', () => {
     const url = await start(() => {
       throw new Error('store down');
     }, byBearer);
-    expect(await callTool(url, 'memory__write', {})).toEqual({ sub: null });
+    expect(await callTool(url, 'memory_write', {})).toEqual({ sub: null });
     expect(await initialize(url, 'u_bob')).toBeUndefined();
   });
 

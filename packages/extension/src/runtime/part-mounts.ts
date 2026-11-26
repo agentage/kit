@@ -72,7 +72,7 @@ const mcp = async (input: RunnerInput): Promise<PartMount> => {
   const paths = input.mcpPaths;
   const options = { ...input.base, tools: registered, listing, paths, ...served };
   const mount = (app: Express) => mountWithConnector(app, options, registry.connectors);
-  // Connector tools stay out of the record: the record lists the {id}__{name} tools only.
+  // Connector tools stay out of the record: the record lists the {id}_{name} tools only.
   const tools = toolRecords(input.pkg.agentage.id, registry.tools);
   return { mount, record: tools.length ? { tools } : {} };
 };

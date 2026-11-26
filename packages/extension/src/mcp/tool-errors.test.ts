@@ -36,7 +36,7 @@ const call = async (name: string, args: object = {}) => {
       jsonrpc: '2.0',
       id: 4,
       method: 'tools/call',
-      params: { name: `memory__${name}`, arguments: args },
+      params: { name: `memory_${name}`, arguments: args },
     }),
   });
   const text = await res.text();

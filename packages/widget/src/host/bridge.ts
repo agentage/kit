@@ -21,8 +21,13 @@ export interface BridgeOptions {
   fetch?: FetchLike;
 }
 
-const foreign = (id: string) =>
-  hostError('FOREIGN_TOOL', `a ${id} widget calls only ${id}__ tools`);
+const foreign = (id: string) => hostError('FOREIGN_TOOL', `a ${id} widget calls only ${id}_ tools`);
+
+// The kit rule ownsTool, copied: the widget does not depend on the kit.
+const OWN_TOOL_REST = /^__?[a-z][a-z0-9_-]*$/;
+
+const ownsTool = (id: string, name: string): boolean =>
+  name.startsWith(id) && OWN_TOOL_REST.test(name.slice(id.length));
 
 const anonymous: TokenSource = () => Promise.resolve(undefined);
 
@@ -46,7 +51,7 @@ export const createBridge = (options: BridgeOptions): Host => {
   return {
     // The cast is the typed view an extension declares through ToolOutputs.
     tool: <N extends string>(name: N, args: Record<string, unknown> = {}) =>
-      (name.startsWith(`${options.id}__`)
+      (ownsTool(options.id, name)
         ? callTool(tool, name, args)
         : Promise.reject(foreign(options.id))) as Promise<ToolOutput<N>>,
     api: (path, init) => callApi(api, path, init),

@@ -79,7 +79,7 @@ const call = async (
 describe('mcp part', () => {
   it('answers tools/call with text and structured content', async () => {
     const { server: s } = await start();
-    const result = await call(s, 'probe__echo', { msg: 'hi' });
+    const result = await call(s, 'probe_echo', { msg: 'hi' });
     expect(result['structuredContent']).toEqual({ msg: 'pong hi' });
     expect(result['content']).toEqual([{ type: 'text', text: '{"msg":"pong hi"}' }]);
     expect(result['isError']).toBeUndefined();
@@ -87,7 +87,7 @@ describe('mcp part', () => {
 
   it('a failing tool is isError with the REST error code; a crash is a generic INTERNAL', async () => {
     const { server: s, ctx } = await start();
-    const refused = await call(s, 'probe__refuse', {});
+    const refused = await call(s, 'probe_refuse', {});
     expect(refused['isError']).toBe(true);
     const error = {
       code: 'FORBIDDEN',
@@ -96,7 +96,7 @@ describe('mcp part', () => {
     };
     expect(refused['structuredContent']).toEqual({ error });
     expect(refused['content']).toEqual([{ type: 'text', text: 'not for you' }]);
-    const crashed = await call(s, 'probe__crash', {}, '0ddd251eb290efb0df7f43b54c8a463b');
+    const crashed = await call(s, 'probe_crash', {}, '0ddd251eb290efb0df7f43b54c8a463b');
     expect(crashed['structuredContent']).toEqual({
       error: {
         code: 'INTERNAL',
@@ -117,7 +117,7 @@ describe('mcp part', () => {
         agcid: '8f095a1766c7b42b7c7d9b001e03eb7e',
       };
       expect(
-        await call(s, 'probe__echo', args, '8f095a1766c7b42b7c7d9b001e03eb7e'),
+        await call(s, 'probe_echo', args, '8f095a1766c7b42b7c7d9b001e03eb7e'),
         JSON.stringify(args).slice(0, 20)
       ).toEqual({
         isError: true,
@@ -153,7 +153,7 @@ describe('mcp part', () => {
       jsonrpc: '2.0',
       id: 1,
       method: 'tools/call',
-      params: { name: 'probe__refuse', arguments: {} },
+      params: { name: 'probe_refuse', arguments: {} },
     };
     const res = await handler.fetch(
       new Request('http://mcp/mcp', {

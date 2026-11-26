@@ -8,7 +8,7 @@ beforeAll(async () => {
 });
 afterAll(() => server.close());
 
-describe('template__echo', () => {
+describe('template_echo', () => {
   it('declares scope read', () => {
     const ctx = createTestContext();
     create(ctx);

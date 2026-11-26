@@ -506,9 +506,12 @@ jobs:
         working-directory: template
         run: npm run verify
 
+      # On the candidate, the kit's own check: the cli bundles the released kit and its rules.
       - name: Conformance (the kit's six rules; the store rule uses the runner's docker)
         working-directory: template
-        run: node_modules/.bin/agentage extension check
+        run: |
+          if [ "$CANDIDATE" = true ]; then node "$GITHUB_WORKSPACE/scripts/check-candidate.mjs"
+          else node_modules/.bin/agentage extension check; fi
 
   template-local:
     name: Template up and the e2e gate on local

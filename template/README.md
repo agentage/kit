@@ -45,7 +45,7 @@ npx agentage extension down     # removes the containers, the network and the vo
 - `GET /api/template/echo?msg=hi` with a token answers 200; without `msg`, 400.
 - `GET /api/template/ping` is public and answers 200 with `pong`.
 - A protected route without a token answers 401.
-- The MCP tool `template__echo` is at `POST /mcp`, with the same token.
+- The MCP tool `template_echo` is at `POST /mcp`, with the same token.
 
 `openapi.json` lists the routes and `template.mcpc.json` lists the tools. More:
 [answers](docs/run-locally.md#answers) and [health and logs](docs/run-locally.md#health-and-logs).
@@ -55,7 +55,7 @@ npx agentage extension down     # removes the containers, the network and the vo
 - pages, `src/pages`: `/` shows the id, the version and the commit.
 - ui, `src/ui`: the widget `<template-echo>`.
 - api, `src/api`: `GET /api/template/echo` (scope `template:read`) and `GET /api/template/ping` (public).
-- mcp, `src/mcp`: the tool `template__echo` (scope `template:read`).
+- mcp, `src/mcp`: the tool `template_echo` (scope `template:read`).
 - worker, `src/worker`: the job `tick`, every minute.
 - store, `migrations/` and `seeds/`: postgres. A seed runs once, on an empty store.
 - cli, `src/cli`: `agentage ping [msg]` prints `pong`.

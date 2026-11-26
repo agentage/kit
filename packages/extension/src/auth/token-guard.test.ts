@@ -131,8 +131,8 @@ describe('token check on mcp tools', () => {
   it('each tools/call asks for its tool scope, read when it declares none', async () => {
     const { asked, check } = recorder();
     const s = await mcp(check);
-    expect((await rpc(s, 'tools/call', { name: 'probe__wipe', arguments: {} })).status).toBe(200);
-    await rpc(s, 'tools/call', { name: 'probe__echo', arguments: {} });
+    expect((await rpc(s, 'tools/call', { name: 'probe_wipe', arguments: {} })).status).toBe(200);
+    await rpc(s, 'tools/call', { name: 'probe_echo', arguments: {} });
     await rpc(s, 'tools/list');
     expect(asked).toEqual([
       ['Bearer aga_x', 'admin'],
@@ -142,7 +142,7 @@ describe('token check on mcp tools', () => {
 
   it('a refused call is HTTP 403 or 503 with Retry-After, the envelope, never a tool result', async () => {
     const s = await mcp(recorder(() => fail('FORBIDDEN', 'insufficient_scope probe:admin')).check);
-    const res = await rpc(s, 'tools/call', { name: 'probe__wipe', arguments: {} });
+    const res = await rpc(s, 'tools/call', { name: 'probe_wipe', arguments: {} });
     expect(res.status).toBe(403);
     expect(await res.json()).toMatchObject({
       success: false,
@@ -150,7 +150,7 @@ describe('token check on mcp tools', () => {
     });
     await served?.close();
     const down = await mcp(recorder(() => fail('UNAVAILABLE', 'JWKS unreachable')).check);
-    const busy = await rpc(down, 'tools/call', { name: 'probe__echo', arguments: {} });
+    const busy = await rpc(down, 'tools/call', { name: 'probe_echo', arguments: {} });
     expect([busy.status, busy.headers.get('retry-after')]).toEqual([503, '30']);
     expect(await busy.json()).toMatchObject({ error: { code: 'UNAVAILABLE' } });
   });

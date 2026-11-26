@@ -60,7 +60,7 @@ The start steps are in [README.md](README.md#quick-start). After `create`:
   The scope is `read` (the default), `write`, `admin` or `public` (anonymous). `input` is read
   from the query on get and delete and from the body otherwise: use `z.coerce` for numbers.
   The handler returns the data; the kit answers `ok(...)`.
-- mcp: give each tool a `scope` beside its schemas. The kit names it `{id}__{name}`.
+- mcp: give each tool a `scope` beside its schemas. The kit names it `{id}_{name}`.
 - The api reads `ctx.extension.store`. Without a store, `/ping` does not query.
 - store: add a numbered file in `migrations/`. Never edit a migration that ran.
 - `openapi.json` and `template.mcpc.json` are committed contracts, generated from the routes and

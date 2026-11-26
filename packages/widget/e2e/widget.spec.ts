@@ -82,11 +82,11 @@ test('the harness speaks 2026-07-28 tools/call and keeps the token in the bridge
     authorization: 'Bearer aga_e2e',
     'mcp-protocol-version': '2026-07-28',
     'mcp-method': 'tools/call',
-    'mcp-name': 'probe__echo',
+    'mcp-name': 'probe_echo',
   });
   expect(call?.body).toMatchObject({
     method: 'tools/call',
-    params: { name: 'probe__echo', arguments: { msg: 'hi' } },
+    params: { name: 'probe_echo', arguments: { msg: 'hi' } },
   });
   await expect(page).not.toHaveURL(/token=/);
   const reach = await page.evaluate(widgetReach);

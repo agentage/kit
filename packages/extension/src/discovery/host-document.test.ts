@@ -47,16 +47,16 @@ describe('host document schema', () => {
     expect(bad({})).toBe(false);
     expect(bad({ parts: ['api', 'mcp'] })).toBe(true);
     expect(bad({ openapi: '/api/other/openapi.json' })).toBe(true);
-    expect(bad({ tools: [{ name: 'other__echo', scope: 'other:read' }] })).toBe(true);
+    expect(bad({ tools: [{ name: 'other_echo', scope: 'other:read' }] })).toBe(true);
     expect(bad({ state: 'gone' })).toBe(true);
     expect(bad({ expose: { app: 'internal' } })).toBe(true);
   });
 
   it('takes its tool rule from the discovery document; the build record keeps what it takes', async () => {
-    const tools = [{ name: 'other__x', scope: 'public' }];
+    const tools = [{ name: 'other_x', scope: 'public' }];
     const probe = { ...(await read('probe.json')), tools };
     expect(DiscoveryDocumentSchema.safeParse(probe).error?.issues[0]?.message).toBe(
-      'every tool is {id}__{name}'
+      'every tool is {id}_{name}'
     );
     const served = new Set(['host', 'serves', 'app']);
     const record = Object.fromEntries(Object.entries(probe).filter(([key]) => !served.has(key)));

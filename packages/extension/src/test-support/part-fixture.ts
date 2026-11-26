@@ -34,7 +34,7 @@ const RECORD = {
   commit: SHA,
   buildTime: '2026-11-06T09:00:00Z',
   parts: { api: image('api'), mcp: image('mcp') },
-  tools: [{ name: 'probe__echo', scope: 'probe:read' }],
+  tools: [{ name: 'probe_echo', scope: 'probe:read' }],
 };
 const FILES = {
   'package.json': json(MANIFEST),

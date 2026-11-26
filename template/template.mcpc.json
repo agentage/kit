@@ -18,7 +18,7 @@
         "required": ["msg"],
         "type": "object"
       },
-      "name": "template__echo",
+      "name": "template_echo",
       "outputSchema": {
         "$schema": "https://json-schema.org/draft/2020-12/schema",
         "additionalProperties": false,

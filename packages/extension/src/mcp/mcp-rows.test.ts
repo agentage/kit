@@ -50,14 +50,14 @@ describe('mcp rows', () => {
   it('a tools/call is one mcp row with who and outcome, and no http row', async () => {
     const { post, lines } = await start();
     for (const name of ['list', 'refuse', 'crash'])
-      await post('tools/call', { name: `probe__${name}`, arguments: {} });
+      await post('tools/call', { name: `probe_${name}`, arguments: {} });
     await settle();
     const rows = lines.filter((line) => line['kind'] === 'mcp');
     expect(lines.filter((line) => line['kind'] === 'http')).toEqual([]);
     expect(rows.map((r) => [r['gen_ai.tool.name'], r['level'], r['error.type']])).toEqual([
-      ['probe__list', 'info', undefined],
-      ['probe__refuse', 'info', undefined],
-      ['probe__crash', 'error', 'RangeError'],
+      ['probe_list', 'info', undefined],
+      ['probe_refuse', 'info', undefined],
+      ['probe_crash', 'error', 'RangeError'],
     ]);
     expect(rows[0]).toMatchObject({
       ...{ sub: 'usr_7f3a', session: 'tok_1', user_type: 'agent', client: 'claude-code' },
@@ -65,13 +65,13 @@ describe('mcp rows', () => {
     });
     const errors = lines.filter((line) => line['kind'] === 'error');
     expect(errors.map((e) => [e['msg'], e['agentage.where']])).toEqual([
-      ['RangeError: secret', 'probe__crash'],
+      ['RangeError: secret', 'probe_crash'],
     ]);
   });
 
   it('a tools/call to an unknown tool keeps its http row', async () => {
     const { post, lines } = await start();
-    await post('tools/call', { name: 'probe__nope', arguments: {} });
+    await post('tools/call', { name: 'probe_nope', arguments: {} });
     await settle();
     expect(lines.map((line) => [line['kind'], line['http.route']])).toEqual([['http', '/mcp']]);
   });

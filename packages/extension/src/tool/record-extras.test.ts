@@ -10,9 +10,9 @@ const BUILD = { commit: SHA, buildTime: '2026-11-05T10:00:00Z' };
 const WIDGETS = [{ name: 'echo', element: 'probe-echo', module: '/ui/0.1.0/probe.js' }];
 // C8: each tool with the scope tools/call needs, read when it declares none.
 const TOOLS = [
-  { name: 'probe__echo', scope: 'probe:read' },
-  { name: 'probe__count', scope: 'probe:write' },
-  { name: 'probe__time', scope: 'public' },
+  { name: 'probe_echo', scope: 'probe:read' },
+  { name: 'probe_count', scope: 'probe:write' },
+  { name: 'probe_time', scope: 'public' },
 ];
 
 const MCP = `import { z } from 'zod';

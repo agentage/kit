@@ -22,7 +22,7 @@ const META = {
 };
 const SCHEMA = 'https://json-schema.org/draft/2020-12/schema';
 const ECHO = {
-  name: 'probe__echo',
+  name: 'probe_echo',
   description: 'Echo',
   inputSchema: { $schema: SCHEMA, type: 'object', properties: {} },
   outputSchema: { $schema: SCHEMA, type: 'object', properties: {}, additionalProperties: false },
@@ -150,7 +150,7 @@ describe('a client that closes early', () => {
     const after: ErrorRequestHandler = (err, _req, _res, next) => (thrown.push(err), next());
     const mcp = createMcpApp({ pkg: PKG, build: BUILD, log, tools, listing: 'open' });
     served = await serveApp(mcp.use(after));
-    const params = { name: 'probe__big', arguments: {} };
+    const params = { name: 'probe_big', arguments: {} };
     const body = JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/call', params });
     const abort = new AbortController();
     const init = { method: 'POST', headers: HEADERS, body, signal: abort.signal };

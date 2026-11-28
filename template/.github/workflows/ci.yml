@@ -58,7 +58,7 @@ jobs:
           npm ci
           npx playwright install chromium
 
-      # the e2e repo is private (the org PAT_TOKEN reads it); Dependabot and fork runs get no secrets.
+      # The e2e repo is private (the org PAT_TOKEN reads it); Dependabot and fork runs get no secrets.
       - name: Checkout the e2e repo
         if: github.actor != 'dependabot[bot]' && github.event.pull_request.head.repo.fork != true
         uses: actions/checkout@v7

@@ -23,7 +23,7 @@
         "market": "https://core.next.agentage.io",
         "repo": "example/deploy",
         "appId": "1",
-        "appHostRepo": "example/app-host",
+        "apphosts": "example/app-host",
         "watch": "on"
       },
       "expose": { "api": "public", "mcp": "public" }

@@ -326,7 +326,7 @@ jobs:
           echo "branch=$branch" >> "$GITHUB_OUTPUT"
 
       # The same rule for the e2e repo: head, a non-default base, vars.E2E_REF, master.
-      - name: Pick the the e2e repo branch
+      - name: Pick the e2e repo branch
         id: e2e-ref
         if: github.actor != 'dependabot[bot]'
         env:
@@ -354,7 +354,7 @@ jobs:
       - name: Find the probe folder
         run: echo "PROBE_DIR=$(node platform/scripts/probe-dir.mjs "$PWD/probe")" >> "$GITHUB_ENV"
 
-      # the e2e repo is private; the org PAT_TOKEN reads it. Dependabot runs get no secrets.
+      # The e2e repo is private; the org PAT_TOKEN reads it. Dependabot runs get no secrets.
       - name: Checkout the e2e repo
         if: github.actor != 'dependabot[bot]'
         uses: actions/checkout@v7
@@ -557,7 +557,7 @@ jobs:
           fi
           npx playwright install chromium
 
-      # the e2e repo is private (the org PAT_TOKEN reads it); Dependabot and fork runs get no secrets.
+      # The e2e repo is private (the org PAT_TOKEN reads it); Dependabot and fork runs get no secrets.
       - name: Checkout the e2e repo
         if: env.SECRETS_OK == 'true'
         uses: actions/checkout@v7

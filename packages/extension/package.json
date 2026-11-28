@@ -1,6 +1,6 @@
 {
   "name": "@agentage/extension",
-  "version": "0.25.0",
+  "version": "0.25.1",
   "description": "The agentage extension kit: create(ctx) per part (pages, ui, api, mcp, worker, cli), the store, /health, discovery, the envelope, and the build tool with up and token",
   "type": "module",
   "license": "MIT",
@@ -87,7 +87,7 @@
   },
   "peerDependencies": {
     "@agentage/components": "^0.21",
-    "@electric-sql/pglite": "^0.5.0",
+    "@electric-sql/pglite": "^0.5.0 || ^0.6.0",
     "@tailwindcss/postcss": "^4.3.0",
     "esbuild": ">=0.25.0",
     "express": "^5.1.0",

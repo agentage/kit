@@ -1,9 +1,15 @@
+import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { DiscoveryDocumentSchema, toolsAreOwn } from '../discovery/discovery.schema.js';
 import { createToolRegistry, prefixed } from '../mcp/tools.js';
 import { ExtensionIdSchema, ownsTool, PrefixedToolNameSchema } from './primitives.schema.js';
 
 const name = (value: string) => PrefixedToolNameSchema.safeParse(value).success;
+
+const CASES_FILE = new URL('../../../../test-support/tool-name-cases.json', import.meta.url);
+const { cases } = JSON.parse(readFileSync(CASES_FILE, 'utf8')) as {
+  cases: { id: string; name: string; expected: boolean }[];
+};
 
 // The old two-underscore form, built so that no literal of it stays in the tests.
 const OLD_SEP = '_'.repeat(2);
@@ -39,6 +45,11 @@ describe('tool names: only {id}_{name}, the old form is refused', () => {
     expect(toolsAreOwn({ id: 'p', tools: [{ name: 'p_a' }, { name: 'p_b' }] })).toBe(true);
     expect(toolsAreOwn({ id: 'p', tools: [{ name: 'p_a' }, { name: old('p', 'b') }] })).toBe(false);
     expect(toolsAreOwn({ id: 'p', tools: [{ name: 'p_a' }, { name: 'q_b' }] })).toBe(false);
+  });
+
+  it('ownsTool agrees with the cases shared with the widget bridge', () => {
+    const got = cases.map((c) => ownsTool(c.id, c.name.replace('{old}', OLD_SEP)));
+    expect(got).toEqual(cases.map((c) => c.expected));
   });
 
   it('the split is unambiguous: an id holds no _, a tool name starts with a letter', () => {

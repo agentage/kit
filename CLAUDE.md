@@ -57,7 +57,7 @@ Read the file named here before you read `src/` (`src/` = `packages/extension/sr
 
 - Scopes: `extension, apphost, logs, widget, identity, shell, app, template, release, ci, docs, deps`; repo-level `ci`, `docs`, `chore`
   and `build` commits may go scopeless. Titles are conventional commits, 72 characters at most; CI
-  checks the PR title.
+  checks the PR title. Titles of the dependency bot are exempt from the length rule.
 - A release bump commit touches one package, or uses the `release` scope.
 
 ## Layout (`packages/extension/src`)

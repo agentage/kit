@@ -80,7 +80,7 @@
     "zod": "^4.2.0"
   },
   "devDependencies": {
-    "@agentage/cli": "^0.74.0",
+    "@agentage/cli": "^0.75.0",
     "@agentage/components": "0.21.0",
     "@agentage/widget": "^0.6.0",
     "@axe-core/playwright": "4.14.0",

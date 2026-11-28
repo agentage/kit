@@ -633,7 +633,7 @@ jobs:
         run: |
           set -euo pipefail
           mkdir "$RUNNER_TEMP/made" && cd "$RUNNER_TEMP/made"
-          npx -y @agentage/cli@0.75.0 extension create "$ID" $PARTS --from "$REPO#$REF:template" --yes --no-install
+          npx -y @agentage/cli@0.76.0 extension create "$ID" $PARTS --from "$REPO#$REF:template" --yes --no-install
 
       - name: Install, commit (build needs a clean git tree) and verify
         working-directory: ${{ runner.temp }}/made/extension-${{ matrix.id }}

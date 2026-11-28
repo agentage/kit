@@ -2,7 +2,7 @@
   "name": "@agentage/extension-cloud",
   "version": "0.3.0",
   "description": "Keeps the running setup equal to estate.yaml.",
-  "repository": "https://github.com/agentage/host-platform",
+  "repository": "https://github.com/agentage/examples",
   "license": "MIT",
   "type": "module",
   "engines": {

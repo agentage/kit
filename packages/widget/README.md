@@ -39,8 +39,8 @@ export function Echo() {
 export const widgets = { echo: Echo };
 ```
 
-Since 0.6.0 a widget calls a tool of its own id in the form `{id}_{name}` or the old `{id}__{name}`.
-A tool of another id is refused with `FOREIGN_TOOL`.
+A widget calls a tool of its own id in the form `{id}_{name}`. Since 0.7.0 the old two-underscore
+form is refused, like a tool of another id, with `FOREIGN_TOOL`.
 
 ```bash
 npx agentage-widget bundle   # writes dist/ui/{id}.js, widgets.json and the harness page

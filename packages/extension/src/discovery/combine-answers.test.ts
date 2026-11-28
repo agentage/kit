@@ -4,6 +4,7 @@ import { entryRefusal } from './combine-answers.js';
 import { combineHost } from './combine.js';
 import { type DiscoveryDocument } from './discovery.schema.js';
 
+const OLD_SEP = '_'.repeat(2);
 const TOOLS_ISSUE = 'tools: every tool is {id}_{name}';
 const poison = (doc: Record<string, unknown>) => ({
   ...doc,
@@ -23,19 +24,16 @@ describe('combineHost never throws on one bad answer', () => {
     expect(out.routes.map((r) => r.id)).toEqual(['fixture']);
   });
 
-  it('takes one answer in the new form and one in the old form: both run', async () => {
+  it('takes answers in the new form, and refuses one in the old form', async () => {
     const { probe, fixture, installation } = await setup();
     const tools = (name: string) => [{ name, scope: 'public' }];
     const answers = [
       at('probe', { ...probe, tools: tools('probe_echo') }),
-      at('fixture', { ...fixture, tools: tools('fixture__echo') }),
+      at('fixture', { ...fixture, tools: tools(`fixture${OLD_SEP}echo`) }),
     ];
     const out = combineHost({ kind: 'cloud', installation, answers });
-    expect(out.refused).toEqual([]);
-    expect([entry(out, 'probe')?.state, entry(out, 'fixture')?.state]).toEqual([
-      'running',
-      'running',
-    ]);
+    expect(out.refused.map((r) => r.upstream)).toEqual(['http://fixture:8080']);
+    expect([entry(out, 'probe')?.state, entry(out, 'fixture')?.state]).toEqual(['running', 'down']);
   });
 
   it('refuses every answer when all are poisoned: each entry is down, no route', async () => {

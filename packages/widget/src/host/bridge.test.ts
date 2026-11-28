@@ -5,18 +5,20 @@ import { WIDGET_VERSION } from './version.js';
 
 afterEach(() => vi.unstubAllGlobals());
 
+const OLD_SEP = '_'.repeat(2);
+
 describe('createBridge', () => {
   it('reaches only its own tools and numbers its requests', async () => {
     const { fetch, calls } = fakeFetch(toolAnswer({ structuredContent: {} }), toolAnswer({}));
     const host = createBridge({ id: 'probe', version: '0.2.0', fetch });
     await host.tool('probe_echo');
-    await host.tool('probe__echo', { msg: 'x' });
+    await host.tool('probe_echo', { msg: 'x' });
     await expect(host.tool('memory_search')).rejects.toMatchObject({
       code: 'FOREIGN_TOOL',
       message: 'a probe widget calls only probe_ tools',
     });
     await expect(host.tool('probex_echo')).rejects.toMatchObject({ code: 'FOREIGN_TOOL' });
-    for (const name of ['probex__echo', 'probe___echo', 'probe-x_echo'])
+    for (const name of [`probe${OLD_SEP}echo`, `probex${OLD_SEP}echo`, 'probe-x_echo'])
       await expect(host.tool(name), name).rejects.toMatchObject({ code: 'FOREIGN_TOOL' });
     const bodies = calls.map((call) => JSON.parse(String(call.init.body)));
     expect(bodies.map((body) => body.id)).toEqual([1, 2]);

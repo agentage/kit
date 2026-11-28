@@ -39,7 +39,7 @@ describe('migrateHost', () => {
       'package.json': json({
         name: 'x',
         version: '1.0.0',
-        engines: { agentage: '^0.24' },
+        engines: { agentage: '^0.25' },
         agentage: { id: 'x', parts },
       }),
     });

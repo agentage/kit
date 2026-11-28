@@ -1,0 +1,19 @@
+{
+  "note": "Cases of the tool name rule: the kit ownsTool and the widget bridge must agree. {old} stands for two underscores.",
+  "cases": [
+    { "id": "probe", "name": "probe_echo", "expected": true },
+    { "id": "a", "name": "a_list_all", "expected": true },
+    { "id": "a-b", "name": "a-b_x", "expected": true },
+    { "id": "probe", "name": "probex_echo", "expected": false },
+    { "id": "probe", "name": "probe{old}echo", "expected": false },
+    { "id": "probe", "name": "probex{old}echo", "expected": false },
+    { "id": "probe", "name": "probe-x_echo", "expected": false },
+    { "id": "probe", "name": "probe", "expected": false },
+    { "id": "probe", "name": "probe_", "expected": false },
+    { "id": "probe", "name": "probe_Echo", "expected": false },
+    { "id": "probe", "name": "probe_1x", "expected": false },
+    { "id": "probe", "name": "a_echo", "expected": false },
+    { "id": "probe", "name": "memory_search", "expected": false },
+    { "id": "a", "name": "a-b_x", "expected": false }
+  ]
+}

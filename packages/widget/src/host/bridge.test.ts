@@ -1,3 +1,4 @@
+import { readFileSync } from 'node:fs';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 import { fakeFetch, jsonResponse, toolAnswer } from '../test-support/fetch.js';
 import { createBridge } from './bridge.js';
@@ -7,7 +8,24 @@ afterEach(() => vi.unstubAllGlobals());
 
 const OLD_SEP = '_'.repeat(2);
 
+const CASES_FILE = new URL('../../../../test-support/tool-name-cases.json', import.meta.url);
+const { cases } = JSON.parse(readFileSync(CASES_FILE, 'utf8')) as {
+  cases: { id: string; name: string; expected: boolean }[];
+};
+
 describe('createBridge', () => {
+  it('owns the same tools as the kit rule, by the shared cases', async () => {
+    for (const { id, name, expected } of cases) {
+      const { fetch } = fakeFetch(toolAnswer({}));
+      const host = createBridge({ id, version: '0.2.0', fetch });
+      const foreign = await host.tool(name.replace('{old}', OLD_SEP)).then(
+        () => false,
+        (error: { code?: string }) => error.code === 'FOREIGN_TOOL'
+      );
+      expect(!foreign, `${id} ${name}`).toBe(expected);
+    }
+  });
+
   it('reaches only its own tools and numbers its requests', async () => {
     const { fetch, calls } = fakeFetch(toolAnswer({ structuredContent: {} }), toolAnswer({}));
     const host = createBridge({ id: 'probe', version: '0.2.0', fetch });

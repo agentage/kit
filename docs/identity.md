@@ -11,7 +11,9 @@ The short form is the [package README](../packages/identity/README.md).
   then ends the auth session.
 - `account()` is the signed-in account or `null`; `tokens()` lists the account's PATs.
 - `mintToken({ label, scopes, expiresInDays })` mints a PAT of that label, scopes and lifetime
-  (1-730 days) and resolves `{ id, token, expiresAt }`; the token is shown once.
+  (a personal token 365 days at most, default 90; an admin scope 24 hours at most; a service
+  subject 90 days at most; the identity service is the source of truth and refuses a longer one)
+  and resolves `{ id, token, expiresAt }`; the token is shown once.
   `revokeToken(id)` revokes one (`DELETE /account/pat/{id}`).
 
 Two options are for tests and embedders: `fetch` (a `fetch`-shaped function; the global `fetch` is

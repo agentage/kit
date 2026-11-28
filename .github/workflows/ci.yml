@@ -25,7 +25,10 @@ jobs:
       - name: Title is a conventional commit with a scope from CLAUDE.md
         env:
           TITLE: ${{ github.event.pull_request.title }}
+          AUTHOR: ${{ github.event.pull_request.user.login }}
         run: |
+          # Dependabot writes a long title for a group over many directories and cannot shorten it.
+          if [ "$AUTHOR" = "dependabot[bot]" ] && [[ $TITLE =~ ^chore\(deps\):\  ]]; then exit 0; fi
           scoped='^(feat|fix|refactor|test|chore|ci|docs|perf|build)\((extension|apphost|logs|widget|identity|shell|app|template|release|ci|docs|deps)\)!?: .{1,60}$'
           bare='^(ci|docs|chore|build): '
           if [ "${#TITLE}" -le 72 ] && { [[ $TITLE =~ $scoped ]] || [[ $TITLE =~ $bare ]]; }; then exit 0; fi

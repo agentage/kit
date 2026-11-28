@@ -45,7 +45,7 @@ const probeDir = (
     ...files,
     'package.json': json({
       ...manifest,
-      repository: 'git+https://github.com/agentage/extension-probe.git',
+      repository: 'git+https://github.com/agentage/examples.git',
     }),
     'package-lock.json': json({ lockfileVersion: 3 }),
     'dist/api/index.js': 'export const create = () => null;',
@@ -66,7 +66,7 @@ describe('build', () => {
       labels: {
         'org.opencontainers.image.revision': SHA,
         'org.opencontainers.image.created': '2026-11-03T20:00:00Z',
-        'org.opencontainers.image.source': 'https://github.com/agentage/extension-probe',
+        'org.opencontainers.image.source': 'https://github.com/agentage/examples',
       },
     });
     expect(f.pushes).toEqual([]);

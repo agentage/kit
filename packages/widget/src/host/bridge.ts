@@ -24,7 +24,7 @@ export interface BridgeOptions {
 const foreign = (id: string) => hostError('FOREIGN_TOOL', `a ${id} widget calls only ${id}_ tools`);
 
 // The kit rule ownsTool, copied: the widget does not depend on the kit.
-const OWN_TOOL_REST = /^__?[a-z][a-z0-9_-]*$/;
+const OWN_TOOL_REST = /^_[a-z][a-z0-9_-]*$/;
 
 const ownsTool = (id: string, name: string): boolean =>
   name.startsWith(id) && OWN_TOOL_REST.test(name.slice(id.length));

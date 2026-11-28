@@ -6,7 +6,7 @@ const BUILD = { commit: SHA, buildTime: '2026-11-03T20:00:00Z' };
 
 describe('image labels', () => {
   it('carry the full sha and build time, and the source from either repository form', () => {
-    const repo = { type: 'git', url: 'git+https://github.com/agentage/extension-probe.git' };
+    const repo = { type: 'git', url: 'git+https://github.com/agentage/examples.git' };
     const labels = labelsOf({ ...API_MANIFEST, repository: repo }, 'api', BUILD);
     const base = {
       'org.opencontainers.image.revision': SHA,
@@ -18,11 +18,11 @@ describe('image labels', () => {
     };
     expect(labels).toEqual({
       ...base,
-      'org.opencontainers.image.source': 'https://github.com/agentage/extension-probe',
+      'org.opencontainers.image.source': 'https://github.com/agentage/examples',
     });
-    const short = { ...API_MANIFEST, repository: 'https://github.com/agentage/extension-probe' };
+    const short = { ...API_MANIFEST, repository: 'https://github.com/agentage/examples' };
     expect(labelsOf(short, 'api', BUILD)['org.opencontainers.image.source']).toBe(
-      'https://github.com/agentage/extension-probe'
+      'https://github.com/agentage/examples'
     );
     expect(labelsOf(API_MANIFEST, 'api', BUILD)).toEqual(base);
   });

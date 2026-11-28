@@ -129,19 +129,16 @@ describe('hostDocumentOf: the host document from the discovery of each child (J.
     expect((await hostDocumentOf(entries, new Map())).extensions).toEqual([]);
   });
 
-  it('tools in the new {id}_ and the old {id}__ form are listed; a foreign tool is down', async () => {
+  it('tools in the {id}_ form are listed; a foreign tool and an old-form tool are down', async () => {
     const withTool = (id: string, name: string) =>
       child(200, JSON.stringify({ ...docOf(id), tools: [{ name, scope: 'public' }] }));
     const entries = entriesOf(
       entryOf('a', 'running', await withTool('a', 'a_echo')),
-      entryOf('b', 'running', await withTool('b', 'b__echo')),
+      entryOf('b', 'running', await withTool('b', `b${'_'.repeat(2)}echo`)),
       entryOf('c', 'running', await withTool('c', 'cc_echo'))
     );
     const doc = await hostDocumentOf(entries, new Map());
-    expect(doc.extensions.map((e) => [e.id, e.tools?.[0]?.name])).toEqual([
-      ['a', 'a_echo'],
-      ['b', 'b__echo'],
-    ]);
+    expect(doc.extensions.map((e) => [e.id, e.tools?.[0]?.name])).toEqual([['a', 'a_echo']]);
   });
 
   it('every row of an id: the pages row is in the document as it is in the routes', async () => {

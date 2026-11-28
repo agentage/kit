@@ -2,7 +2,7 @@
   "name": "@agentage/extension-memory",
   "version": "1.4.2",
   "description": "One markdown memory every AI reads and writes.",
-  "repository": "https://github.com/agentage/extension-memory",
+  "repository": "https://github.com/agentage/examples",
   "license": "MIT",
   "type": "module",
   "engines": {

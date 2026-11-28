@@ -143,7 +143,7 @@ const OPENAPI_RULE = { message: 'openapi is /api/{id}/openapi.json', path: ['ope
 const openapiIsOwn = ({ id, openapi }: { id: string; openapi?: string }) =>
   !openapi || openapi === `/api/${id}/openapi.json`;
 
-// A served tool is {id}_{name} (or the old {id}__{name}) of this id: the host names it so.
+// A served tool is {id}_{name} of this id: the host names it so.
 export const toolsAreOwn = ({ id, tools }: { id: string; tools?: { name: string }[] }) =>
   (tools ?? []).every((t) => ownsTool(id, t.name));
 

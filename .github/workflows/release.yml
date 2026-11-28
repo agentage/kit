@@ -267,6 +267,11 @@ jobs:
           if [ -n "$prev" ]; then range="${prev}..HEAD"; else range="-30"; fi
           notes=$(git log --oneline "$range" -- packages/apphost)
           # The publish job can create the same release first: "already exists" is fine.
-          gh release view "$tag" >/dev/null 2>&1 || gh release create "$tag" --target "$GITHUB_SHA" --title "$tag" --notes "${notes:-No changes under packages/apphost}" || gh release view "$tag" >/dev/null
+          for try in 1 2 3; do
+            gh release view "$tag" >/dev/null 2>&1 && break
+            gh release create "$tag" --target "$GITHUB_SHA" --title "$tag" --notes "${notes:-No changes under packages/apphost}" && break
+            [ "$try" = 3 ] || sleep $(( try == 1 ? 10 : 30 ))
+          done
+          gh release view "$tag" >/dev/null
           gh release upload "$tag" agentage-apphost.json
           echo "record on ${tag}: $(jq -r .image agentage-apphost.json)" >> "$GITHUB_STEP_SUMMARY"
